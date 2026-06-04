@@ -3,6 +3,10 @@
         android:label="vet_route"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+        
+        <meta-data android:name="com.google.android.geo.API_KEY"
+                   android:value="AIzaSyB7E4N1RhYJ4oh_n6FhlZ2Dbn-ua7IWH5k"/>
+        
         <activity
             android:name=".MainActivity"
             android:exported="true"
