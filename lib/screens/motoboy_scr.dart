@@ -14,6 +14,7 @@ class _MotoboyScreenState extends State<MotoboyScreen> {
 
   // Posição inicial do mapa (Ex: Centro de São Paulo. Depois vamos mudar para o GPS do celular)
   final LatLng _center = const LatLng(-23.550520, -46.633308);
+  Set<Marker> _marcadores = {};
 
   void _onMapCreated(GoogleMapController controller) {
     mapController = controller;
@@ -52,22 +53,59 @@ class _MotoboyScreenState extends State<MotoboyScreen> {
                   true, // Mostra o ponto azul do GPS (se tiver permissão)
               myLocationButtonEnabled:
                   true, // Botão de centralizar na localização
+              markers: _marcadores,
             ),
           ),
 
           // === PARTE 3: O resto da tela (Lista de Entregas) ===
-          // O Expanded faz essa lista preencher todo o espaço que sobrou na tela
           Expanded(
             child: ListView(
-              children: const [
+              children: [
+                // <-- REMOVA A PALAVRA 'const' DESTA LINHA!
                 ListTile(
-                  leading: Icon(Icons.motorcycle, color: Colors.orange),
-                  title: Text('Coleta #001 - Clínica Vida Animal'),
-                  subtitle: Text('Rua dos Cachorros, 123'),
-                  trailing: Icon(Icons.arrow_forward_ios, size: 16),
+                  leading: const Icon(Icons.motorcycle, color: Colors.orange),
+                  title: const Text('Coleta #001 - Clínica Vida Animal'),
+                  subtitle: const Text('Rua dos Cachorros, 123'),
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                  onTap: () {
+                    setState(() {
+                      _marcadores = {
+                        Marker(
+                          // <-- Pode tirar o 'const' daqui também, se tiver
+                          markerId: const MarkerId('origem'),
+                          position: const LatLng(-23.550520, -46.633308),
+                          infoWindow: const InfoWindow(
+                            title: 'Coleta: Clínica Vida Animal',
+                          ),
+                          icon: BitmapDescriptor.defaultMarkerWithHue(
+                            BitmapDescriptor.hueBlue,
+                          ),
+                        ),
+                        Marker(
+                          // <-- E daqui
+                          markerId: const MarkerId('destino'),
+                          position: const LatLng(-23.560520, -46.643308),
+                          infoWindow: const InfoWindow(
+                            title: 'Entrega: Laboratório Central',
+                          ),
+                          icon: BitmapDescriptor.defaultMarkerWithHue(
+                            BitmapDescriptor.hueRed,
+                          ),
+                        ),
+                      };
+                    });
+
+                    mapController.animateCamera(
+                      CameraUpdate.newLatLngZoom(
+                        const LatLng(-23.550520, -46.633308),
+                        13.5,
+                      ),
+                    );
+                  },
                 ),
-                Divider(), // Linha divisória
-                ListTile(
+                const Divider(),
+                const ListTile(
+                  // Nos itens de baixo que não têm 'onTap' ainda, você pode deixar o const
                   leading: Icon(Icons.motorcycle, color: Colors.orange),
                   title: Text('Entrega #002 - Laboratório Central'),
                   subtitle: Text('Avenida dos Felinos, 456'),
