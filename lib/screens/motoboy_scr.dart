@@ -15,6 +15,7 @@ class _MotoboyScreenState extends State<MotoboyScreen> {
   // Posição inicial do mapa (Ex: Centro de São Paulo. Depois vamos mudar para o GPS do celular)
   final LatLng _center = const LatLng(-23.550520, -46.633308);
   Set<Marker> _marcadores = {};
+  Set<Polyline> _rotas = {};
 
   void _onMapCreated(GoogleMapController controller) {
     mapController = controller;
@@ -54,6 +55,7 @@ class _MotoboyScreenState extends State<MotoboyScreen> {
               myLocationButtonEnabled:
                   true, // Botão de centralizar na localização
               markers: _marcadores,
+              polylines: _rotas,
             ),
           ),
 
@@ -91,6 +93,18 @@ class _MotoboyScreenState extends State<MotoboyScreen> {
                           icon: BitmapDescriptor.defaultMarkerWithHue(
                             BitmapDescriptor.hueRed,
                           ),
+                        ),
+                      };
+
+                      _rotas = {
+                        Polyline(
+                          polylineId: const PolylineId('rota_001'),
+                          color: Colors.blueAccent, // Cor da linha
+                          width: 5, // Grossura da linha
+                          points: const [
+                            LatLng(-23.550520, -46.633308), // Ponto 1 (Origem)
+                            LatLng(-23.560520, -46.643308), // Ponto 2 (Destino)
+                          ],
                         ),
                       };
                     });
