@@ -98,7 +98,9 @@ class MockColetaRepository implements ColetaRepository {
   // NOVA IMPLEMENTAÇÃO: Salvando a coleta no "banco"
   @override
   Future<void> solicitarColeta(Coleta novaColeta) async {
-    await Future.delayed(const Duration(seconds: 1)); // Simula latência de rede
+    await Future.delayed(
+      const Duration(seconds: 1),
+    ); //  d Simula latência de rede
     _bancoDeDados.add(novaColeta);
   }
 }
