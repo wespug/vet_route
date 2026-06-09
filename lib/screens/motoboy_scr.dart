@@ -1,5 +1,10 @@
+// lib/screens/motoboy_scr.dart
+
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart'; // Importante adicionar o pacote do mapa!
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import '../controllers/coleta_controller.dart';
+import '../repositories/coleta_repository.dart';
+import '../models/coleta_model.dart';
 
 class MotoboyScreen extends StatefulWidget {
   const MotoboyScreen({super.key});
@@ -9,13 +14,28 @@ class MotoboyScreen extends StatefulWidget {
 }
 
 class _MotoboyScreenState extends State<MotoboyScreen> {
-  // Controlador do mapa (usado para mover a câmera depois, se precisarmos)
   late GoogleMapController mapController;
-
-  // Posição inicial do mapa (Ex: Centro de São Paulo. Depois vamos mudar para o GPS do celular)
   final LatLng _center = const LatLng(-23.550520, -46.633308);
+
   Set<Marker> _marcadores = {};
   Set<Polyline> _rotas = {};
+
+  // Instanciando a Controladora injetando o Repositório Mock
+  final ColetaController _controller = ColetaController(MockColetaRepository());
+
+  @override
+  void initState() {
+    super.initState();
+    // EXATAMENTE AQUI: Quando o motoboy entra na tela, a controladora busca os dados
+    _controller.carregarColetas();
+  }
+
+  @override
+  void dispose() {
+    _controller
+        .dispose(); // Protege o app contra vazamento de memória (Memory Leak)
+    super.dispose();
+  }
 
   void _onMapCreated(GoogleMapController controller) {
     mapController = controller;
@@ -25,107 +45,150 @@ class _MotoboyScreenState extends State<MotoboyScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Área do Motoboy'),
+        title: const Text('Área do Motoboy (MVC)'),
         backgroundColor: Colors.orange,
       ),
       body: Column(
         children: [
-          // === PARTE 1: Cabeçalho da tela ===
           const Padding(
             padding: EdgeInsets.all(16.0),
             child: Text(
-              'Rotas de Hoje',
+              'Coletas no seu Radar',
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
           ),
 
-          // === PARTE 2: O Mapa (ocupando uma parte fixa da tela) ===
-          // Usamos o SizedBox para travar a altura do mapa em 300 pixels
+          // PARTE 2: O Mapa
           SizedBox(
             height: 300,
-            width: double.infinity, // Ocupa toda a largura da tela
+            width: double.infinity,
             child: GoogleMap(
               onMapCreated: _onMapCreated,
               initialCameraPosition: CameraPosition(
                 target: _center,
-                zoom: 14.0, // Nível do zoom (quanto maior, mais perto da rua)
+                zoom: 14.0,
               ),
-              myLocationEnabled:
-                  true, // Mostra o ponto azul do GPS (se tiver permissão)
-              myLocationButtonEnabled:
-                  true, // Botão de centralizar na localização
+              myLocationEnabled: true,
+              myLocationButtonEnabled: true,
               markers: _marcadores,
               polylines: _rotas,
             ),
           ),
 
-          // === PARTE 3: O resto da tela (Lista de Entregas) ===
+          // PARTE 3: Lista Dinâmica Reativa controlada pela Controladora
           Expanded(
-            child: ListView(
-              children: [
-                // <-- REMOVA A PALAVRA 'const' DESTA LINHA!
-                ListTile(
-                  leading: const Icon(Icons.motorcycle, color: Colors.orange),
-                  title: const Text('Coleta #001 - Clínica Vida Animal'),
-                  subtitle: const Text('Rua dos Cachorros, 123'),
-                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                  onTap: () {
-                    setState(() {
-                      _marcadores = {
-                        Marker(
-                          // <-- Pode tirar o 'const' daqui também, se tiver
-                          markerId: const MarkerId('origem'),
-                          position: const LatLng(-23.550520, -46.633308),
-                          infoWindow: const InfoWindow(
-                            title: 'Coleta: Clínica Vida Animal',
-                          ),
-                          icon: BitmapDescriptor.defaultMarkerWithHue(
-                            BitmapDescriptor.hueBlue,
-                          ),
-                        ),
-                        Marker(
-                          // <-- E daqui
-                          markerId: const MarkerId('destino'),
-                          position: const LatLng(-23.560520, -46.643308),
-                          infoWindow: const InfoWindow(
-                            title: 'Entrega: Laboratório Central',
-                          ),
-                          icon: BitmapDescriptor.defaultMarkerWithHue(
-                            BitmapDescriptor.hueRed,
-                          ),
-                        ),
-                      };
+            child: ValueListenableBuilder<bool>(
+              valueListenable: _controller.isLoading,
+              builder: (context, isLoading, child) {
+                // Se a controladora disser que está carregando, mostra o indicador de progresso
+                if (isLoading) {
+                  return const Center(
+                    child: CircularProgressIndicator(color: Colors.orange),
+                  );
+                }
 
-                      _rotas = {
-                        Polyline(
-                          polylineId: const PolylineId('rota_001'),
-                          color: Colors.blueAccent, // Cor da linha
-                          width: 5, // Grossura da linha
-                          points: const [
-                            LatLng(-23.550520, -46.633308), // Ponto 1 (Origem)
-                            LatLng(-23.560520, -46.643308), // Ponto 2 (Destino)
+                // Se não estiver carregando, escuta a lista de coletas
+                return ValueListenableBuilder<List<Coleta>>(
+                  valueListenable: _controller.coletasNoRadar,
+                  builder: (context, listaColetas, child) {
+                    if (listaColetas.isEmpty) {
+                      return const Center(
+                        child: Text('Nenhuma coleta no radar no momento.'),
+                      );
+                    }
+
+                    return ListView.builder(
+                      itemCount: listaColetas.length,
+                      itemBuilder: (context, index) {
+                        final coleta = listaColetas[index];
+
+                        return Column(
+                          children: [
+                            ListTile(
+                              leading: const Icon(
+                                Icons.motorcycle,
+                                color: Colors.orange,
+                              ),
+                              title: Text(
+                                'Coleta ${coleta.id} - ${coleta.clinicaOrigem.nome}',
+                              ),
+                              subtitle: Text(coleta.clinicaOrigem.endereco.rua),
+                              trailing: const Icon(
+                                Icons.arrow_forward_ios,
+                                size: 16,
+                              ),
+                              onTap: () {
+                                setState(() {
+                                  _marcadores = {
+                                    Marker(
+                                      markerId: const MarkerId('origem'),
+                                      position: coleta
+                                          .clinicaOrigem
+                                          .endereco
+                                          .coordenada!,
+                                      infoWindow: InfoWindow(
+                                        title:
+                                            'Coleta: ${coleta.clinicaOrigem.nome}',
+                                      ),
+                                      icon:
+                                          BitmapDescriptor.defaultMarkerWithHue(
+                                            BitmapDescriptor.hueBlue,
+                                          ),
+                                    ),
+                                    Marker(
+                                      markerId: const MarkerId('destino'),
+                                      position: coleta
+                                          .laboratorioDestino
+                                          .endereco
+                                          .coordenada!,
+                                      infoWindow: InfoWindow(
+                                        title:
+                                            'Entrega: ${coleta.laboratorioDestino.nome}',
+                                      ),
+                                      icon:
+                                          BitmapDescriptor.defaultMarkerWithHue(
+                                            BitmapDescriptor.hueRed,
+                                          ),
+                                    ),
+                                  };
+
+                                  _rotas = {
+                                    Polyline(
+                                      polylineId: const PolylineId(
+                                        'rota_dinamica',
+                                      ),
+                                      color: Colors.blueAccent,
+                                      width: 5,
+                                      points: [
+                                        coleta
+                                            .clinicaOrigem
+                                            .endereco
+                                            .coordenada!,
+                                        coleta
+                                            .laboratorioDestino
+                                            .endereco
+                                            .coordenada!,
+                                      ],
+                                    ),
+                                  };
+                                });
+
+                                mapController.animateCamera(
+                                  CameraUpdate.newLatLngZoom(
+                                    coleta.clinicaOrigem.endereco.coordenada!,
+                                    13.5,
+                                  ),
+                                );
+                              },
+                            ),
+                            const Divider(),
                           ],
-                        ),
-                      };
-                    });
-
-                    mapController.animateCamera(
-                      CameraUpdate.newLatLngZoom(
-                        const LatLng(-23.550520, -46.633308),
-                        13.5,
-                      ),
+                        );
+                      },
                     );
                   },
-                ),
-                const Divider(),
-                const ListTile(
-                  // Nos itens de baixo que não têm 'onTap' ainda, você pode deixar o const
-                  leading: Icon(Icons.motorcycle, color: Colors.orange),
-                  title: Text('Entrega #002 - Laboratório Central'),
-                  subtitle: Text('Avenida dos Felinos, 456'),
-                  trailing: Icon(Icons.arrow_forward_ios, size: 16),
-                ),
-              ],
+                );
+              },
             ),
           ),
         ],
