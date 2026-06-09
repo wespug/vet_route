@@ -95,7 +95,7 @@ class MockColetaRepository implements ColetaRepository {
     return _bancoDeDados.where((c) => c.status == 'Aguardando').toList();
   }
 
-  // NOVA IMPLEMENTAÇÃO: Salvando a coleta no "banco"
+  // NOVA IMPLEMENTAÇÃO: Sald vando a coleta no "banco"
   @override
   Future<void> solicitarColeta(Coleta novaColeta) async {
     await Future.delayed(
