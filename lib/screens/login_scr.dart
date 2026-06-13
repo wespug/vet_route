@@ -51,7 +51,21 @@ class _LoginScreenState extends State<LoginScreen> with LoggerMixin {
                     prefixIcon: Icon(Icons.lock),
                   ),
                 ),
-                const SizedBox(height: 32),
+
+                // === BOTÃO ESQUECI A SENHA ===
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () {
+                      log.i("Usuário clicou em 'Esqueci minha senha'");
+                      // Aqui você pode navegar para a tela de recuperação no futuro:
+                      // Navigator.push(context, MaterialPageRoute(builder: (context) => const RecuperarSenhaScreen()));
+                    },
+                    child: const Text('Esqueci minha senha'),
+                  ),
+                ),
+
+                const SizedBox(height: 16),
 
                 ElevatedButton(
                   onPressed: () {
@@ -66,6 +80,26 @@ class _LoginScreenState extends State<LoginScreen> with LoggerMixin {
                     'ENTRAR',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
+                ),
+
+                const SizedBox(height: 16),
+
+                // === BOTÃO DE CADASTRO ===
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text('Não tem uma conta?'),
+                    TextButton(
+                      onPressed: () {
+                        log.i("Navegando para tela de cadastro");
+                        // Navigator.push(context, MaterialPageRoute(builder: (context) => const CadastroScreen()));
+                      },
+                      child: const Text(
+                        'Cadastre-se',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
