@@ -9,9 +9,7 @@ import '../models/endereco_model.dart';
 // O Contrato (Interface)
 abstract class ColetaRepository {
   Future<List<Coleta>> buscarColetasNoRadar();
-  Future<void> solicitarColeta(
-    Coleta novaColeta,
-  ); // NOVO CONTRATO: Método "POST"
+  Future<void> solicitarColeta(Coleta novaColeta);
 }
 
 // A Implementação Mock (Simulando o Backend com dados reais de SP)

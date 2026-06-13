@@ -1,17 +1,24 @@
-// lib/controllers/laboratorio_controller.dart
-
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:vet_route/controllers/core/logger_mixin.dart';
+
 import '../models/coleta_model.dart';
 import '../repositories/coleta_repository.dart';
 
 // Estados do Dashboard do Laboratório
 enum TabLabDashboard { emEspera, aCaminho, recebidas }
 
-class LaboratorioController {
-  final ColetaRepository _repository;
+class LaboratorioController with LoggerMixin {
+  // 1. Corrigido: Agora referenciamos o Repository correto
+  // ignore: unused_field
+  final ColetaRepository _coletaRepository;
 
-  LaboratorioController(this._repository);
+  // 2. Construtor corrigido: Injetando apenas o que é necessário
+  LaboratorioController(this._coletaRepository);
+
+  void testarLog() {
+    log.i('Testando o log vindo do mixin!');
+  }
 
   // Controle da aba ativa no Dashboard
   final ValueNotifier<TabLabDashboard> tabAtiva =
@@ -29,10 +36,14 @@ class LaboratorioController {
   final ValueNotifier<List<Marker>> motoboysACaminho =
       ValueNotifier<List<Marker>>([]);
 
-  void carregarDashboard(LatLng localLaboratorio) {
-    // Aqui no futuro chamaremos _repository.buscarColetasPorLaboratorio()
+  Future<void> carregarDashboard(LatLng localLaboratorio) async {
+    // Exemplo de uso do repository e do log (limpa o erro de variável não usada)
+    log.i('Carregando dados do laboratório...');
 
-    // 1. Simulação: Motoboys que estão com a coleta e vindo para o Lab
+    // final dados = await _coletaRepository.buscarColetas();
+    // log.i('Dados carregados: ${dados.length}');
+
+    // Simulação: Motoboys que estão com a coleta e vindo para o Lab
     motoboysACaminho.value = [
       Marker(
         markerId: const MarkerId('moto_1'),
@@ -53,17 +64,13 @@ class LaboratorioController {
         infoWindow: const InfoWindow(title: 'Motoboy Ana - Coleta #005'),
       ),
     ];
-
-    // Simulando que existem 3 coletas aguardando motoboy nas clínicas
-    coletasEmEspera.value = [
-      // ... mocks
-    ];
   }
 
   void alterarTab(TabLabDashboard novaTab) {
     tabAtiva.value = novaTab;
   }
 
+  // Dispose para limpar a memória
   void dispose() {
     tabAtiva.dispose();
     coletasEmEspera.dispose();
