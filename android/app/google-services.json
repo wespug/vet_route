@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "848749838205",
+    "project_id": "vet-route-f20a4",
+    "storage_bucket": "vet-route-f20a4.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:848749838205:android:43b20ef791c7009c281614",
+        "android_client_info": {
+          "package_name": "com.example.vet_route"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD2K1E-oxWYJ-WC5Y3BywO_0XqaNWCcB_s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
