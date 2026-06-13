@@ -1,11 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:vet_route/controllers/core/logger_mixin.dart';
 
-import 'package:vet_route/screens/clinica_scr.dart';
-import 'package:vet_route/screens/laboratorio_scr.dart';
-import 'package:vet_route/screens/motoboy_scr.dart';
-
-// 1. A casca volta a ser limpa e const! (Sem o 'with LoggerMixin' aqui)
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -13,7 +8,6 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-// 2. Colocamos o Mixin AQUI, no State!
 class _LoginScreenState extends State<LoginScreen> with LoggerMixin {
   @override
   Widget build(BuildContext context) {
@@ -52,12 +46,11 @@ class _LoginScreenState extends State<LoginScreen> with LoggerMixin {
             ),
             const SizedBox(height: 30),
 
-            // === BOTÃO PRINCIPAL ===
+            // === BOTÃO DE ENTRAR ===
             ElevatedButton(
               onPressed: () {
-                // 3. Como o Mixin está no State, chamamos o log DIRETAMENTE
-                // (Não precisamos mais do 'widget.')
-                log.i("Tentou fazer login!");
+                log.i("Tentando autenticar usuário...");
+                // Aqui virá a lógica de identificação do perfil no futuro
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green,
@@ -67,59 +60,6 @@ class _LoginScreenState extends State<LoginScreen> with LoggerMixin {
                 'ENTRAR',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
-            ),
-            const SizedBox(height: 30),
-
-            const Divider(),
-            const SizedBox(height: 10),
-            const Text(
-              'Acesso Rápido de Teste:',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 10),
-
-            // === BOTÕES DE ATALHO ===
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                TextButton(
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const ClinicaScreen(),
-                    ),
-                  ),
-                  child: const Text(
-                    'Clínica',
-                    style: TextStyle(color: Colors.teal),
-                  ),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const LaboratorioScreen(),
-                    ),
-                  ),
-                  child: const Text(
-                    'Laboratório',
-                    style: TextStyle(color: Colors.blue),
-                  ),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const MotoboyScreen(),
-                    ),
-                  ),
-                  child: const Text(
-                    'Motoboy',
-                    style: TextStyle(color: Colors.orange),
-                  ),
-                ),
-              ],
             ),
           ],
         ),
