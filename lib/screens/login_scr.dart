@@ -1,5 +1,9 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:vet_route/controllers/core/logger_mixin.dart';
+// <-- ESTA LINHA É OBRIGATÓRIA
+
+// ... resto do seu código
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -11,6 +15,32 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> with LoggerMixin {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+
+  // === FUNÇÃO DE PING-PONG ===
+  Future<void> _testePingPongFirebase() async {
+    try {
+      log.i("Disparando o PING para o Firebase...");
+      final db = FirebaseFirestore.instance;
+
+      // PING: Gravando um documento no banco
+      final docRef = await db.collection("teste_conexao").add({
+        "mensagem": "Ping do Vet Route!",
+        "hora_do_teste":
+            FieldValue.serverTimestamp(), // Pega a hora exata do servidor
+      });
+      log.i("PING gravado com sucesso! ID gerado: ${docRef.id}");
+
+      // PONG: Lendo o documento que acabamos de gravar
+      final docSnapshot = await docRef.get();
+      if (docSnapshot.exists) {
+        log.i("PONG recebido do Firebase! Dados: ${docSnapshot.data()}");
+      }
+    } catch (e) {
+      log.e(
+        "Erro no Ping-Pong: $e",
+      ); // Se der erro de permissão ou conexão, o logger avisa!
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -100,6 +130,19 @@ class _LoginScreenState extends State<LoginScreen> with LoggerMixin {
                       ),
                     ),
                   ],
+                ),
+
+                const SizedBox(height: 40),
+                // === BOTÃO TEMPORÁRIO DE TESTE PING-PONG ===
+                ElevatedButton.icon(
+                  onPressed: _testePingPongFirebase,
+                  icon: const Icon(Icons.sync_alt, color: Colors.white),
+                  label: const Text('TESTE PING-PONG FIREBASE'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor:
+                        Colors.blueAccent, // Azul para destacar que é um teste
+                    foregroundColor: Colors.white,
+                  ),
                 ),
               ],
             ),
