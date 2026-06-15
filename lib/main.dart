@@ -1,7 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:vet_route/screens/login_scr.dart';
+import 'package:vet_route/screens/web/admin_chassi.dart';
+
+import 'package:vet_route/screens/login_screen.dart';
 import 'firebase_options.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:vet_route/screens/login_screen.dart';
+
+import 'package:vet_route/screens/web/cadastro_usuario_web.dart';
+import 'package:vet_route/services/auth_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -14,10 +21,33 @@ class VetRouteAPP extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return MaterialApp(
       title: 'Vet Route',
       debugShowCheckedModeBanner: false,
-      home: LoginScreen(), // Chamando a classe isolada
+      // O 'home' agora é reativo e inteligente
+      home: StreamBuilder<User?>(
+        stream: AuthService().usuarioStatus,
+        builder: (context, snapshot) {
+          // Se o Firebase ainda estiver pensando/carregando o status
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            );
+          }
+
+          // Se existir um usuário autenticado na sessão...
+          if (snapshot.hasData) {
+            // Entra direto no Painel Web Admin com a tela de Cadastro no meio!
+            return const AdminChassi(
+              titulo: 'Painel Administrativo - Vet Route',
+              conteudo: CadastroUsuarioWeb(),
+            );
+          }
+
+          // Se não tiver ninguém logado, exibe a tela de login padrão
+          return const LoginScreen();
+        },
+      ),
     );
   }
 }

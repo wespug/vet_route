@@ -1,9 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:vet_route/controllers/core/logger_mixin.dart';
-// <-- ESTA LINHA É OBRIGATÓRIA
-
-// ... resto do seu código
+import 'package:vet_route/services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -97,9 +95,42 @@ class _LoginScreenState extends State<LoginScreen> with LoggerMixin {
 
                 const SizedBox(height: 16),
 
+                // ... dentro do seu ElevatedButton de entrar na LoginScreen:
                 ElevatedButton(
-                  onPressed: () {
-                    log.i('Tentando login com: ${_emailController.text}');
+                  onPressed: () async {
+                    final email = _emailController.text.trim();
+                    final senha = _passwordController.text.trim();
+
+                    if (email.isEmpty || senha.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Por favor, preencha todos os campos.'),
+                        ),
+                      );
+                      return;
+                    }
+
+                    try {
+                      log.i("Iniciando tentativa de login para: $email");
+
+                      // Chama o serviço robusto que criamos
+                      await AuthService().loginComEmailESenha(email, senha);
+
+                      // ATENÇÃO: Não precisa dar Navigator.push aqui!
+                      // O StreamBuilder no main.dart vai perceber o login e mudar a tela sozinho!
+                    } catch (e) {
+                      log.e("Falha na autenticação da View: $e");
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'Falha ao entrar: ${e.toString().split(']').last}',
+                            ),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    }
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green,
