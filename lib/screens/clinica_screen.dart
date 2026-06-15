@@ -1,7 +1,7 @@
-// lib/screens/clinica_scr.dart
-
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:vet_route/l10n/app_localizations.dart';
+
 import '../controllers/clinica_controller.dart';
 import '../repositories/coleta_repository.dart';
 import '../models/clinica_model.dart';
@@ -21,9 +21,9 @@ class _ClinicaScreenState extends State<ClinicaScreen> {
     MockColetaRepository(),
   );
 
-  Set<Polyline> _rotaAtiva = {}; // Para traçar a rota do motoboy até a clínica
+  Set<Polyline> _rotaAtiva = {};
 
-  // Dados Mockados da Clínica
+  // Dados Mockados (Esses valores virão do banco depois, então não vão para o .arb)
   final Clinica _minhaClinica = Clinica(
     id: 'C999',
     nome: 'Clínica Vet Route Oficial',
@@ -57,7 +57,6 @@ class _ClinicaScreenState extends State<ClinicaScreen> {
   @override
   void initState() {
     super.initState();
-    // Carrega o mapa tático da clínica assim que a tela abre
     _controller.carregarPainelLogistico(_minhaClinica.endereco.coordenada!);
   }
 
@@ -71,26 +70,23 @@ class _ClinicaScreenState extends State<ClinicaScreen> {
       _labDestino,
     );
     if (sucesso && mounted) {
+      final i18n = AppLocalizations.of(context)!;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Motoboy solicitado! Aguardando aceite.'),
-          backgroundColor: Colors.green,
-        ),
+        SnackBar(content: Text(i18n.regSuccess), backgroundColor: Colors.green),
       );
     }
   }
 
   void _agendarColeta() {
-    // No futuro, isso abrirá um DatePicker/TimePicker
+    final i18n = AppLocalizations.of(context)!;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Abrindo calendário para agendamento...'),
+      SnackBar(
+        content: Text(i18n.clinicScheduleMock),
         backgroundColor: Colors.teal,
       ),
     );
   }
 
-  // Simula o clique na coleta ativa para ver a rota
   void _acompanharCorrida(LatLng posMotoboy) {
     setState(() {
       _rotaAtiva = {
@@ -103,7 +99,6 @@ class _ClinicaScreenState extends State<ClinicaScreen> {
       };
     });
 
-    // Anima a câmera para o meio do caminho entre o motoboy e a clínica
     mapController.animateCamera(CameraUpdate.newLatLngZoom(posMotoboy, 15.0));
   }
 
@@ -115,15 +110,16 @@ class _ClinicaScreenState extends State<ClinicaScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final i18n = AppLocalizations.of(context)!; // Dicionário ativo na tela
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(_minhaClinica.nome),
+        title: Text(_minhaClinica.nome), // Nome dinâmico não precisa do i18n
         backgroundColor: Colors.teal,
         elevation: 0,
       ),
       body: Column(
         children: [
-          // === BLOCO 1: BOTÃO DE CHAMADA NO TOPO ===
           // === BLOCO 1: BOTÕES DE CHAMADA NO TOPO ===
           Container(
             padding: const EdgeInsets.all(16.0),
@@ -133,7 +129,7 @@ class _ClinicaScreenState extends State<ClinicaScreen> {
               builder: (context, isLoading, child) {
                 return Row(
                   children: [
-                    // Botão 1: Coleta Imediata (Principal)
+                    // Botão 1: Coleta Imediata
                     Expanded(
                       child: SizedBox(
                         height: 55,
@@ -161,7 +157,7 @@ class _ClinicaScreenState extends State<ClinicaScreen> {
                                   size: 22,
                                 ),
                           label: Text(
-                            isLoading ? 'Enviando...' : 'IMEDIATA',
+                            isLoading ? i18n.sending : i18n.immediate,
                             style: const TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.bold,
@@ -171,28 +167,27 @@ class _ClinicaScreenState extends State<ClinicaScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12), // Espaçamento entre os botões
-                    // Botão 2: Coleta Agendada (Secundário)
+                    const SizedBox(width: 12),
+                    // Botão 2: Coleta Agendada
                     Expanded(
                       child: SizedBox(
                         height: 55,
                         child: OutlinedButton.icon(
                           style: OutlinedButton.styleFrom(
-                            foregroundColor:
-                                Colors.teal, // Cor do texto e ícone
+                            foregroundColor: Colors.teal,
                             side: const BorderSide(
                               color: Colors.teal,
                               width: 2,
-                            ), // Borda
+                            ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10),
                             ),
                           ),
                           onPressed: isLoading ? null : _agendarColeta,
                           icon: const Icon(Icons.calendar_month, size: 22),
-                          label: const Text(
-                            'AGENDADA',
-                            style: TextStyle(
+                          label: Text(
+                            i18n.scheduled,
+                            style: const TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.bold,
                             ),
@@ -213,7 +208,6 @@ class _ClinicaScreenState extends State<ClinicaScreen> {
             child: ValueListenableBuilder<List<Marker>>(
               valueListenable: _controller.motoboysProximos,
               builder: (context, marcadores, child) {
-                // Adicionamos o pino da própria clínica no mapa
                 final todosMarcadores = Set<Marker>.from(marcadores);
                 todosMarcadores.add(
                   Marker(
@@ -222,7 +216,7 @@ class _ClinicaScreenState extends State<ClinicaScreen> {
                     icon: BitmapDescriptor.defaultMarkerWithHue(
                       BitmapDescriptor.hueViolet,
                     ),
-                    infoWindow: const InfoWindow(title: 'Sua Clínica'),
+                    infoWindow: InfoWindow(title: i18n.clinicMarkerSelf),
                   ),
                 );
 
@@ -233,7 +227,7 @@ class _ClinicaScreenState extends State<ClinicaScreen> {
                     zoom: 14.5,
                   ),
                   markers: todosMarcadores,
-                  polylines: _rotaAtiva, // Desenha a rota de rastreio se houver
+                  polylines: _rotaAtiva,
                   myLocationEnabled: false,
                   zoomControlsEnabled: false,
                 );
@@ -246,18 +240,20 @@ class _ClinicaScreenState extends State<ClinicaScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                   child: Text(
-                    'Acompanhamento em Tempo Real',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    i18n.clinicTrackingTitle,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
                 Expanded(
                   child: ListView(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     children: [
-                      // Simulação de uma coleta a caminho da clínica (Mock visual)
                       Card(
                         elevation: 2,
                         shape: RoundedRectangleBorder(
@@ -268,21 +264,23 @@ class _ClinicaScreenState extends State<ClinicaScreen> {
                             backgroundColor: Colors.teal,
                             child: Icon(Icons.motorcycle, color: Colors.white),
                           ),
-                          title: const Text(
-                            'Coleta #882 - Carlos (Motoboy)',
-                            style: TextStyle(fontWeight: FontWeight.bold),
+                          title: Text(
+                            i18n.cliniCorrierSuccess,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
-                          subtitle: const Column(
+                          subtitle: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              SizedBox(height: 4),
+                              const SizedBox(height: 4),
                               Text(
-                                'Status: A caminho da Clínica',
-                                style: TextStyle(color: Colors.orange),
+                                i18n.onWay,
+                                style: const TextStyle(color: Colors.orange),
                               ),
                               Text(
-                                '⏳ Est: 12 min | Decorrido: 5 min',
-                                style: TextStyle(fontWeight: FontWeight.w500),
+                                i18n.clinicScheduleMock,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                ),
                               ),
                             ],
                           ),
@@ -292,8 +290,6 @@ class _ClinicaScreenState extends State<ClinicaScreen> {
                           ),
                           isThreeLine: true,
                           onTap: () {
-                            // Clicou? Foca no motoboy e traça a rota!
-                            // (Aqui simulamos o motoboy 'm1' se aproximando)
                             _acompanharCorrida(
                               LatLng(
                                 _minhaClinica.endereco.coordenada!.latitude +

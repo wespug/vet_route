@@ -1,7 +1,8 @@
-// lib/screens/laboratorio_scr.dart
-
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:vet_route/l10n/app_localizations.dart';
+// Importação do dicionário!
+
 import '../controllers/laboratorio_controller.dart';
 import '../repositories/coleta_repository.dart';
 import '../models/laboratorio_model.dart';
@@ -20,7 +21,7 @@ class _LaboratorioScreenState extends State<LaboratorioScreen> {
     MockColetaRepository(),
   );
 
-  // Dados Mockados do Laboratório logado
+  // Dados Mockados do Laboratório logado (não vão para o .arb)
   final Laboratorio _meuLaboratorio = Laboratorio(
     id: 'L001',
     nome: 'Laboratório Central Vet Route',
@@ -47,9 +48,10 @@ class _LaboratorioScreenState extends State<LaboratorioScreen> {
   }
 
   void _receberEncomendaMotoboy() {
+    final i18n = AppLocalizations.of(context)!;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text('Iniciando recebimento... Escaneie o pacote.'),
+        content: Text(i18n.labReceiveInit),
         backgroundColor: Colors.indigo.shade600,
       ),
     );
@@ -63,16 +65,18 @@ class _LaboratorioScreenState extends State<LaboratorioScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final i18n = AppLocalizations.of(context)!;
+
     return Scaffold(
       appBar: AppBar(
-        title: Text('Recepção - ${_meuLaboratorio.nome}'),
+        title: Text('${i18n.labBtnReceiveProduct} - ${_meuLaboratorio.nome}'),
         backgroundColor: Colors.indigo,
         elevation: 0,
       ),
       body: Column(
         children: [
-          _buildDashboardCards(), // Painel no topo
-          Expanded(child: _buildAreaDinamica()), // Mapa/Lista dependendo da aba
+          _buildDashboardCards(i18n), // Painel no topo (Passando o i18n)
+          Expanded(child: _buildAreaDinamica(i18n)), // Mapa/Lista
         ],
       ),
       // Botão inferior para receber o pacote
@@ -93,9 +97,9 @@ class _LaboratorioScreenState extends State<LaboratorioScreen> {
               color: Colors.white,
               size: 28,
             ),
-            label: const Text(
-              'RECEBER PACOTE',
-              style: TextStyle(
+            label: Text(
+              i18n.labBtnReceiveProduct,
+              style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
                 color: Colors.white,
@@ -108,7 +112,7 @@ class _LaboratorioScreenState extends State<LaboratorioScreen> {
   }
 
   // === BLOCO 1: DASHBOARD DE NÚMEROS ===
-  Widget _buildDashboardCards() {
+  Widget _buildDashboardCards(AppLocalizations i18n) {
     return Container(
       color: Colors.indigo.shade50,
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
@@ -119,24 +123,24 @@ class _LaboratorioScreenState extends State<LaboratorioScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               _cardDash(
-                titulo: 'Em Aberto',
-                quantidade: '3', // Mockado (viria do controller)
+                titulo: i18n.open,
+                quantidade: '3', // Mockado
                 cor: Colors.redAccent,
                 icone: Icons.access_time,
                 ativo: tabAtiva == TabLabDashboard.emEspera,
                 onTap: () => _controller.alterarTab(TabLabDashboard.emEspera),
               ),
               _cardDash(
-                titulo: 'A Caminho',
-                quantidade: '2',
+                titulo: i18n.onWay,
+                quantidade: '2', // Mockado
                 cor: Colors.blue,
                 icone: Icons.local_shipping,
                 ativo: tabAtiva == TabLabDashboard.aCaminho,
                 onTap: () => _controller.alterarTab(TabLabDashboard.aCaminho),
               ),
               _cardDash(
-                titulo: 'Finalizadas',
-                quantidade: '18',
+                titulo: i18n.finished,
+                quantidade: '18', // Mockado
                 cor: Colors.green,
                 icone: Icons.fact_check_outlined,
                 ativo: tabAtiva == TabLabDashboard.recebidas,
@@ -198,6 +202,7 @@ class _LaboratorioScreenState extends State<LaboratorioScreen> {
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
                 color: ativo ? Colors.white : Colors.grey.shade600,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],
@@ -207,11 +212,11 @@ class _LaboratorioScreenState extends State<LaboratorioScreen> {
   }
 
   // === BLOCO 2: ÁREA DINÂMICA (MAPA OU LISTA) ===
-  Widget _buildAreaDinamica() {
+  Widget _buildAreaDinamica(AppLocalizations i18n) {
     return ValueListenableBuilder<TabLabDashboard>(
       valueListenable: _controller.tabAtiva,
       builder: (context, tabAtiva, child) {
-        // CENA 1: ABA FINALIZADAS (Mostra apenas a lista)
+        // CENA 1: ABA FINALIZADAS
         if (tabAtiva == TabLabDashboard.recebidas) {
           return ListView.builder(
             padding: const EdgeInsets.all(8),
@@ -224,20 +229,22 @@ class _LaboratorioScreenState extends State<LaboratorioScreen> {
                     color: Colors.green,
                     size: 30,
                   ),
-                  title: Text('Coleta #${900 - index} - Clínica Pet Feliz'),
-                  subtitle: Text('Recebido às 1${index + 2}:45'),
+                  title: Text(
+                    'Coleta #${900 - index} - Clínica Pet Feliz',
+                  ), // Mockado
+                  subtitle: Text('Recebido às 1${index + 2}:45'), // Mockado
                   trailing: const Icon(Icons.arrow_forward_ios, size: 14),
                 ),
               );
             },
           );
         }
-        // CENA 2: ABA EM ABERTO (Divide a tela entre Mapa e Lista)
+        // CENA 2: ABA EM ABERTO
         else if (tabAtiva == TabLabDashboard.emEspera) {
           return Column(
             children: [
               Expanded(
-                flex: 1, // O Mapa ocupa metade do espaço
+                flex: 1,
                 child: GoogleMap(
                   onMapCreated: _onMapCreated,
                   initialCameraPosition: CameraPosition(
@@ -251,9 +258,8 @@ class _LaboratorioScreenState extends State<LaboratorioScreen> {
                       icon: BitmapDescriptor.defaultMarkerWithHue(
                         BitmapDescriptor.hueAzure,
                       ),
-                      infoWindow: const InfoWindow(title: 'Laboratório'),
+                      infoWindow: InfoWindow(title: i18n.lab),
                     ),
-                    // Mock de uma clínica esperando
                     Marker(
                       markerId: const MarkerId('clinica_esperando'),
                       position: LatLng(
@@ -263,22 +269,24 @@ class _LaboratorioScreenState extends State<LaboratorioScreen> {
                       icon: BitmapDescriptor.defaultMarkerWithHue(
                         BitmapDescriptor.hueRed,
                       ),
-                      infoWindow: const InfoWindow(title: 'Coleta Aguardando'),
+                      infoWindow: InfoWindow(title: i18n.markerWaiting),
                     ),
                   },
                 ),
               ),
               Expanded(
-                flex: 1, // A Lista ocupa a outra metade
+                flex: 1,
                 child: ListView(
-                  children: const [
+                  children: [
                     ListTile(
-                      leading: Icon(
+                      leading: const Icon(
                         Icons.warning_amber,
                         color: Colors.redAccent,
                       ),
-                      title: Text('Aguardando Motoboy'),
-                      subtitle: Text('Clínica Central - Feito há 15 min'),
+                      title: Text(i18n.waitCourier),
+                      subtitle: const Text(
+                        'Clínica Central - Feito há 15 min',
+                      ), // Mockado
                     ),
                   ],
                 ),
@@ -286,7 +294,7 @@ class _LaboratorioScreenState extends State<LaboratorioScreen> {
             ],
           );
         }
-        // CENA 3: ABA A CAMINHO (Mapa completo focado no Radar do Lab)
+        // CENA 3: ABA A CAMINHO
         else {
           return ValueListenableBuilder<List<Marker>>(
             valueListenable: _controller.motoboysACaminho,
@@ -299,7 +307,7 @@ class _LaboratorioScreenState extends State<LaboratorioScreen> {
                   icon: BitmapDescriptor.defaultMarkerWithHue(
                     BitmapDescriptor.hueAzure,
                   ),
-                  infoWindow: const InfoWindow(title: 'Seu Laboratório'),
+                  infoWindow: InfoWindow(title: i18n.lab),
                 ),
               );
 
@@ -319,11 +327,11 @@ class _LaboratorioScreenState extends State<LaboratorioScreen> {
                     right: 16,
                     child: Card(
                       color: Colors.white.withValues(alpha: 0.9),
-                      child: const Padding(
-                        padding: EdgeInsets.all(12.0),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12.0),
                         child: Text(
-                          'Radar do Laboratório: Acompanhando motoboys a caminho em tempo real.',
-                          style: TextStyle(
+                          i18n.radarText,
+                          style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             color: Colors.indigo,
                           ),

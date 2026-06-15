@@ -3,11 +3,14 @@ import 'package:flutter/foundation.dart'
     show kIsWeb; // <-- Importante para saber se é Web ou App
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:vet_route/l10n/app_localizations.dart';
 import 'firebase_options.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:vet_route/screens/login_screen.dart';
 import 'package:vet_route/screens/web/cadastro_usuario_web.dart';
 import 'package:vet_route/services/auth_service.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+
 // Importe suas telas mobile aqui (MotoboyScreen, ClinicaScreen, etc) quando existirem
 
 void main() async {
@@ -24,6 +27,20 @@ class VetRouteAPP extends StatelessWidget {
     return MaterialApp(
       title: 'Vet Route',
       debugShowCheckedModeBanner: false,
+
+      // === 2. ADICIONE ESTE BLOCO DE INTERNACIONALIZAÇÃO ===
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('pt', ''), // Português
+        Locale('en', ''), // Inglês
+        Locale('es', ''), // Espanhol (quando você criar o app_es.arb)
+      ],
+      // ====================================================
 
       // 1. PRIMEIRO PASSO: Ouve se o usuário tem token de acesso (Auth)
       home: StreamBuilder<User?>(

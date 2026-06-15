@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:vet_route/controllers/core/logger_mixin.dart';
+import 'package:vet_route/l10n/app_localizations.dart';
 import 'package:vet_route/services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -14,29 +15,24 @@ class _LoginScreenState extends State<LoginScreen> with LoggerMixin {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
-  // === FUNÇÃO DE PING-PONG ===
+  // === FUNÇÃO DE PING-PONG (Mantida apenas para Dev, sem tradução) ===
   Future<void> _testePingPongFirebase() async {
     try {
       log.i("Disparando o PING para o Firebase...");
       final db = FirebaseFirestore.instance;
 
-      // PING: Gravando um documento no banco
       final docRef = await db.collection("teste_conexao").add({
         "mensagem": "Ping do Vet Route!",
-        "hora_do_teste":
-            FieldValue.serverTimestamp(), // Pega a hora exata do servidor
+        "hora_do_teste": FieldValue.serverTimestamp(),
       });
       log.i("PING gravado com sucesso! ID gerado: ${docRef.id}");
 
-      // PONG: Lendo o documento que acabamos de gravar
       final docSnapshot = await docRef.get();
       if (docSnapshot.exists) {
         log.i("PONG recebido do Firebase! Dados: ${docSnapshot.data()}");
       }
     } catch (e) {
-      log.e(
-        "Erro no Ping-Pong: $e",
-      ); // Se der erro de permissão ou conexão, o logger avisa!
+      log.e("Erro no Ping-Pong: $e");
     }
   }
 
@@ -51,9 +47,12 @@ class _LoginScreenState extends State<LoginScreen> with LoggerMixin {
 
   @override
   Widget build(BuildContext context) {
+    // Inicializa o dicionário
+    final i18n = AppLocalizations.of(context)!;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Acesso Vet Route'),
+        title: Text(i18n.appTitle),
         backgroundColor: Colors.green,
         foregroundColor: Colors.white,
       ),
@@ -71,10 +70,10 @@ class _LoginScreenState extends State<LoginScreen> with LoggerMixin {
                 TextField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    labelText: 'E-mail',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.email),
+                  decoration: InputDecoration(
+                    labelText: i18n.email,
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.email),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -82,10 +81,10 @@ class _LoginScreenState extends State<LoginScreen> with LoggerMixin {
                 TextField(
                   controller: _passwordController,
                   obscureText: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Senha',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.lock),
+                  decoration: InputDecoration(
+                    labelText: i18n.password,
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.lock),
                   ),
                 ),
 
@@ -96,7 +95,7 @@ class _LoginScreenState extends State<LoginScreen> with LoggerMixin {
                     onPressed: () {
                       log.i("Usuário clicou em 'Esqueci minha senha'");
                     },
-                    child: const Text('Esqueci minha senha'),
+                    child: Text(i18n.forgotPassword),
                   ),
                 ),
 
@@ -109,18 +108,14 @@ class _LoginScreenState extends State<LoginScreen> with LoggerMixin {
                     final senha = _passwordController.text.trim();
 
                     if (email.isEmpty || senha.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Por favor, preencha todos os campos.'),
-                        ),
-                      );
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(SnackBar(content: Text(i18n.errorEmpty)));
                       return;
                     }
 
                     try {
                       log.i("Iniciando tentativa de login para: $email");
-
-                      // Chama o serviço robusto que criamos
                       await AuthService().loginComEmailESenha(email, senha);
                     } catch (e) {
                       log.e("Falha na autenticação da View: $e");
@@ -128,7 +123,7 @@ class _LoginScreenState extends State<LoginScreen> with LoggerMixin {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(
-                              'Falha ao entrar: ${e.toString().split(']').last}',
+                              '${i18n.errorPrefix} ${e.toString().split(']').last}',
                             ),
                             backgroundColor: Colors.red,
                           ),
@@ -141,9 +136,12 @@ class _LoginScreenState extends State<LoginScreen> with LoggerMixin {
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
-                  child: const Text(
-                    'ENTRAR',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  child: Text(
+                    i18n.loginBtn,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
 
@@ -153,14 +151,14 @@ class _LoginScreenState extends State<LoginScreen> with LoggerMixin {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text('Não tem uma conta?'),
+                    Text(i18n.noAccount),
                     TextButton(
                       onPressed: () {
                         log.i("Navegando para tela de cadastro");
                       },
-                      child: const Text(
-                        'Cadastre-se',
-                        style: TextStyle(fontWeight: FontWeight.bold),
+                      child: Text(
+                        i18n.register,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                     ),
                   ],
@@ -168,7 +166,9 @@ class _LoginScreenState extends State<LoginScreen> with LoggerMixin {
 
                 const SizedBox(height: 40),
 
-                // === BOTÃO TEMPORÁRIO DE TESTE PING-PONG ===
+                // ==========================================
+                // ÁREA DE TESTES (APENAS DEV) - MANTIDA CHUMBADA
+                // ==========================================
                 ElevatedButton.icon(
                   onPressed: _testePingPongFirebase,
                   icon: const Icon(Icons.sync_alt, color: Colors.white),
@@ -181,7 +181,6 @@ class _LoginScreenState extends State<LoginScreen> with LoggerMixin {
 
                 const SizedBox(height: 30),
 
-                // === ÁREA DE TESTES (APENAS DEV) ===
                 const Divider(),
                 const SizedBox(height: 10),
                 const Text(

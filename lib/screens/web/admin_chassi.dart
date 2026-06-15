@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:vet_route/l10n/app_localizations.dart';
 import 'package:vet_route/services/auth_service.dart';
 
 class AdminChassi extends StatelessWidget {
@@ -23,7 +24,7 @@ class AdminChassi extends StatelessWidget {
           // A BARRA SUPERIOR
           appBar: AppBar(
             title: Text(
-              titulo,
+              titulo, // Obs: Esse título já vem da tela que chama o Chassi, então a tradução dele é feita lá!
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             backgroundColor: Colors.white,
@@ -32,7 +33,10 @@ class AdminChassi extends StatelessWidget {
           ),
 
           // O MENU LATERAL (DRAWER) - Escondido no celular, fixo no PC
-          drawer: isDesktop ? null : _construirMenuLateral(corMenuLateral),
+          // Passamos o 'context' para a função saber o idioma!
+          drawer: isDesktop
+              ? null
+              : _construirMenuLateral(context, corMenuLateral),
 
           // O CORPO DA TELA
           body: Row(
@@ -41,7 +45,7 @@ class AdminChassi extends StatelessWidget {
               if (isDesktop)
                 SizedBox(
                   width: 250,
-                  child: _construirMenuLateral(corMenuLateral),
+                  child: _construirMenuLateral(context, corMenuLateral),
                 ),
 
               // A área central de conteúdo (onde suas telas vão aparecer)
@@ -58,35 +62,42 @@ class AdminChassi extends StatelessWidget {
     );
   }
 
+  // O VISUAL DO MENU (SIDEBAR)
+  // Recebe o BuildContext agora
+  Widget _construirMenuLateral(BuildContext context, Color corFundo) {
+    // Atalho Sênior para não digitar código longo toda hora
+    final i18n = AppLocalizations.of(context)!;
 
-// O VISUAL DO MENU (SIDEBAR)
-  Widget _construirMenuLateral(Color corFundo) {
-    return Material( // <--- Trocamos para Material!
+    return Material(
       color: corFundo,
       child: ListView(
         children: [
           // Cabeçalho do Menu Lateral
-          const DrawerHeader(
-            decoration: BoxDecoration(color: Color(0xFF23272B)),
+          DrawerHeader(
+            decoration: const BoxDecoration(color: Color(0xFF23272B)),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.pets, color: Colors.white, size: 40),
-                SizedBox(height: 10),
-                Text('Vet Route Admin', style: TextStyle(color: Colors.white, fontSize: 20)),
+                const Icon(Icons.pets, color: Colors.white, size: 40),
+                const SizedBox(height: 10),
+                Text(
+                  i18n.adminMenuHeader,
+                  style: const TextStyle(color: Colors.white, fontSize: 20),
+                ),
               ],
             ),
           ),
-          // ... resto dos seus botões do menu ...
 
-          // Botões do Menu
-          _itemMenu(Icons.people, 'Usuários', () {}),
-          _itemMenu(Icons.local_hospital, 'Clínicas', () {}),
-          _itemMenu(Icons.science, 'Laboratórios', () {}),
-          _itemMenu(Icons.motorcycle, 'Motoboys', () {}),
+          // Botões do Menu puxando do Dicionário
+          _itemMenu(Icons.people, i18n.users, () {}),
+          _itemMenu(Icons.local_hospital, i18n.clinics, () {}),
+          _itemMenu(Icons.science, i18n.lab, () {}),
+          _itemMenu(Icons.motorcycle, i18n.couriers, () {}),
+
           const Divider(color: Colors.white24), // Uma linha divisória
-          _itemMenu(Icons.exit_to_app, 'Sair do Sistema', () {
+
+          _itemMenu(Icons.exit_to_app, i18n.logout, () {
             AuthService().logout();
           }),
         ],

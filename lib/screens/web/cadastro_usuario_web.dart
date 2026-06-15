@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:vet_route/controllers/core/logger_mixin.dart';
+import 'package:vet_route/l10n/app_localizations.dart';
 import 'package:vet_route/models/usuario_model.dart';
-import 'package:vet_route/screens/Web/admin_chassi.dart';
+import 'package:vet_route/screens/web/admin_chassi.dart';
 
 class CadastroUsuarioWeb extends StatefulWidget {
   const CadastroUsuarioWeb({super.key});
@@ -19,7 +20,16 @@ class _CadastroUsuarioWebState extends State<CadastroUsuarioWeb>
   final _emailController = TextEditingController();
   final _senhaController = TextEditingController();
 
+  // ATENÇÃO: Estes são os valores do BANCO DE DADOS, não devem ser traduzidos diretamente.
   String _perfilSelecionado = 'Veterinário';
+  final List<String> _perfisDisponiveis = [
+    'Veterinário',
+    'Administrador',
+    'Motoboy',
+    'Clínica',
+    'Laboratório',
+  ];
+
   bool _carregando = false;
 
   Future<void> _cadastrarUsuario() async {
@@ -41,8 +51,7 @@ class _CadastroUsuarioWebState extends State<CadastroUsuarioWeb>
         id: userCredential.user!.uid,
         nome: _nomeController.text.trim(),
         email: _emailController.text.trim(),
-        perfil:
-            _perfilSelecionado, // Certifique-se de que bate com: 'Administrador', 'Clínica', 'Laboratório' ou 'Motoboy'
+        perfil: _perfilSelecionado,
         vinculoId: null, // Por enquanto não vinculamos a nenhuma empresa
       );
 
@@ -55,9 +64,12 @@ class _CadastroUsuarioWebState extends State<CadastroUsuarioWeb>
       log.i("Usuário ${novoUsuario.email} registrado usando UsuarioModel!");
 
       if (mounted) {
+        // Pega as traduções para os alertas
+        final i18n = AppLocalizations.of(context)!;
+
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Usuário cadastrado com sucesso!'),
+          SnackBar(
+            content: Text(i18n.regSuccess),
             backgroundColor: Colors.green,
           ),
         );
@@ -66,15 +78,17 @@ class _CadastroUsuarioWebState extends State<CadastroUsuarioWeb>
     } catch (e) {
       log.e("Erro ao cadastrar usuário na Web: $e");
       if (mounted) {
+        final i18n = AppLocalizations.of(context)!;
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Erro ao cadastrar: $e'),
+            content: Text('${i18n.regError} $e'),
             backgroundColor: Colors.red,
           ),
         );
       }
     } finally {
-      setState(() => _carregando = false);
+      if (mounted) setState(() => _carregando = false);
     }
   }
 
@@ -86,8 +100,11 @@ class _CadastroUsuarioWebState extends State<CadastroUsuarioWeb>
 
   @override
   Widget build(BuildContext context) {
+    // Inicializando o dicionário na tela
+    final i18n = AppLocalizations.of(context)!;
+
     return AdminChassi(
-      titulo: 'Cadastro de Usuários',
+      titulo: i18n.regTitle,
       conteudo: Center(
         child: Container(
           width: 500, // Largura ideal fixa para formulários Web Desktop
@@ -105,10 +122,10 @@ class _CadastroUsuarioWebState extends State<CadastroUsuarioWeb>
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Text(
-                      'Painel Vet Route - Cadastro de Usuário',
+                    Text(
+                      i18n.regHeader,
                       textAlign: TextAlign.center,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
                         color: Colors.teal,
@@ -119,11 +136,11 @@ class _CadastroUsuarioWebState extends State<CadastroUsuarioWeb>
                     // Campo Nome
                     TextFormField(
                       controller: _nomeController,
-                      decoration: const InputDecoration(
-                        labelText: 'Nome Completo',
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        labelText: i18n.nameLabel,
+                        border: const OutlineInputBorder(),
                       ),
-                      validator: (v) => v!.isEmpty ? 'Digite o nome' : null,
+                      validator: (v) => v!.isEmpty ? i18n.nameError : null,
                     ),
                     const SizedBox(height: 16),
 
@@ -131,11 +148,11 @@ class _CadastroUsuarioWebState extends State<CadastroUsuarioWeb>
                     TextFormField(
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
-                      decoration: const InputDecoration(
-                        labelText: 'E-mail de Acesso',
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        labelText: i18n.email,
+                        border: const OutlineInputBorder(),
                       ),
-                      validator: (v) => v!.isEmpty ? 'Digite o e-mail' : null,
+                      validator: (v) => v!.isEmpty ? i18n.emailError : null,
                     ),
                     const SizedBox(height: 16),
 
@@ -143,29 +160,29 @@ class _CadastroUsuarioWebState extends State<CadastroUsuarioWeb>
                     TextFormField(
                       controller: _senhaController,
                       obscureText: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Senha Inicial',
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        labelText: i18n.password,
+                        border: const OutlineInputBorder(),
                       ),
-                      validator: (v) => v!.length < 6
-                          ? 'A senha deve ter no mínimo 6 caracteres'
-                          : null,
+                      validator: (v) =>
+                          v!.length < 6 ? i18n.passwordError : null,
                     ),
                     const SizedBox(height: 16),
 
                     // Seletor de Tipo de Usuário (Perfil)
                     DropdownButtonFormField<String>(
                       value: _perfilSelecionado,
-                      decoration: const InputDecoration(
-                        labelText: 'Tipo de Perfil',
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        labelText: i18n.profileLabel,
+                        border: const OutlineInputBorder(),
                       ),
-                      items: ['Veterinário', 'Administrador', 'Motoboy'].map((
-                        String perfil,
-                      ) {
+                      items: _perfisDisponiveis.map((String perfil) {
                         return DropdownMenuItem<String>(
-                          value: perfil,
-                          child: Text(perfil),
+                          value:
+                              perfil, // O valor real no banco continua sendo em Português
+                          child: Text(
+                            perfil,
+                          ), // DICA: No futuro, podemos criar uma função que traduz apenas a visualização desta string!
                         );
                       }).toList(),
                       onChanged: (novo) =>
@@ -183,9 +200,9 @@ class _CadastroUsuarioWebState extends State<CadastroUsuarioWeb>
                       ),
                       child: _carregando
                           ? const CircularProgressIndicator(color: Colors.white)
-                          : const Text(
-                              'SALVAR USUÁRIO',
-                              style: TextStyle(
+                          : Text(
+                              i18n.saveBtn,
+                              style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
                               ),

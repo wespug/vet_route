@@ -1,7 +1,7 @@
-// lib/screens/motoboy_scr.dart
-
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:vet_route/l10n/app_localizations.dart';
+
 import '../controllers/coleta_controller.dart';
 import '../repositories/coleta_repository.dart';
 import '../models/coleta_model.dart';
@@ -43,18 +43,21 @@ class _MotoboyScreenState extends State<MotoboyScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Inicializa o dicionário
+    final i18n = AppLocalizations.of(context)!;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Área do Motoboy (MVC)'),
+        title: Text(i18n.motoboyTitle),
         backgroundColor: Colors.orange,
       ),
       body: Column(
         children: [
-          const Padding(
-            padding: EdgeInsets.all(16.0),
+          Padding(
+            padding: const EdgeInsets.all(16.0),
             child: Text(
-              'Coletas no seu Radar',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              i18n.motoboyRadarTitle,
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
           ),
 
@@ -92,9 +95,7 @@ class _MotoboyScreenState extends State<MotoboyScreen> {
                   valueListenable: _controller.coletasNoRadar,
                   builder: (context, listaColetas, child) {
                     if (listaColetas.isEmpty) {
-                      return const Center(
-                        child: Text('Nenhuma coleta no radar no momento.'),
-                      );
+                      return Center(child: Text(i18n.motoboyEmptyRadar));
                     }
 
                     return ListView.builder(
@@ -110,7 +111,7 @@ class _MotoboyScreenState extends State<MotoboyScreen> {
                                 color: Colors.orange,
                               ),
                               title: Text(
-                                'Coleta ${coleta.id} - ${coleta.clinicaOrigem.nome}',
+                                '${i18n.pickup} ${coleta.id} - ${coleta.clinicaOrigem.nome}',
                               ),
                               subtitle: Text(coleta.clinicaOrigem.endereco.rua),
                               trailing: const Icon(
@@ -128,7 +129,7 @@ class _MotoboyScreenState extends State<MotoboyScreen> {
                                           .coordenada!,
                                       infoWindow: InfoWindow(
                                         title:
-                                            'Coleta: ${coleta.clinicaOrigem.nome}',
+                                            '${i18n.pickup}: ${coleta.clinicaOrigem.nome}',
                                       ),
                                       icon:
                                           BitmapDescriptor.defaultMarkerWithHue(
@@ -143,7 +144,7 @@ class _MotoboyScreenState extends State<MotoboyScreen> {
                                           .coordenada!,
                                       infoWindow: InfoWindow(
                                         title:
-                                            'Entrega: ${coleta.laboratorioDestino.nome}',
+                                            '${i18n.couriers}: ${coleta.laboratorioDestino.nome}',
                                       ),
                                       icon:
                                           BitmapDescriptor.defaultMarkerWithHue(
