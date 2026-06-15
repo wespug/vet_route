@@ -58,30 +58,28 @@ class AdminChassi extends StatelessWidget {
     );
   }
 
-  // O VISUAL DO MENU (SIDEBAR)
+
+// O VISUAL DO MENU (SIDEBAR)
   Widget _construirMenuLateral(Color corFundo) {
-    return Container(
+    return Material( // <--- Trocamos para Material!
       color: corFundo,
       child: ListView(
         children: [
           // Cabeçalho do Menu Lateral
           const DrawerHeader(
-            decoration: BoxDecoration(
-              color: Color(0xFF23272B),
-            ), // Um tom mais escuro
+            decoration: BoxDecoration(color: Color(0xFF23272B)),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(Icons.pets, color: Colors.white, size: 40),
                 SizedBox(height: 10),
-                Text(
-                  'Vet Route Admin',
-                  style: TextStyle(color: Colors.white, fontSize: 20),
-                ),
+                Text('Vet Route Admin', style: TextStyle(color: Colors.white, fontSize: 20)),
               ],
             ),
           ),
+          // ... resto dos seus botões do menu ...
+
           // Botões do Menu
           _itemMenu(Icons.people, 'Usuários', () {}),
           _itemMenu(Icons.local_hospital, 'Clínicas', () {}),
