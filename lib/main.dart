@@ -5,7 +5,6 @@ import 'package:vet_route/screens/web/admin_chassi.dart';
 import 'package:vet_route/screens/login_screen.dart';
 import 'firebase_options.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:vet_route/screens/login_screen.dart';
 
 import 'package:vet_route/screens/web/cadastro_usuario_web.dart';
 import 'package:vet_route/services/auth_service.dart';
@@ -38,10 +37,7 @@ class VetRouteAPP extends StatelessWidget {
           // Se existir um usuário autenticado na sessão...
           if (snapshot.hasData) {
             // Entra direto no Painel Web Admin com a tela de Cadastro no meio!
-            return const AdminChassi(
-              titulo: 'Painel Administrativo - Vet Route',
-              conteudo: CadastroUsuarioWeb(),
-            );
+            return const CadastroUsuarioWeb();
           }
 
           // Se não tiver ninguém logado, exibe a tela de login padrão
