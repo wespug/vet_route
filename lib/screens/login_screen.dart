@@ -40,6 +40,15 @@ class _LoginScreenState extends State<LoginScreen> with LoggerMixin {
     }
   }
 
+  // === FUNÇÃO AUXILIAR PARA DEV ===
+  void _preencherTeste(String email, String senha) {
+    setState(() {
+      _emailController.text = email;
+      _passwordController.text = senha;
+    });
+    log.i("Credenciais de teste preenchidas para: $email");
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -86,8 +95,6 @@ class _LoginScreenState extends State<LoginScreen> with LoggerMixin {
                   child: TextButton(
                     onPressed: () {
                       log.i("Usuário clicou em 'Esqueci minha senha'");
-                      // Aqui você pode navegar para a tela de recuperação no futuro:
-                      // Navigator.push(context, MaterialPageRoute(builder: (context) => const RecuperarSenhaScreen()));
                     },
                     child: const Text('Esqueci minha senha'),
                   ),
@@ -95,7 +102,7 @@ class _LoginScreenState extends State<LoginScreen> with LoggerMixin {
 
                 const SizedBox(height: 16),
 
-                // ... dentro do seu ElevatedButton de entrar na LoginScreen:
+                // === BOTÃO ENTRAR PRINCIPAL ===
                 ElevatedButton(
                   onPressed: () async {
                     final email = _emailController.text.trim();
@@ -115,9 +122,6 @@ class _LoginScreenState extends State<LoginScreen> with LoggerMixin {
 
                       // Chama o serviço robusto que criamos
                       await AuthService().loginComEmailESenha(email, senha);
-
-                      // ATENÇÃO: Não precisa dar Navigator.push aqui!
-                      // O StreamBuilder no main.dart vai perceber o login e mudar a tela sozinho!
                     } catch (e) {
                       log.e("Falha na autenticação da View: $e");
                       if (mounted) {
@@ -153,7 +157,6 @@ class _LoginScreenState extends State<LoginScreen> with LoggerMixin {
                     TextButton(
                       onPressed: () {
                         log.i("Navegando para tela de cadastro");
-                        // Navigator.push(context, MaterialPageRoute(builder: (context) => const CadastroScreen()));
                       },
                       child: const Text(
                         'Cadastre-se',
@@ -164,16 +167,75 @@ class _LoginScreenState extends State<LoginScreen> with LoggerMixin {
                 ),
 
                 const SizedBox(height: 40),
+
                 // === BOTÃO TEMPORÁRIO DE TESTE PING-PONG ===
                 ElevatedButton.icon(
                   onPressed: _testePingPongFirebase,
                   icon: const Icon(Icons.sync_alt, color: Colors.white),
                   label: const Text('TESTE PING-PONG FIREBASE'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor:
-                        Colors.blueAccent, // Azul para destacar que é um teste
+                    backgroundColor: Colors.blueAccent,
                     foregroundColor: Colors.white,
                   ),
+                ),
+
+                const SizedBox(height: 30),
+
+                // === ÁREA DE TESTES (APENAS DEV) ===
+                const Divider(),
+                const SizedBox(height: 10),
+                const Text(
+                  'Preenchimento Rápido (Testes):',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 10),
+
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 10.0,
+                  runSpacing: 10.0,
+                  children: [
+                    ActionChip(
+                      label: const Text(
+                        'Admin',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                      backgroundColor: Colors.teal.shade100,
+                      onPressed: () =>
+                          _preencherTeste('admin@vetroute.com', '123456'),
+                    ),
+                    ActionChip(
+                      label: const Text(
+                        'Clínica',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                      backgroundColor: Colors.green.shade100,
+                      onPressed: () =>
+                          _preencherTeste('clinica@vetroute.com', '123456'),
+                    ),
+                    ActionChip(
+                      label: const Text(
+                        'Laboratório',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                      backgroundColor: Colors.indigo.shade100,
+                      onPressed: () =>
+                          _preencherTeste('lab@vetroute.com', '123456'),
+                    ),
+                    ActionChip(
+                      label: const Text(
+                        'Motoboy',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                      backgroundColor: Colors.orange.shade100,
+                      onPressed: () =>
+                          _preencherTeste('motoboy@vetroute.com', '123456'),
+                    ),
+                  ],
                 ),
               ],
             ),
