@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:vet_route/controllers/core/logger_mixin.dart';
+import 'package:vet_route/models/usuario_model.dart';
 import 'package:vet_route/screens/Web/admin_chassi.dart';
 
 class CadastroUsuarioWeb extends StatefulWidget {
@@ -28,26 +29,30 @@ class _CadastroUsuarioWebState extends State<CadastroUsuarioWeb>
     log.i("Iniciando cadastro Web para o perfil: $_perfilSelecionado");
 
     try {
-      // 1. Cria o usuário no Firebase Authentication (Segurança)
+      // 1. Cria o usuário no Firebase Authentication
       UserCredential userCredential = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(
             email: _emailController.text.trim(),
             password: _senhaController.text.trim(),
           );
 
-      // 2. Salva os dados complementares no Firestore usando o mesmo ID do Auth
+      // 2. Instancia a nossa Model organizada
+      final novoUsuario = UsuarioModel(
+        id: userCredential.user!.uid,
+        nome: _nomeController.text.trim(),
+        email: _emailController.text.trim(),
+        perfil:
+            _perfilSelecionado, // Certifique-se de que bate com: 'Administrador', 'Clínica', 'Laboratório' ou 'Motoboy'
+        vinculoId: null, // Por enquanto não vinculamos a nenhuma empresa
+      );
+
+      // 3. Salva no Firestore usando o método toFirestore() da Model
       await FirebaseFirestore.instance
           .collection('usuarios')
-          .doc(userCredential.user!.uid)
-          .set({
-            'nome': _nomeController.text.trim(),
-            'email': _emailController.text.trim(),
-            'perfil': _perfilSelecionado,
-            'status': 'ativo',
-            'dataCadastro': FieldValue.serverTimestamp(),
-          });
+          .doc(novoUsuario.id)
+          .set(novoUsuario.toFirestore());
 
-      log.i("Usuário cadastrado com sucesso no banco e na autenticação!");
+      log.i("Usuário ${novoUsuario.email} registrado usando UsuarioModel!");
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
