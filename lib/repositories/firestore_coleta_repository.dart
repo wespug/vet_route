@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:vet_route/models/endereco_model.dart';
+import 'package:vet_route/models/entregador_model.dart';
 import '../models/clinica_model.dart';
 import '../models/laboratorio_model.dart';
 import '../models/coleta_model.dart';
@@ -56,6 +57,14 @@ class FirestoreColetaRepository implements ColetaRepository {
 
     // 3. Retorna o objeto real mapeado da nuvem com o lat/long da Liberdade!
     return Laboratorio.fromFirestore(doc);
+  }
+
+  Future<List<Entregador>> obterEntregadoresAtivos() async {
+    final snapshot = await FirebaseFirestore.instance
+        .collection('entregadores')
+        .where('disponivel', isEqualTo: true)
+        .get();
+    return snapshot.docs.map((doc) => Entregador.fromFirestore(doc)).toList();
   }
 
   @override

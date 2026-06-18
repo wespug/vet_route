@@ -173,4 +173,10 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get profileClinic => 'Perfil: Clínica';
+
+  @override
+  String get entregadorRadarTitle => 'Radar de Entregadores';
+
+  @override
+  String get profileEntregador => 'Perfil: Entregador';
 }

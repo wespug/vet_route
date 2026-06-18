@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:vet_route/l10n/app_localizations.dart';
+import 'package:vet_route/screens/entregador_screen.dart';
 import 'package:vet_route/screens/laboratorio_screen.dart';
 import 'package:vet_route/theme/app_theme.dart';
 import 'firebase_options.dart';
@@ -114,11 +115,22 @@ class VetRouteAPP extends StatelessWidget {
                       child: const LaboratorioScreen(),
                     );
 
-                  case PerfilUsuario.motoboy:
-                    return const Scaffold(
-                      body: Center(
-                        child: Text('TELA DO MOTOBOY (Em construção)'),
+                  case PerfilUsuario.entregadores:
+                    return Theme(
+                      data: Theme.of(context).copyWith(
+                        colorScheme: ColorScheme.fromSeed(
+                          seedColor: Colors
+                              .amber
+                              .shade700, // 💡 Esta é a cor que definimos antes
+                          primary: Colors
+                              .amber
+                              .shade700, // Força a AppBar e botões a usarem o nosso Âmbar
+                          tertiary: Colors
+                              .amber
+                              .shade700, // Garante que o terciário seja o nosso Âmbar
+                        ),
                       ),
+                      child: EntregadorScreen(),
                     );
 
                   case PerfilUsuario.desconhecido:

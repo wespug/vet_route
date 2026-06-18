@@ -427,6 +427,18 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'Perfil: Clínica'**
   String get profileClinic;
+
+  /// No description provided for @entregadorRadarTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Radar de Entregadores'**
+  String get entregadorRadarTitle;
+
+  /// No description provided for @profileEntregador.
+  ///
+  /// In pt, this message translates to:
+  /// **'Perfil: Entregador'**
+  String get profileEntregador;
 }
 
 class _AppLocalizationsDelegate

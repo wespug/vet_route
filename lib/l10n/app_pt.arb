@@ -57,6 +57,8 @@
   "history": "Histórico de Coletas",
   "settings": "Configurações",
   "logout": "Sair do Aplicativo",
-  "profileClinic": "Perfil: Clínica"
+  "profileClinic": "Perfil: Clínica", 
+  "entregadorRadarTitle": "Radar de Entregadores",
+  "profileEntregador": "Perfil: Entregador"
 
 }

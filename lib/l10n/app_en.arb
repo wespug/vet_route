@@ -57,6 +57,8 @@
   "history": "Collection History",
   "settings": "Settings",
   "logout": "Logout",
-  "profileClinic": "Profile: Clinic"
+  "profileClinic": "Profile: Clinic",
+    "entregadorRadarTitle": "Courier Radar",
+  "profileEntregador": "Profile: Courier"
   
 }

@@ -4,7 +4,7 @@ enum PerfilUsuario {
   administrador('Administrador'),
   clinica('Clínica'),
   laboratorio('Laboratório'),
-  motoboy('Motoboy'),
+  entregadores('Entregadores'),
   desconhecido('');
 
   // A string exata que está salva no Firebase
