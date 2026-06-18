@@ -47,5 +47,16 @@
   "scheduled": "Scheduled",
   "sending": "Sending",
   "users": "Users",
-  "waitCourier": "Waiting for Courier"
+  "waitCourier": "Waiting for Courier",
+  "labEmptyFinished": "No collections finished today.",
+  "labEmptyWaiting": "No clinics waiting at the moment.",
+  "logout": "Logout",
+  "profileLabel": "Profile: Laboratory",
+  "emptyFinished": "No collections finished today.",
+  "emptyWaiting": "No clinics waiting at the moment.",
+  "history": "Collection History",
+  "settings": "Settings",
+  "logout": "Logout",
+  "profileClinic": "Profile: Clinic"
+  
 }

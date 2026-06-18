@@ -227,7 +227,7 @@ abstract class AppLocalizations {
   /// No description provided for @logout.
   ///
   /// In pt, this message translates to:
-  /// **'Sair do Sistema'**
+  /// **'Sair do Aplicativo'**
   String get logout;
 
   /// No description provided for @markerSelf.
@@ -311,7 +311,7 @@ abstract class AppLocalizations {
   /// No description provided for @profileLabel.
   ///
   /// In pt, this message translates to:
-  /// **'Tipo de Perfil'**
+  /// **'Perfil: Laboratório'**
   String get profileLabel;
 
   /// No description provided for @radarText.
@@ -385,6 +385,48 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'Aguardando Motoboy'**
   String get waitCourier;
+
+  /// No description provided for @labEmptyFinished.
+  ///
+  /// In pt, this message translates to:
+  /// **'Nenhuma coleta finalizada hoje.'**
+  String get labEmptyFinished;
+
+  /// No description provided for @labEmptyWaiting.
+  ///
+  /// In pt, this message translates to:
+  /// **'Nenhuma clínica aguardando no momento.'**
+  String get labEmptyWaiting;
+
+  /// No description provided for @emptyFinished.
+  ///
+  /// In pt, this message translates to:
+  /// **'Nenhuma coleta finalizada hoje.'**
+  String get emptyFinished;
+
+  /// No description provided for @emptyWaiting.
+  ///
+  /// In pt, this message translates to:
+  /// **'Nenhuma clínica aguardando no momento.'**
+  String get emptyWaiting;
+
+  /// No description provided for @history.
+  ///
+  /// In pt, this message translates to:
+  /// **'Histórico de Coletas'**
+  String get history;
+
+  /// No description provided for @settings.
+  ///
+  /// In pt, this message translates to:
+  /// **'Configurações'**
+  String get settings;
+
+  /// No description provided for @profileClinic.
+  ///
+  /// In pt, this message translates to:
+  /// **'Perfil: Clínica'**
+  String get profileClinic;
 }
 
 class _AppLocalizationsDelegate

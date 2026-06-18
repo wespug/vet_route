@@ -39,22 +39,23 @@ class FirestoreColetaRepository implements ColetaRepository {
 
   @override
   Future<Laboratorio> obterLaboratorioPadrao() async {
-    // Temporariamente retorna um mock fixo para não travar a tela da Clínica.
-    // Futuramente, buscaremos isso de uma coleção 'laboratorios' no Firestore!
-    return Laboratorio(
-      id: 'L999',
-      nome: 'Laboratório Vet Route Express',
-      telefone: '(11) 4444-4444',
-      endereco: Endereco(
-        nome: 'Lab Express',
-        rua: 'Rua Augusta, 500',
-        cep: '01304-000',
-        cidade: 'São Paulo',
-        estado: 'SP',
-        pais: 'Brasil',
-        coordenada: const LatLng(-23.553950, -46.651260),
-      ),
-    );
+    // 1. Obtém o utilizador atualmente autenticado
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw Exception("Nenhum utilizador autenticado no Firebase Auth!");
+    }
+
+    // 2. Vai à coleção 'laboratorios' e busca o documento com o UID dele
+    final doc = await _firestore.collection('laboratorios').doc(user.uid).get();
+
+    if (!doc.exists) {
+      throw Exception(
+        "Perfil de laboratório não encontrado para o UID: ${user.uid}",
+      );
+    }
+
+    // 3. Retorna o objeto real mapeado da nuvem com o lat/long da Liberdade!
+    return Laboratorio.fromFirestore(doc);
   }
 
   @override

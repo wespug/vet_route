@@ -115,7 +115,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pickup => 'Pickup';
 
   @override
-  String get profileLabel => 'Profile Type';
+  String get profileLabel => 'Profile: Laboratory';
 
   @override
   String get radarText => 'Lab Radar: Tracking incoming couriers in real-time.';
@@ -152,4 +152,25 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get waitCourier => 'Waiting for Courier';
+
+  @override
+  String get labEmptyFinished => 'No collections finished today.';
+
+  @override
+  String get labEmptyWaiting => 'No clinics waiting at the moment.';
+
+  @override
+  String get emptyFinished => 'No collections finished today.';
+
+  @override
+  String get emptyWaiting => 'No clinics waiting at the moment.';
+
+  @override
+  String get history => 'Collection History';
+
+  @override
+  String get settings => 'Settings';
+
+  @override
+  String get profileClinic => 'Profile: Clinic';
 }

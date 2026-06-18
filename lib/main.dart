@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:vet_route/l10n/app_localizations.dart';
+import 'package:vet_route/screens/laboratorio_screen.dart';
 import 'package:vet_route/theme/app_theme.dart';
 import 'firebase_options.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -94,13 +95,23 @@ class VetRouteAPP extends StatelessWidget {
                     );
 
                   case PerfilUsuario.clinica:
-                    return const ClinicaScreen(); // <-- Abrindo nossa tela 100% real
+                    return Theme(
+                      data: Theme.of(context).copyWith(
+                        colorScheme: ColorScheme.fromSeed(
+                          seedColor: Colors.indigo,
+                        ),
+                      ),
+                      child: const ClinicaScreen(),
+                    );
 
                   case PerfilUsuario.laboratorio:
-                    return const Scaffold(
-                      body: Center(
-                        child: Text('TELA DO LABORATÓRIO (Em construção)'),
+                    return Theme(
+                      data: Theme.of(context).copyWith(
+                        colorScheme: ColorScheme.fromSeed(
+                          seedColor: Colors.teal,
+                        ),
                       ),
+                      child: const LaboratorioScreen(),
                     );
 
                   case PerfilUsuario.motoboy:

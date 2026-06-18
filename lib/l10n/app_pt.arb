@@ -47,5 +47,16 @@
   "scheduled": "Agendada",
   "sending": "Enviando",
   "users": "Usuários",
-  "waitCourier": "Aguardando Motoboy"
+  "waitCourier": "Aguardando Motoboy",
+  "labEmptyFinished": "Nenhuma coleta finalizada hoje.",
+  "labEmptyWaiting": "Nenhuma clínica aguardando no momento.",
+  "logout": "Sair do Aplicativo",
+  "profileLabel": "Perfil: Laboratório",
+  "emptyFinished": "Nenhuma coleta finalizada hoje.",
+  "emptyWaiting": "Nenhuma clínica aguardando no momento.",
+  "history": "Histórico de Coletas",
+  "settings": "Configurações",
+  "logout": "Sair do Aplicativo",
+  "profileClinic": "Perfil: Clínica"
+
 }

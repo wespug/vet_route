@@ -72,7 +72,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get loginBtn => 'Entrar';
 
   @override
-  String get logout => 'Sair do Sistema';
+  String get logout => 'Sair do Aplicativo';
 
   @override
   String get markerSelf => 'Seu Laboratório';
@@ -114,7 +114,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get pickup => 'Coleta';
 
   @override
-  String get profileLabel => 'Tipo de Perfil';
+  String get profileLabel => 'Perfil: Laboratório';
 
   @override
   String get radarText =>
@@ -152,4 +152,25 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get waitCourier => 'Aguardando Motoboy';
+
+  @override
+  String get labEmptyFinished => 'Nenhuma coleta finalizada hoje.';
+
+  @override
+  String get labEmptyWaiting => 'Nenhuma clínica aguardando no momento.';
+
+  @override
+  String get emptyFinished => 'Nenhuma coleta finalizada hoje.';
+
+  @override
+  String get emptyWaiting => 'Nenhuma clínica aguardando no momento.';
+
+  @override
+  String get history => 'Histórico de Coletas';
+
+  @override
+  String get settings => 'Configurações';
+
+  @override
+  String get profileClinic => 'Perfil: Clínica';
 }

@@ -3,7 +3,7 @@ import 'package:vet_route/l10n/app_localizations.dart';
 import 'package:vet_route/repositories/firestore_coleta_repository.dart';
 
 import '../controllers/clinica_controller.dart';
-import '../services/auth_service.dart'; // <-- IMPORTANTE: Adicionado para o Logout
+import '../services/auth_service.dart';
 
 class ClinicaScreen extends StatefulWidget {
   const ClinicaScreen({super.key});
@@ -58,80 +58,9 @@ class _ClinicaScreenState extends State<ClinicaScreen> {
             backgroundColor: colorScheme.primary,
             foregroundColor: colorScheme.onPrimary,
           ),
-          // === NOVO: MENU LATERAL (DRAWER) ===
-          drawer: Drawer(
-            child: ListView(
-              padding: EdgeInsets.zero,
-              children: [
-                DrawerHeader(
-                  decoration: BoxDecoration(color: colorScheme.primary),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      Icon(
-                        Icons.local_hospital,
-                        color: colorScheme.onPrimary,
-                        size: 42,
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        clinica.nome,
-                        style: TextStyle(
-                          color: colorScheme.onPrimary,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        'Perfil: Clínica',
-                        style: TextStyle(
-                          color: colorScheme.onPrimary.withOpacity(0.8),
-                          fontSize: 14,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                ListTile(
-                  leading: Icon(Icons.history, color: colorScheme.primary),
-                  title: const Text('Histórico de Coletas'),
-                  onTap: () {
-                    // Futura tela de histórico
-                  },
-                ),
-                ListTile(
-                  leading: Icon(Icons.settings, color: colorScheme.primary),
-                  title: const Text('Configurações'),
-                  onTap: () {
-                    // Futura tela de configurações
-                  },
-                ),
-                const Divider(),
-                ListTile(
-                  leading: const Icon(
-                    Icons.exit_to_app,
-                    color: Colors.redAccent,
-                  ),
-                  title: const Text(
-                    'Sair do Aplicativo',
-                    style: TextStyle(
-                      color: Colors.redAccent,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  onTap: () {
-                    // Aciona o logout. O main.dart ouve isso e redireciona sozinho!
-                    AuthService().logout();
-                  },
-                ),
-              ],
-            ),
-          ),
-          // ===================================
+          drawer: _buildDrawer(i18n, colorScheme, clinica.nome),
           body: Column(
             children: [
-              // Botões de Ação
               Container(
                 padding: const EdgeInsets.all(16),
                 color: colorScheme.primaryContainer,
@@ -163,6 +92,72 @@ class _ClinicaScreenState extends State<ClinicaScreen> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildDrawer(
+    AppLocalizations i18n,
+    ColorScheme colorScheme,
+    String nomeClinica,
+  ) {
+    return Drawer(
+      child: ListView(
+        padding: EdgeInsets.zero,
+        children: [
+          DrawerHeader(
+            decoration: BoxDecoration(color: colorScheme.primary),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Icon(
+                  Icons.local_hospital,
+                  color: colorScheme.onPrimary,
+                  size: 42,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  nomeClinica,
+                  style: TextStyle(
+                    color: colorScheme.onPrimary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  i18n.profileClinic,
+                  style: TextStyle(
+                    color: colorScheme.onPrimary.withOpacity(0.8),
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          ListTile(
+            leading: Icon(Icons.history, color: colorScheme.primary),
+            title: Text(i18n.history),
+            onTap: () {},
+          ),
+          ListTile(
+            leading: Icon(Icons.settings, color: colorScheme.primary),
+            title: Text(i18n.settings),
+            onTap: () {},
+          ),
+          const Divider(),
+          ListTile(
+            leading: Icon(Icons.exit_to_app, color: colorScheme.error),
+            title: Text(
+              i18n.logout,
+              style: TextStyle(
+                color: colorScheme.error,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            onTap: () => AuthService().logout(),
+          ),
+        ],
+      ),
     );
   }
 }
