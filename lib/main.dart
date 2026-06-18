@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart'
-    show kIsWeb; // <-- Importante para saber se é Web ou App
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:vet_route/l10n/app_localizations.dart';
@@ -9,11 +8,10 @@ import 'firebase_options.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:vet_route/screens/login_screen.dart';
 import 'package:vet_route/screens/web/cadastro_usuario_web.dart';
+import 'package:vet_route/screens/clinica_screen.dart'; // <-- IMPORTANTE: Nossa tela real
+import 'package:vet_route/models/perfil_usuario.dart'; // <-- IMPORTANTE: Nosso novo Enum
 import 'package:vet_route/services/auth_service.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:vet_route/screens/clinica_screen.dart';
-
-// Importe suas telas mobile aqui (MotoboyScreen, ClinicaScreen, etc) quando existirem
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,22 +28,13 @@ class VetRouteAPP extends StatelessWidget {
       title: 'Vet Route',
       theme: VetRouteTheme.lightTheme,
       debugShowCheckedModeBanner: false,
-
-      // === 2. ADICIONE ESTE BLOCO DE INTERNACIONALIZAÇÃO ===
       localizationsDelegates: const [
         AppLocalizations.delegate,
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      supportedLocales: const [
-        Locale('pt', ''), // Português
-        Locale('en', ''), // Inglês
-        Locale('es', ''), // Espanhol (quando você criar o app_es.arb)
-      ],
-      // ====================================================
-
-      // 1. PRIMEIRO PASSO: Ouve se o usuário tem token de acesso (Auth)
+      supportedLocales: const [Locale('pt', ''), Locale('en', '')],
       home: StreamBuilder<User?>(
         stream: AuthService().usuarioStatus,
         builder: (context, authSnapshot) {
@@ -55,12 +44,10 @@ class VetRouteAPP extends StatelessWidget {
             );
           }
 
-          // Se não tem login, volta pro LoginScreen (tanto web quanto app)
           if (!authSnapshot.hasData) {
             return const LoginScreen();
           }
 
-          // 2. SEGUNDO PASSO: O usuário está logado! Vamos descobrir o perfil dele no Banco.
           return FutureBuilder<DocumentSnapshot>(
             future: FirebaseFirestore.instance
                 .collection('usuarios')
@@ -74,7 +61,6 @@ class VetRouteAPP extends StatelessWidget {
                 );
               }
 
-              // Prevenção de erro: Se o usuário logou, mas o documento dele foi apagado do banco
               if (!firestoreSnapshot.hasData ||
                   !firestoreSnapshot.data!.exists) {
                 return _telaErroAcesso(
@@ -82,50 +68,53 @@ class VetRouteAPP extends StatelessWidget {
                 );
               }
 
-              // Extrai o perfil do banco
-              final perfil = firestoreSnapshot.data!.get('perfil') as String?;
+              // 💡 Extrai a String e converte imediatamente para o Enum Blindado
+              final stringPerfil =
+                  firestoreSnapshot.data!.get('perfil') as String?;
+              final perfil = PerfilUsuario.fromString(stringPerfil);
 
-              // === 3. A GRANDE TRIAGEM (A MÁGICA ACONTECE AQUI) ===
+              // === A GRANDE TRIAGEM (COM ENUMS E SWITCH) ===
 
               // SE ESTIVER NO NAVEGADOR (WEB)
               if (kIsWeb) {
-                if (perfil == 'Administrador') {
-                  return const CadastroUsuarioWeb(); // Deixa o admin passar
+                if (perfil == PerfilUsuario.administrador) {
+                  return const CadastroUsuarioWeb();
                 } else {
                   return _telaErroAcesso(
-                    'Acesso Negado. Seu perfil ($perfil) só pode acessar via Aplicativo de Celular.',
+                    'Acesso Negado. Seu perfil só pode acessar via Aplicativo de Celular.',
                   );
                 }
               }
               // SE ESTIVER NO CELULAR (MOBILE)
               else {
-                if (perfil == 'Administrador') {
-                  return _telaErroAcesso(
-                    'Administradores devem utilizar a versão Web pelo computador.',
-                  );
-                }
+                switch (perfil) {
+                  case PerfilUsuario.administrador:
+                    return _telaErroAcesso(
+                      'Administradores devem utilizar a versão Web pelo computador.',
+                    );
 
-                // Rotas do Mobile
-                if (perfil == 'Motoboy') {
-                  return const Scaffold(
-                    body: Center(
-                      child: Text('TELA DO MOTOBOY (Em construção)'),
-                    ),
-                  );
-                }
-                if (perfil == 'Clínica') {
-                  return const ClinicaScreen();
-                }
+                  case PerfilUsuario.clinica:
+                    return const ClinicaScreen(); // <-- Abrindo nossa tela 100% real
 
-                if (perfil == 'Laboratório') {
-                  return const Scaffold(
-                    body: Center(
-                      child: Text('TELA DO LABORATÓRIO (Em construção)'),
-                    ),
-                  );
-                }
+                  case PerfilUsuario.laboratorio:
+                    return const Scaffold(
+                      body: Center(
+                        child: Text('TELA DO LABORATÓRIO (Em construção)'),
+                      ),
+                    );
 
-                return _telaErroAcesso('Perfil desconhecido: $perfil');
+                  case PerfilUsuario.motoboy:
+                    return const Scaffold(
+                      body: Center(
+                        child: Text('TELA DO MOTOBOY (Em construção)'),
+                      ),
+                    );
+
+                  case PerfilUsuario.desconhecido:
+                    return _telaErroAcesso(
+                      'Perfil inválido ou não reconhecido pelo sistema.',
+                    );
+                }
               }
             },
           );
@@ -134,7 +123,6 @@ class VetRouteAPP extends StatelessWidget {
     );
   }
 
-  // Widget de apoio: Uma telinha amigável para quando o usuário for barrado
   Widget _telaErroAcesso(String mensagem) {
     return Scaffold(
       backgroundColor: Colors.red[50],
