@@ -4,12 +4,14 @@ import 'package:flutter/foundation.dart'
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:vet_route/l10n/app_localizations.dart';
+import 'package:vet_route/theme/app_theme.dart';
 import 'firebase_options.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:vet_route/screens/login_screen.dart';
 import 'package:vet_route/screens/web/cadastro_usuario_web.dart';
 import 'package:vet_route/services/auth_service.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:vet_route/screens/clinica_screen.dart';
 
 // Importe suas telas mobile aqui (MotoboyScreen, ClinicaScreen, etc) quando existirem
 
@@ -26,6 +28,7 @@ class VetRouteAPP extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Vet Route',
+      theme: VetRouteTheme.lightTheme,
       debugShowCheckedModeBanner: false,
 
       // === 2. ADICIONE ESTE BLOCO DE INTERNACIONALIZAÇÃO ===
@@ -111,12 +114,9 @@ class VetRouteAPP extends StatelessWidget {
                   );
                 }
                 if (perfil == 'Clínica') {
-                  return const Scaffold(
-                    body: Center(
-                      child: Text('TELA DA CLÍNICA (Em construção)'),
-                    ),
-                  );
+                  return const ClinicaScreen();
                 }
+
                 if (perfil == 'Laboratório') {
                   return const Scaffold(
                     body: Center(

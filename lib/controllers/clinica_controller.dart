@@ -1,5 +1,3 @@
-// lib/controllers/clinica_controller.dart
-
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../models/coleta_model.dart';
@@ -12,55 +10,65 @@ class ClinicaController {
 
   ClinicaController(this._repository);
 
+  // --- ESTADOS REATIVOS ---
   final ValueNotifier<bool> isLoading = ValueNotifier<bool>(false);
+  final ValueNotifier<Clinica?> clinicaAtual = ValueNotifier<Clinica?>(null);
+  final ValueNotifier<Laboratorio?> labDestino = ValueNotifier<Laboratorio?>(
+    null,
+  );
 
-  // NOVOS ESTADOS REATIVOS
   final ValueNotifier<List<Marker>> motoboysProximos =
       ValueNotifier<List<Marker>>([]);
   final ValueNotifier<List<Coleta>> coletasEmTransito =
       ValueNotifier<List<Coleta>>([]);
 
-  // Regra de Negócio: Carregar painel da clínica
-  void carregarPainelLogistico(LatLng localClinica) {
-    // 1. Simula motoboys rondando o bairro (Pins Laranjas)
+  /// Inicializa o painel carregando os dados do repositório
+  Future<void> inicializarPainel() async {
+    isLoading.value = true;
+    try {
+      // Aqui o Controller deixa de criar os mocks e passa a PEDIR ao repositório
+      clinicaAtual.value = await _repository.obterClinicaLogada();
+      labDestino.value = await _repository.obterLaboratorioPadrao();
+
+      if (clinicaAtual.value != null) {
+        _carregarMotoboysProximos(clinicaAtual.value!.endereco.coordenada!);
+      }
+    } catch (e) {
+      debugPrint('Erro ao inicializar painel: $e');
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  void _carregarMotoboysProximos(LatLng local) {
+    // A lógica de criação dos marcadores permanece aqui,
+    // mas agora usa os dados que vieram do Repository
     motoboysProximos.value = [
       Marker(
         markerId: const MarkerId('m1'),
-        position: LatLng(
-          localClinica.latitude + 0.002,
-          localClinica.longitude + 0.002,
-        ),
+        position: LatLng(local.latitude + 0.002, local.longitude + 0.002),
         icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
-        infoWindow: const InfoWindow(title: 'Motoboy Disponível'),
       ),
       Marker(
         markerId: const MarkerId('m2'),
-        position: LatLng(
-          localClinica.latitude - 0.003,
-          localClinica.longitude + 0.001,
-        ),
+        position: LatLng(local.latitude - 0.003, local.longitude + 0.001),
         icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
-        infoWindow: const InfoWindow(title: 'Motoboy Disponível'),
       ),
     ];
-
-    // 2. Simula coletas que estão a caminho da clínica
-    // (Num cenário real, buscaríamos isso do Repository)
   }
 
-  Future<bool> solicitarMotoboy(
-    Clinica minhaClinica,
-    Laboratorio laboratorioDestino,
-  ) async {
+  Future<bool> solicitarMotoboy() async {
+    final clinica = clinicaAtual.value;
+    final lab = labDestino.value;
+
+    if (clinica == null || lab == null) return false;
+
     try {
       isLoading.value = true;
-      final novoId =
-          '#${DateTime.now().millisecondsSinceEpoch.toString().substring(9)}';
-
       final novaColeta = Coleta(
-        id: novoId,
-        clinicaOrigem: minhaClinica,
-        laboratorioDestino: laboratorioDestino,
+        id: '#${DateTime.now().millisecondsSinceEpoch}',
+        clinicaOrigem: clinica,
+        laboratorioDestino: lab,
         status: 'Aguardando',
       );
 
@@ -76,6 +84,8 @@ class ClinicaController {
 
   void dispose() {
     isLoading.dispose();
+    clinicaAtual.dispose();
+    labDestino.dispose();
     motoboysProximos.dispose();
     coletasEmTransito.dispose();
   }

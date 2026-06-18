@@ -15,7 +15,7 @@ class AuthService {
         email: email,
         password: password,
       );
-      _log.i("Usuário autenticado com sucesso: ${credential.user?.email}");
+      _log.i("Usuário autenticado com sucesso:> ${credential.user?.email}");
       return credential.user;
     } catch (e) {
       _log.e("Erro no processo de login: $e");

@@ -10,6 +10,10 @@ import '../models/endereco_model.dart';
 abstract class ColetaRepository {
   Future<List<Coleta>> buscarColetasNoRadar();
   Future<void> solicitarColeta(Coleta novaColeta);
+
+  // NOVOS MÉTODOS DO CONTRATO
+  Future<Clinica> obterClinicaLogada();
+  Future<Laboratorio> obterLaboratorioPadrao();
 }
 
 // A Implementação Mock (Simulando o Backend com dados reais de SP)
@@ -88,17 +92,28 @@ class MockColetaRepository implements ColetaRepository {
 
   @override
   Future<List<Coleta>> buscarColetasNoRadar() async {
-    // Simulando o tempo de resposta do servidor (2 segundos)
-    await Future.delayed(const Duration(seconds: 2));
+    await Future.delayed(const Duration(seconds: 1));
     return _bancoDeDados.where((c) => c.status == 'Aguardando').toList();
   }
 
-  // NOVA IMPLEMENTAÇÃO: Sald vando a coleta no "banco"
   @override
   Future<void> solicitarColeta(Coleta novaColeta) async {
-    await Future.delayed(
-      const Duration(seconds: 1),
-    ); //  d Simula latência de rede
+    await Future.delayed(const Duration(milliseconds: 500));
     _bancoDeDados.add(novaColeta);
+  }
+
+  @override
+  @override
+  Future<Clinica> obterClinicaLogada() async {
+    // Simula a busca do usuário logado (ex: Auth service)
+    await Future.delayed(const Duration(milliseconds: 300));
+    return _bancoDeDados.first.clinicaOrigem;
+  }
+
+  @override
+  Future<Laboratorio> obterLaboratorioPadrao() async {
+    // Simula busca de laboratório preferencial
+    await Future.delayed(const Duration(milliseconds: 300));
+    return _bancoDeDados.first.laboratorioDestino;
   }
 }
