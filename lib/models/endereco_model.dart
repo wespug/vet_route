@@ -1,3 +1,5 @@
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+
 class Endereco {
   final String cep;
   final String logradouro;
@@ -20,6 +22,13 @@ class Endereco {
     this.latitude,
     this.longitude,
   });
+
+  LatLng? get coordenada {
+    if (latitude != null && longitude != null) {
+      return LatLng(latitude!, longitude!);
+    }
+    return null;
+  }
 
   // Transforma o objeto Dart em um Map para o Firebase
   Map<String, dynamic> toMap() {

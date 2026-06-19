@@ -13,15 +13,13 @@ class EntregadorController {
   EntregadorController(this._repository);
 
   Future<void> inicializarRadar(ColorScheme cs) async {
-    // 💡 Precisa receber o CS aqui ou ter acesso a ele
     isLoading.value = true;
     try {
+      // 💡 Atenção: Certifique-se de que o método obterEntregadoresAtivos
+      // foi criado lá no seu FirestoreColetaRepository!
       final lista = await _repository.obterEntregadoresAtivos();
       entregadoresAtivos.value = lista;
-      _atualizarMarcadores(
-        lista,
-        cs,
-      ); // 💡 O segundo argumento estava faltando!
+      _atualizarMarcadores(lista, cs);
     } catch (e) {
       debugPrint("Erro ao carregar entregadores: $e");
     } finally {
@@ -32,14 +30,17 @@ class EntregadorController {
   void _atualizarMarcadores(List<Entregador> lista, ColorScheme cs) {
     marcadores.value = lista
         .map(
+          // 💡 É AQUI QUE O "e" NASCE! Ele representa 1 entregador da lista.
           (e) => Marker(
-            markerId: MarkerId(e.id),
+            markerId: MarkerId(
+              e.id ?? DateTime.now().microsecondsSinceEpoch.toString(),
+            ),
             position: e.localizacao,
-            // Usamos a cor terciária vinda do esquema de cores, não um número fixo!
             icon: BitmapDescriptor.defaultMarkerWithHue(
               _converterColorToHue(cs.tertiary),
             ),
-            infoWindow: InfoWindow(title: e.nome),
+            // 💡 O INFO WINDOW FICA AQUI DENTRO DO MARKER!
+            infoWindow: InfoWindow(title: e.nome, snippet: e.veiculo),
           ),
         )
         .toSet();
