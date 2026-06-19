@@ -90,10 +90,16 @@ class AdminChassi extends StatelessWidget {
           ),
 
           // Botões do Menu puxando do Dicionário
-          _itemMenu(Icons.people, i18n.users, () {}),
-          _itemMenu(Icons.local_hospital, i18n.clinics, () {}),
-          _itemMenu(Icons.science, i18n.lab, () {}),
-          _itemMenu(Icons.motorcycle, i18n.couriers, () {}),
+          // No seu AdminChassi, dentro de _construirMenuLateral:
+          _itemMenu(Icons.local_hospital, i18n.clinics, () {
+            debugPrint("Navegando para Clínicas");
+          }),
+          _itemMenu(Icons.science, i18n.lab, () {
+            debugPrint("Navegando para Laboratórios");
+          }),
+          _itemMenu(Icons.motorcycle, i18n.couriers, () {
+            debugPrint("Navegando para Entregadores");
+          }),
 
           const Divider(color: Colors.white24), // Uma linha divisória
 

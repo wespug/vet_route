@@ -1,41 +1,47 @@
-// lib/models/clinica_model.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'endereco_model.dart';
+import 'endereco_model.dart'; // 💡 Importamos o novo modelo
 
 class Clinica {
-  final String id;
+  final String? id;
   final String nome;
+  final String email;
   final String telefone;
-  final Endereco endereco;
+  final String cnpj;
+  final Endereco endereco; // 💡 Agora é fortemente tipado!
 
   Clinica({
-    required this.id,
+    this.id,
     required this.nome,
+    required this.email,
     required this.telefone,
+    required this.cnpj,
     required this.endereco,
   });
 
-  // O Pulo do Gato: Converte o DocumentSnapshot do Firestore para o Objeto do App
+  Map<String, dynamic> toMap() {
+    return {
+      'nome': nome,
+      'email': email,
+      'telefone': telefone,
+      'cnpj': cnpj,
+      'perfil': 'clinica',
+      'endereco': endereco
+          .toMap(), // 💡 Delega a serialização para a classe Endereco
+      'dataCadastro': FieldValue.serverTimestamp(),
+    };
+  }
+
   factory Clinica.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
-    final enderecoMap = data['endereco'] as Map<String, dynamic>;
-
     return Clinica(
-      id: doc.id, // O ID do documento é o UID do usuário
+      id: doc.id,
       nome: data['nome'] ?? '',
+      email: data['email'] ?? '',
       telefone: data['telefone'] ?? '',
-      endereco: Endereco(
-        nome: enderecoMap['nome'] ?? '',
-        rua: enderecoMap['rua'] ?? '',
-        cep: enderecoMap['cep'] ?? '',
-        cidade: enderecoMap['cidade'] ?? '',
-        estado: enderecoMap['estado'] ?? '',
-        pais: enderecoMap['pais'] ?? '',
-        coordenada: LatLng(
-          (enderecoMap['latitude'] as num).toDouble(),
-          (enderecoMap['longitude'] as num).toDouble(),
-        ),
+      cnpj: data['cnpj'] ?? '',
+      // 💡 Transforma o map do Firestore de volta no objeto Endereco
+      endereco: Endereco.fromMap(
+        data['endereco'] as Map<String, dynamic>? ?? {},
       ),
     );
   }

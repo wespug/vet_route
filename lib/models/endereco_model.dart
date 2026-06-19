@@ -1,29 +1,58 @@
-// lib/models/endereco_model.dart
-
-import 'package:google_maps_flutter/google_maps_flutter.dart';
-
 class Endereco {
-  final String nome; // Ex: Clínica Vida Animal ou João da Silva
-  final String rua; // Ex: Rua dos Cachorros, 123
-  final String cep; // Ex: 05717170-0
-  final String cidade; // Ex: São Paulo
-  final String estado; // Ex: São Paulo
-  final String pais; // Ex: São Paulo
-
-  // O '?' significa que este campo é opcional (pode ser null)
-  final String? pontoReferencia;
-  final String? telefoneContato;
-  final LatLng? coordenada; // A posição no mapa
+  final String cep;
+  final String logradouro;
+  final String numero;
+  final String complemento;
+  final String bairro;
+  final String cidade;
+  final String estado; // UF
+  final double? latitude; // 💡 Pensando no futuro do mapa!
+  final double? longitude;
 
   Endereco({
-    required this.nome,
-    required this.rua,
     required this.cep,
+    required this.logradouro,
+    required this.numero,
+    this.complemento = '',
+    required this.bairro,
     required this.cidade,
     required this.estado,
-    required this.pais,
-    this.pontoReferencia,
-    this.telefoneContato,
-    this.coordenada,
+    this.latitude,
+    this.longitude,
   });
+
+  // Transforma o objeto Dart em um Map para o Firebase
+  Map<String, dynamic> toMap() {
+    return {
+      'cep': cep,
+      'logradouro': logradouro,
+      'numero': numero,
+      'complemento': complemento,
+      'bairro': bairro,
+      'cidade': cidade,
+      'estado': estado,
+      'latitude': latitude,
+      'longitude': longitude,
+    };
+  }
+
+  // Constrói o objeto Dart a partir do Map do Firebase
+  factory Endereco.fromMap(Map<String, dynamic> map) {
+    return Endereco(
+      cep: map['cep'] ?? '',
+      logradouro: map['logradouro'] ?? '',
+      numero: map['numero'] ?? '',
+      complemento: map['complemento'] ?? '',
+      bairro: map['bairro'] ?? '',
+      cidade: map['cidade'] ?? '',
+      estado: map['estado'] ?? '',
+      // Tratamento seguro para double no Firestore
+      latitude: map['latitude'] != null
+          ? (map['latitude'] as num).toDouble()
+          : null,
+      longitude: map['longitude'] != null
+          ? (map['longitude'] as num).toDouble()
+          : null,
+    );
+  }
 }

@@ -1,44 +1,50 @@
-// lib/models/laboratorio_model.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'endereco_model.dart';
+import 'endereco_model.dart'; // 💡 Reaproveitando o nosso modelo universal
 
 class Laboratorio {
-  final String id;
+  final String? id;
   final String nome;
+  final String email;
   final String telefone;
-  final Endereco endereco;
+  final String cnpj;
+  final Endereco endereco; // 💡 Fortemente tipado com o padrão unificado
 
   Laboratorio({
-    required this.id,
+    this.id,
     required this.nome,
+    required this.email,
     required this.telefone,
+    required this.cnpj,
     required this.endereco,
   });
 
-  /// Mapeia o DocumentSnapshot do Firestore diretamente para o objeto Laboratorio
+  // Transforma o objeto Laboratório em Map para salvar no Firestore
+  Map<String, dynamic> toMap() {
+    return {
+      'nome': nome,
+      'email': email,
+      'telefone': telefone,
+      'cnpj': cnpj,
+      'perfil':
+          'laboratorio', // Identificador essencial para a triagem de login
+      'endereco': endereco
+          .toMap(), // 💡 Delega a conversão para a classe Endereco
+      'dataCadastro': FieldValue.serverTimestamp(),
+    };
+  }
+
+  // Reconstrói o objeto Laboratório a partir dos dados brutos do Firestore
   factory Laboratorio.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
-
-    // Extrai o mapa interno de endereço
-    final enderecoMap = data['endereco'] as Map<String, dynamic>;
-
     return Laboratorio(
       id: doc.id,
       nome: data['nome'] ?? '',
+      email: data['email'] ?? '',
       telefone: data['telefone'] ?? '',
-      endereco: Endereco(
-        nome: enderecoMap['nome'] ?? '',
-        rua: enderecoMap['rua'] ?? '',
-        cep: enderecoMap['cep'] ?? '',
-        cidade: enderecoMap['cidade'] ?? '',
-        estado: enderecoMap['estado'] ?? '',
-        pais: enderecoMap['pais'] ?? '',
-        // 💡 Blindagem: Se for null, usa 0.0 ou a coordenada padrão da Liberdade
-        coordenada: LatLng(
-          (enderecoMap['lat'] as num?)?.toDouble() ?? -23.5548755,
-          (enderecoMap['long'] as num?)?.toDouble() ?? -46.6356176,
-        ),
+      cnpj: data['cnpj'] ?? '',
+      // 💡 Transforma o nó 'endereco' do Firestore diretamente no nosso objeto tipado
+      endereco: Endereco.fromMap(
+        data['endereco'] as Map<String, dynamic>? ?? {},
       ),
     );
   }
