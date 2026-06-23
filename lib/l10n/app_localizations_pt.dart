@@ -9,10 +9,16 @@ class AppLocalizationsPt extends AppLocalizations {
   AppLocalizationsPt([String locale = 'pt']) : super(locale);
 
   @override
+  String get addLab => 'Adicionar Laboratório';
+
+  @override
   String get adminMenuHeader => 'Vet Route Admin';
 
   @override
   String get appTitle => 'Acesso Vet Route';
+
+  @override
+  String get cancel => 'Cancelar';
 
   @override
   String get cliniCorrierSuccess => 'Motoboy solicitado! Aguardando aceite.';
@@ -42,6 +48,15 @@ class AppLocalizationsPt extends AppLocalizations {
   String get emailError => 'Digite o e-mail';
 
   @override
+  String get emptyFinished => 'Nenhuma coleta finalizada hoje.';
+
+  @override
+  String get emptyWaiting => 'Nenhuma clínica aguardando no momento.';
+
+  @override
+  String get entregadorRadarTitle => 'Radar de Entregadores';
+
+  @override
   String get errorEmpty => 'Por favor, preencha todos os campos.';
 
   @override
@@ -54,6 +69,9 @@ class AppLocalizationsPt extends AppLocalizations {
   String get forgotPassword => 'Esqueci minha senha';
 
   @override
+  String get history => 'Histórico de Coletas';
+
+  @override
   String get immediate => 'Imediata';
 
   @override
@@ -63,7 +81,22 @@ class AppLocalizationsPt extends AppLocalizations {
   String get labBtnReceiveProduct => 'RECEBER PACOTE';
 
   @override
+  String get labEmptyFinished => 'Nenhuma coleta finalizada hoje.';
+
+  @override
+  String get labEmptyWaiting => 'Nenhuma clínica aguardando no momento.';
+
+  @override
+  String get labManagement => 'Gestão de Laboratórios';
+
+  @override
+  String get labName => 'Nome do Laboratório';
+
+  @override
   String get labReceiveInit => 'Iniciando recebimento... Escaneie o pacote.';
+
+  @override
+  String get labSavedSuccess => 'Laboratório salvo com sucesso!';
 
   @override
   String get labs => 'Laboratórios';
@@ -96,7 +129,13 @@ class AppLocalizationsPt extends AppLocalizations {
   String get nameLabel => 'Nome Completo';
 
   @override
+  String get newLab => 'Novo Laboratório';
+
+  @override
   String get noAccount => 'Não tem uma conta?';
+
+  @override
+  String get noLabsRegistered => 'Nenhum laboratório cadastrado.';
 
   @override
   String get onWay => 'A Caminho';
@@ -111,10 +150,22 @@ class AppLocalizationsPt extends AppLocalizations {
   String get passwordError => 'A senha deve ter no mínimo 6 caracteres';
 
   @override
+  String get phone => 'Telefone';
+
+  @override
   String get pickup => 'Coleta';
 
   @override
-  String get profileLabel => 'Perfil: Laboratório';
+  String get profileClinic => 'Perfil: Clínica';
+
+  @override
+  String get profileEntregador => 'Perfil: Entregador';
+
+  @override
+  String get profileLab => 'Perfil: Laboratório';
+
+  @override
+  String get profileLabel => 'Tipo de Perfil';
 
   @override
   String get radarText =>
@@ -139,6 +190,9 @@ class AppLocalizationsPt extends AppLocalizations {
   String get regTitle => 'Cadastro de Usuários';
 
   @override
+  String get save => 'Salvar';
+
+  @override
   String get saveBtn => 'SALVAR USUÁRIO';
 
   @override
@@ -148,35 +202,11 @@ class AppLocalizationsPt extends AppLocalizations {
   String get sending => 'Enviando';
 
   @override
+  String get settings => 'Configurações';
+
+  @override
   String get users => 'Usuários';
 
   @override
   String get waitCourier => 'Aguardando Motoboy';
-
-  @override
-  String get labEmptyFinished => 'Nenhuma coleta finalizada hoje.';
-
-  @override
-  String get labEmptyWaiting => 'Nenhuma clínica aguardando no momento.';
-
-  @override
-  String get emptyFinished => 'Nenhuma coleta finalizada hoje.';
-
-  @override
-  String get emptyWaiting => 'Nenhuma clínica aguardando no momento.';
-
-  @override
-  String get history => 'Histórico de Coletas';
-
-  @override
-  String get settings => 'Configurações';
-
-  @override
-  String get profileClinic => 'Perfil: Clínica';
-
-  @override
-  String get entregadorRadarTitle => 'Radar de Entregadores';
-
-  @override
-  String get profileEntregador => 'Perfil: Entregador';
 }

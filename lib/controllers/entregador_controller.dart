@@ -45,7 +45,7 @@ class EntregadorController {
             markerId: MarkerId(
               e.id ?? DateTime.now().microsecondsSinceEpoch.toString(),
             ),
-            position: e.localizacao,
+            // position: e.localizacao,
             icon: BitmapDescriptor.defaultMarkerWithHue(
               _converterColorToHue(cs.tertiary),
             ),

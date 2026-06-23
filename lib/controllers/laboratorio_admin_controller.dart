@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/laboratorio_model.dart';
+import '../models/perfil_usuario.dart'; // 💡 Importação vital para usar o Enum
 
 class LaboratorioAdminController {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -11,7 +12,8 @@ class LaboratorioAdminController {
   void ouvirLaboratorios() {
     _db
         .collection('usuarios')
-        .where('perfil', isEqualTo: 'laboratorio')
+        // 💡 Blindado: usando o Enum no lugar da string solta 'laboratorio'
+        .where('perfil', isEqualTo: PerfilUsuario.laboratorio.firebaseValue)
         .snapshots()
         .listen((snapshot) {
           laboratorios.value = snapshot.docs
@@ -57,5 +59,10 @@ class LaboratorioAdminController {
     } finally {
       isLoading.value = false;
     }
+  }
+
+  void dispose() {
+    isLoading.dispose();
+    laboratorios.dispose();
   }
 }

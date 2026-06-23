@@ -4,7 +4,6 @@ import 'package:cloud_firestore/cloud_firestore.dart'; // 💡 Necessário para 
 import '../models/coleta_model.dart';
 import '../models/clinica_model.dart';
 import '../models/laboratorio_model.dart';
-import '../models/perfil_usuario.dart'; // 💡 Necessário para o Enum
 import '../repositories/coleta_repository.dart';
 
 class ClinicaController {

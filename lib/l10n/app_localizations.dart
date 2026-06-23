@@ -98,6 +98,12 @@ abstract class AppLocalizations {
     Locale('pt'),
   ];
 
+  /// No description provided for @addLab.
+  ///
+  /// In pt, this message translates to:
+  /// **'Adicionar Laboratório'**
+  String get addLab;
+
   /// No description provided for @adminMenuHeader.
   ///
   /// In pt, this message translates to:
@@ -109,6 +115,12 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'Acesso Vet Route'**
   String get appTitle;
+
+  /// No description provided for @cancel.
+  ///
+  /// In pt, this message translates to:
+  /// **'Cancelar'**
+  String get cancel;
 
   /// No description provided for @cliniCorrierSuccess.
   ///
@@ -164,6 +176,24 @@ abstract class AppLocalizations {
   /// **'Digite o e-mail'**
   String get emailError;
 
+  /// No description provided for @emptyFinished.
+  ///
+  /// In pt, this message translates to:
+  /// **'Nenhuma coleta finalizada hoje.'**
+  String get emptyFinished;
+
+  /// No description provided for @emptyWaiting.
+  ///
+  /// In pt, this message translates to:
+  /// **'Nenhuma clínica aguardando no momento.'**
+  String get emptyWaiting;
+
+  /// No description provided for @entregadorRadarTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Radar de Entregadores'**
+  String get entregadorRadarTitle;
+
   /// No description provided for @errorEmpty.
   ///
   /// In pt, this message translates to:
@@ -188,6 +218,12 @@ abstract class AppLocalizations {
   /// **'Esqueci minha senha'**
   String get forgotPassword;
 
+  /// No description provided for @history.
+  ///
+  /// In pt, this message translates to:
+  /// **'Histórico de Coletas'**
+  String get history;
+
   /// No description provided for @immediate.
   ///
   /// In pt, this message translates to:
@@ -206,11 +242,41 @@ abstract class AppLocalizations {
   /// **'RECEBER PACOTE'**
   String get labBtnReceiveProduct;
 
+  /// No description provided for @labEmptyFinished.
+  ///
+  /// In pt, this message translates to:
+  /// **'Nenhuma coleta finalizada hoje.'**
+  String get labEmptyFinished;
+
+  /// No description provided for @labEmptyWaiting.
+  ///
+  /// In pt, this message translates to:
+  /// **'Nenhuma clínica aguardando no momento.'**
+  String get labEmptyWaiting;
+
+  /// No description provided for @labManagement.
+  ///
+  /// In pt, this message translates to:
+  /// **'Gestão de Laboratórios'**
+  String get labManagement;
+
+  /// No description provided for @labName.
+  ///
+  /// In pt, this message translates to:
+  /// **'Nome do Laboratório'**
+  String get labName;
+
   /// No description provided for @labReceiveInit.
   ///
   /// In pt, this message translates to:
   /// **'Iniciando recebimento... Escaneie o pacote.'**
   String get labReceiveInit;
+
+  /// No description provided for @labSavedSuccess.
+  ///
+  /// In pt, this message translates to:
+  /// **'Laboratório salvo com sucesso!'**
+  String get labSavedSuccess;
 
   /// No description provided for @labs.
   ///
@@ -272,11 +338,23 @@ abstract class AppLocalizations {
   /// **'Nome Completo'**
   String get nameLabel;
 
+  /// No description provided for @newLab.
+  ///
+  /// In pt, this message translates to:
+  /// **'Novo Laboratório'**
+  String get newLab;
+
   /// No description provided for @noAccount.
   ///
   /// In pt, this message translates to:
   /// **'Não tem uma conta?'**
   String get noAccount;
+
+  /// No description provided for @noLabsRegistered.
+  ///
+  /// In pt, this message translates to:
+  /// **'Nenhum laboratório cadastrado.'**
+  String get noLabsRegistered;
 
   /// No description provided for @onWay.
   ///
@@ -302,16 +380,40 @@ abstract class AppLocalizations {
   /// **'A senha deve ter no mínimo 6 caracteres'**
   String get passwordError;
 
+  /// No description provided for @phone.
+  ///
+  /// In pt, this message translates to:
+  /// **'Telefone'**
+  String get phone;
+
   /// No description provided for @pickup.
   ///
   /// In pt, this message translates to:
   /// **'Coleta'**
   String get pickup;
 
-  /// No description provided for @profileLabel.
+  /// No description provided for @profileClinic.
+  ///
+  /// In pt, this message translates to:
+  /// **'Perfil: Clínica'**
+  String get profileClinic;
+
+  /// No description provided for @profileEntregador.
+  ///
+  /// In pt, this message translates to:
+  /// **'Perfil: Entregador'**
+  String get profileEntregador;
+
+  /// No description provided for @profileLab.
   ///
   /// In pt, this message translates to:
   /// **'Perfil: Laboratório'**
+  String get profileLab;
+
+  /// No description provided for @profileLabel.
+  ///
+  /// In pt, this message translates to:
+  /// **'Tipo de Perfil'**
   String get profileLabel;
 
   /// No description provided for @radarText.
@@ -356,6 +458,12 @@ abstract class AppLocalizations {
   /// **'Cadastro de Usuários'**
   String get regTitle;
 
+  /// No description provided for @save.
+  ///
+  /// In pt, this message translates to:
+  /// **'Salvar'**
+  String get save;
+
   /// No description provided for @saveBtn.
   ///
   /// In pt, this message translates to:
@@ -374,6 +482,12 @@ abstract class AppLocalizations {
   /// **'Enviando'**
   String get sending;
 
+  /// No description provided for @settings.
+  ///
+  /// In pt, this message translates to:
+  /// **'Configurações'**
+  String get settings;
+
   /// No description provided for @users.
   ///
   /// In pt, this message translates to:
@@ -385,60 +499,6 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'Aguardando Motoboy'**
   String get waitCourier;
-
-  /// No description provided for @labEmptyFinished.
-  ///
-  /// In pt, this message translates to:
-  /// **'Nenhuma coleta finalizada hoje.'**
-  String get labEmptyFinished;
-
-  /// No description provided for @labEmptyWaiting.
-  ///
-  /// In pt, this message translates to:
-  /// **'Nenhuma clínica aguardando no momento.'**
-  String get labEmptyWaiting;
-
-  /// No description provided for @emptyFinished.
-  ///
-  /// In pt, this message translates to:
-  /// **'Nenhuma coleta finalizada hoje.'**
-  String get emptyFinished;
-
-  /// No description provided for @emptyWaiting.
-  ///
-  /// In pt, this message translates to:
-  /// **'Nenhuma clínica aguardando no momento.'**
-  String get emptyWaiting;
-
-  /// No description provided for @history.
-  ///
-  /// In pt, this message translates to:
-  /// **'Histórico de Coletas'**
-  String get history;
-
-  /// No description provided for @settings.
-  ///
-  /// In pt, this message translates to:
-  /// **'Configurações'**
-  String get settings;
-
-  /// No description provided for @profileClinic.
-  ///
-  /// In pt, this message translates to:
-  /// **'Perfil: Clínica'**
-  String get profileClinic;
-
-  /// No description provided for @entregadorRadarTitle.
-  ///
-  /// In pt, this message translates to:
-  /// **'Radar de Entregadores'**
-  String get entregadorRadarTitle;
-
-  /// No description provided for @profileEntregador.
-  ///
-  /// In pt, this message translates to:
-  /// **'Perfil: Entregador'**
-  String get profileEntregador;
 }
 
 class _AppLocalizationsDelegate

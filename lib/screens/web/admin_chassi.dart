@@ -2,6 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:vet_route/l10n/app_localizations.dart';
 import 'package:vet_route/services/auth_service.dart';
 
+// Nossas Telas de Gestão
+import 'package:vet_route/screens/web/laboratorio_gestao_web.dart';
+import 'package:vet_route/screens/web/entregador_gestao_web.dart';
+import 'package:vet_route/screens/web/clinica_gestao_web.dart'; // 💡 Ajuste esse import para o nome real do seu arquivo de Clínicas se for diferente
+
 class AdminChassi extends StatelessWidget {
   final Widget conteudo;
   final String titulo;
@@ -14,7 +19,6 @@ class AdminChassi extends StatelessWidget {
     const corMenuLateral = Color(0xFF343A40); // Cinza escuro/chumbo
     const corFundo = Color(0xFFF4F6F9); // Cinza bem clarinho
 
-    // LayoutBuilder verifica a largura da tela em tempo real
     return LayoutBuilder(
       builder: (context, constraints) {
         final isDesktop = constraints.maxWidth > 800;
@@ -24,16 +28,15 @@ class AdminChassi extends StatelessWidget {
           // A BARRA SUPERIOR
           appBar: AppBar(
             title: Text(
-              titulo, // Obs: Esse título já vem da tela que chama o Chassi, então a tradução dele é feita lá!
+              titulo,
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             backgroundColor: Colors.white,
             foregroundColor: Colors.black87,
-            elevation: 1, // Sombra leve
+            elevation: 1,
           ),
 
           // O MENU LATERAL (DRAWER) - Escondido no celular, fixo no PC
-          // Passamos o 'context' para a função saber o idioma!
           drawer: isDesktop
               ? null
               : _construirMenuLateral(context, corMenuLateral),
@@ -41,14 +44,11 @@ class AdminChassi extends StatelessWidget {
           // O CORPO DA TELA
           body: Row(
             children: [
-              // Se for PC, mostra o menu fixo na esquerda
               if (isDesktop)
                 SizedBox(
                   width: 250,
                   child: _construirMenuLateral(context, corMenuLateral),
                 ),
-
-              // A área central de conteúdo (onde suas telas vão aparecer)
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.all(20.0),
@@ -63,16 +63,13 @@ class AdminChassi extends StatelessWidget {
   }
 
   // O VISUAL DO MENU (SIDEBAR)
-  // Recebe o BuildContext agora
   Widget _construirMenuLateral(BuildContext context, Color corFundo) {
-    // Atalho Sênior para não digitar código longo toda hora
     final i18n = AppLocalizations.of(context)!;
 
     return Material(
       color: corFundo,
       child: ListView(
         children: [
-          // Cabeçalho do Menu Lateral
           DrawerHeader(
             decoration: const BoxDecoration(color: Color(0xFF23272B)),
             child: Column(
@@ -82,41 +79,89 @@ class AdminChassi extends StatelessWidget {
                 const Icon(Icons.pets, color: Colors.white, size: 40),
                 const SizedBox(height: 10),
                 Text(
-                  i18n.adminMenuHeader,
+                  i18n.adminMenuHeader ?? 'Vet Route Admin',
                   style: const TextStyle(color: Colors.white, fontSize: 20),
                 ),
               ],
             ),
           ),
 
-          // Botões do Menu puxando do Dicionário
-          // No seu AdminChassi, dentro de _construirMenuLateral:
-          _itemMenu(Icons.local_hospital, i18n.clinics, () {
-            debugPrint("Navegando para Clínicas");
-          }),
-          _itemMenu(Icons.science, i18n.lab, () {
-            debugPrint("Navegando para Laboratórios");
-          }),
-          _itemMenu(Icons.motorcycle, i18n.couriers, () {
-            debugPrint("Navegando para Entregadores");
+          // 🏥 MENU: CLÍNICAS
+          _itemMenu(Icons.local_hospital, i18n.clinics ?? 'Clínicas', () {
+            Navigator.pushReplacement(
+              context,
+              PageRouteBuilder(
+                pageBuilder: (context, animation1, animation2) => AdminChassi(
+                  titulo: i18n.clinics ?? 'Gestão de Clínicas',
+                  conteudo:
+                      ClinicaGestaoWeb(), // 💡 Sem o "const"! Ajuste o nome se necessário
+                ),
+                transitionDuration: Duration.zero,
+                reverseTransitionDuration: Duration.zero,
+              ),
+            );
           }),
 
-          const Divider(color: Colors.white24), // Uma linha divisória
-
-          _itemMenu(Icons.exit_to_app, i18n.logout, () {
-            AuthService().logout();
+          // 🔬 MENU: LABORATÓRIOS
+          _itemMenu(Icons.science, i18n.lab ?? 'Laboratórios', () {
+            Navigator.pushReplacement(
+              context,
+              PageRouteBuilder(
+                pageBuilder: (context, animation1, animation2) => AdminChassi(
+                  titulo: i18n.labManagement ?? 'Gestão de Laboratórios',
+                  conteudo: LaboratorioGestaoWeb(), // 💡 Sem o "const"!
+                ),
+                transitionDuration: Duration.zero,
+                reverseTransitionDuration: Duration.zero,
+              ),
+            );
           }),
+
+          // 🛵 MENU: MOTOBOYS
+          _itemMenu(Icons.motorcycle, i18n.couriers ?? 'Motoboys', () {
+            Navigator.pushReplacement(
+              context,
+              PageRouteBuilder(
+                pageBuilder: (context, animation1, animation2) => AdminChassi(
+                  titulo: i18n.couriers ?? 'Gestão de Motoboys',
+                  conteudo:
+                      EntregadorGestaoWeb(), // 💡 Chamando a tela novinha!
+                ),
+                transitionDuration: Duration.zero,
+                reverseTransitionDuration: Duration.zero,
+              ),
+            );
+          }),
+
+          const Divider(color: Colors.white24),
+
+          // 🚪 MENU: SAIR
+          _itemMenu(
+            Icons.exit_to_app,
+            i18n.logout ?? 'Sair do Sistema',
+            () async {
+              await AuthService().logout();
+
+              // Garantir redirecionamento imediato para a tela de login
+              if (context.mounted) {
+                Navigator.of(context).pushNamedAndRemoveUntil(
+                  '/', // 💡 Ajuste aqui se a sua rota de login for diferente de '/'
+                  (route) => false,
+                );
+              }
+            },
+          ),
         ],
       ),
     );
   }
 
-  // Widget auxiliar para os botões do menu ficarem padronizados
+  // Widget auxiliar para os botões do menu
   Widget _itemMenu(IconData icone, String titulo, VoidCallback onTap) {
     return ListTile(
       leading: Icon(icone, color: Colors.white70),
       title: Text(titulo, style: const TextStyle(color: Colors.white)),
-      hoverColor: Colors.white12, // Efeito visual ao passar o mouse
+      hoverColor: Colors.white12,
       onTap: onTap,
     );
   }
