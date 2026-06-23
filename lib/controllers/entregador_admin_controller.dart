@@ -8,18 +8,6 @@ class EntregadorAdminController {
   final ValueNotifier<bool> isLoading = ValueNotifier(false);
   final ValueNotifier<List<Entregador>> entregadores = ValueNotifier([]);
 
-  void ouvirEntregadores() {
-    _db
-        .collection('usuarios')
-        .where('perfil', isEqualTo: 'entregadores') // Conforme seu enum/main
-        .snapshots()
-        .listen((snapshot) {
-          entregadores.value = snapshot.docs
-              .map((doc) => Entregador.fromFirestore(doc))
-              .toList();
-        });
-  }
-
   Future<bool> salvarEntregador(Entregador entregador) async {
     isLoading.value = true;
     try {

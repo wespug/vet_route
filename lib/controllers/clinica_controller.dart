@@ -89,22 +89,6 @@ class ClinicaController {
     }
   }
 
-  // 💡 O MÉTODO INJETADO: Agora atualiza a variável 'todasClinicas'
-  void ouvirClinicas() {
-    _db
-        .collection('usuarios')
-        .where(
-          'perfil',
-          isEqualTo: PerfilUsuario.clinica.firebaseValue,
-        ) // 💡 Consertado para firebaseValue
-        .snapshots()
-        .listen((snapshot) {
-          todasClinicas.value = snapshot.docs
-              .map((doc) => Clinica.fromFirestore(doc))
-              .toList();
-        });
-  }
-
   void dispose() {
     isLoading.dispose();
     clinicaAtual.dispose();

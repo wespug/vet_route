@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:vet_route/l10n/app_localizations.dart';
 import 'package:vet_route/repositories/firestore_coleta_repository.dart';
-
 import '../controllers/laboratorio_controller.dart';
+
 import '../services/auth_service.dart';
 
 class LaboratorioScreen extends StatefulWidget {

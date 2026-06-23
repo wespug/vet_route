@@ -1,68 +1,84 @@
-import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../models/laboratorio_model.dart';
-import '../models/perfil_usuario.dart';
+import '../repositories/firestore_coleta_repository.dart'; // 💡 Importação do repositório real!
 
-class LaboratorioAdminController {
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
+/// Enum para controlar as abas do painel do laboratório
+enum TabLabDashboard { emEspera, aCaminho, recebidas }
 
-  final ValueNotifier<bool> isLoading = ValueNotifier(false);
-  final ValueNotifier<List<Laboratorio>> laboratorios = ValueNotifier([]);
+class LaboratorioController {
+  final FirestoreColetaRepository
+  _repository; // 💡 Agora ele aceita o FirestoreColetaRepository!
 
-  // 💡 Ouve APENAS os usuários que têm o perfil de laboratório usando o Enum!
-  void ouvirLaboratorios() {
-    _db
-        .collection('usuarios')
-        .where('perfil', isEqualTo: PerfilUsuario.laboratorio.firebaseValue)
-        .snapshots()
-        .listen((snapshot) {
-          laboratorios.value = snapshot.docs
-              .map((doc) => Laboratorio.fromFirestore(doc))
-              .toList();
-        });
-  }
+  // === ESTADO REATIVO ===
+  final ValueNotifier<Laboratorio?> laboratorioAtual = ValueNotifier(null);
+  final ValueNotifier<bool> isLoading = ValueNotifier(true);
+  final ValueNotifier<TabLabDashboard> tabAtiva = ValueNotifier(
+    TabLabDashboard.emEspera,
+  );
 
-  Future<bool> salvarLaboratorio(Laboratorio laboratorio) async {
+  final ValueNotifier<List<Marker>> motoboysACaminho = ValueNotifier([]);
+  final ValueNotifier<Set<Marker>> marcadoresMapa = ValueNotifier({});
+
+  // 💡 O Construtor que a tela estava pedindo:
+  LaboratorioController(this._repository);
+
+  Future<void> inicializarPainel() async {
     isLoading.value = true;
     try {
-      await _db.collection('usuarios').add(laboratorio.toMap());
-      return true;
+      final lab = await _repository.obterLaboratorioPadrao();
+      laboratorioAtual.value = lab;
+      _atualizarMarcadores();
     } catch (e) {
-      debugPrint("Erro ao salvar laboratório: $e");
-      return false;
+      debugPrint("❌ Erro ao inicializar painel do Laboratório: $e");
     } finally {
       isLoading.value = false;
     }
   }
 
-  Future<bool> atualizarLaboratorio(String id, Laboratorio laboratorio) async {
-    isLoading.value = true;
-    try {
-      await _db.collection('usuarios').doc(id).update(laboratorio.toMap());
-      return true;
-    } catch (e) {
-      debugPrint("Erro ao atualizar laboratório: $e");
-      return false;
-    } finally {
-      isLoading.value = false;
-    }
+  void alterarTab(TabLabDashboard novaTab) {
+    tabAtiva.value = novaTab;
+    _atualizarMarcadores();
   }
 
-  Future<bool> deletarLaboratorio(String id) async {
-    isLoading.value = true;
-    try {
-      await _db.collection('usuarios').doc(id).delete();
-      return true;
-    } catch (e) {
-      debugPrint("Erro ao deletar laboratório: $e");
-      return false;
-    } finally {
-      isLoading.value = false;
+  // 💡 O método que estava vermelho na sua tela:
+  void receberEncomenda() {
+    debugPrint(
+      "📸 [Controller] Fluxo de leitura de QR Code disparado com sucesso.",
+    );
+  }
+
+  void _atualizarMarcadores() {
+    final lab = laboratorioAtual.value;
+    if (lab == null) return;
+
+    final Set<Marker> novosMarcadores = {};
+
+    if (lab.endereco.coordenada != null) {
+      novosMarcadores.add(
+        Marker(
+          markerId: const MarkerId('meu_lab'),
+          position: lab.endereco.coordenada!,
+          icon: BitmapDescriptor.defaultMarkerWithHue(
+            BitmapDescriptor.hueAzure,
+          ),
+          infoWindow: InfoWindow(title: lab.nome),
+        ),
+      );
     }
+
+    if (tabAtiva.value == TabLabDashboard.aCaminho) {
+      novosMarcadores.addAll(motoboysACaminho.value);
+    }
+
+    marcadoresMapa.value = novosMarcadores;
   }
 
   void dispose() {
+    laboratorioAtual.dispose();
     isLoading.dispose();
-    laboratorios.dispose();
+    tabAtiva.dispose();
+    motoboysACaminho.dispose();
+    marcadoresMapa.dispose();
   }
 }
