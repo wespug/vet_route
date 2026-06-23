@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:vet_route/models/perfil_usuario.dart';
 import 'endereco_model.dart'; // 💡 Reaproveitando o nosso modelo universal
 
 class Laboratorio {
@@ -25,8 +26,7 @@ class Laboratorio {
       'email': email,
       'telefone': telefone,
       'cnpj': cnpj,
-      'perfil':
-          'laboratorio', // Identificador essencial para a triagem de login
+      'perfil': PerfilUsuario.laboratorio.toFirestoreString,
       'endereco': endereco
           .toMap(), // 💡 Delega a conversão para a classe Endereco
       'dataCadastro': FieldValue.serverTimestamp(),

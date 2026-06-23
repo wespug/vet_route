@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:vet_route/models/perfil_usuario.dart';
 
 class Entregador {
   final String? id;
@@ -32,8 +33,7 @@ class Entregador {
       'nome': nome,
       'telefone': telefone,
       'veiculo': veiculo,
-      'perfil': 'entregadores', // Padronizado com o seu main.dart
-      'latitude': latitude,
+      'perfil': PerfilUsuario.entregadores.toFirestoreString,
       'longitude': longitude,
     };
   }

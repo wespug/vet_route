@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:vet_route/models/perfil_usuario.dart';
 import 'endereco_model.dart'; // 💡 Importamos o novo modelo
 
 class Clinica {
@@ -24,7 +25,7 @@ class Clinica {
       'email': email,
       'telefone': telefone,
       'cnpj': cnpj,
-      'perfil': 'clinica',
+      'perfil': PerfilUsuario.clinica.toFirestoreString,
       'endereco': endereco
           .toMap(), // 💡 Delega a serialização para a classe Endereco
       'dataCadastro': FieldValue.serverTimestamp(),

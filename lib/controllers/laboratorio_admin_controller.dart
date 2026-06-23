@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/laboratorio_model.dart';
-import '../models/perfil_usuario.dart';
 
 class LaboratorioAdminController {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -9,11 +8,10 @@ class LaboratorioAdminController {
   final ValueNotifier<bool> isLoading = ValueNotifier(false);
   final ValueNotifier<List<Laboratorio>> laboratorios = ValueNotifier([]);
 
-  // 💡 Ouve APENAS os usuários que têm o perfil de laboratório usando o Enum!
   void ouvirLaboratorios() {
     _db
         .collection('usuarios')
-        .where('perfil', isEqualTo: PerfilUsuario.laboratorio.firebaseValue)
+        .where('perfil', isEqualTo: 'laboratorio')
         .snapshots()
         .listen((snapshot) {
           laboratorios.value = snapshot.docs
@@ -59,10 +57,5 @@ class LaboratorioAdminController {
     } finally {
       isLoading.value = false;
     }
-  }
-
-  void dispose() {
-    isLoading.dispose();
-    laboratorios.dispose();
   }
 }

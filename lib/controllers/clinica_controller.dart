@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // 💡 Necessário para consulta direta
 import '../models/coleta_model.dart';
 import '../models/clinica_model.dart';
 import '../models/laboratorio_model.dart';
+import '../models/perfil_usuario.dart'; // 💡 Necessário para o Enum
 import '../repositories/coleta_repository.dart';
 
 class ClinicaController {
   final ColetaRepository _repository;
+  final FirebaseFirestore _db =
+      FirebaseFirestore.instance; // 💡 Instância do Firestore
 
   ClinicaController(this._repository);
 
-  // --- ESTADOS REATIVOS ---
+  // --- ESTADOS REATIVOS (USO DO CLIENTE) ---
   final ValueNotifier<bool> isLoading = ValueNotifier<bool>(false);
   final ValueNotifier<Clinica?> clinicaAtual = ValueNotifier<Clinica?>(null);
   final ValueNotifier<Laboratorio?> labDestino = ValueNotifier<Laboratorio?>(
@@ -22,15 +26,20 @@ class ClinicaController {
   final ValueNotifier<List<Coleta>> coletasEmTransito =
       ValueNotifier<List<Coleta>>([]);
 
-  /// Inicializa o painel carregando os dados do repositório
+  // --- ESTADOS REATIVOS (USO DO ADMIN) ---
+  final ValueNotifier<List<Clinica>> todasClinicas =
+      ValueNotifier<List<Clinica>>([]); // 💡 Adicionado para armazenar a lista
+
+  /// Inicializa o painel carregando os dados do repositório real
   Future<void> inicializarPainel() async {
     isLoading.value = true;
     try {
-      // Aqui o Controller deixa de criar os mocks e passa a PEDIR ao repositório
       clinicaAtual.value = await _repository.obterClinicaLogada();
       labDestino.value = await _repository.obterLaboratorioPadrao();
 
-      if (clinicaAtual.value != null) {
+      // Atualizado para usar o getter 'coordenada' de forma segura ou as propriedades diretas
+      if (clinicaAtual.value != null &&
+          clinicaAtual.value!.endereco.coordenada != null) {
         _carregarMotoboysProximos(clinicaAtual.value!.endereco.coordenada!);
       }
     } catch (e) {
@@ -41,8 +50,6 @@ class ClinicaController {
   }
 
   void _carregarMotoboysProximos(LatLng local) {
-    // A lógica de criação dos marcadores permanece aqui,
-    // mas agora usa os dados que vieram do Repository
     motoboysProximos.value = [
       Marker(
         markerId: const MarkerId('m1'),
@@ -82,11 +89,28 @@ class ClinicaController {
     }
   }
 
+  // 💡 O MÉTODO INJETADO: Agora atualiza a variável 'todasClinicas'
+  void ouvirClinicas() {
+    _db
+        .collection('usuarios')
+        .where(
+          'perfil',
+          isEqualTo: PerfilUsuario.clinica.firebaseValue,
+        ) // 💡 Consertado para firebaseValue
+        .snapshots()
+        .listen((snapshot) {
+          todasClinicas.value = snapshot.docs
+              .map((doc) => Clinica.fromFirestore(doc))
+              .toList();
+        });
+  }
+
   void dispose() {
     isLoading.dispose();
     clinicaAtual.dispose();
     labDestino.dispose();
     motoboysProximos.dispose();
     coletasEmTransito.dispose();
+    todasClinicas.dispose(); // 💡 Descarte correto de memória
   }
 }
