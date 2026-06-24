@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:vet_route/l10n/app_localizations.dart';
+import 'package:vet_route/screens/web/laboratorios/lista_laboratorios_screen.dart';
 import 'package:vet_route/services/auth_service.dart';
 
 // Nossas Telas de Gestão
-import 'package:vet_route/screens/web/laboratorio_gestao_web.dart';
 import 'package:vet_route/screens/web/entregador_gestao_web.dart';
-import 'package:vet_route/screens/web/clinica_gestao_web.dart'; // 💡 Ajuste esse import para o nome real do seu arquivo de Clínicas se for diferente
+import 'package:vet_route/screens/web/clinica_gestao_web.dart';
 
 class AdminChassi extends StatelessWidget {
   final Widget conteudo;
@@ -15,9 +15,8 @@ class AdminChassi extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Cores clássicas inspiradas no AdminLTE
-    const corMenuLateral = Color(0xFF343A40); // Cinza escuro/chumbo
-    const corFundo = Color(0xFFF4F6F9); // Cinza bem clarinho
+    const corMenuLateral = Color(0xFF343A40);
+    const corFundo = Color(0xFFF4F6F9);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -25,7 +24,6 @@ class AdminChassi extends StatelessWidget {
 
         return Scaffold(
           backgroundColor: corFundo,
-          // A BARRA SUPERIOR
           appBar: AppBar(
             title: Text(
               titulo,
@@ -35,13 +33,9 @@ class AdminChassi extends StatelessWidget {
             foregroundColor: Colors.black87,
             elevation: 1,
           ),
-
-          // O MENU LATERAL (DRAWER) - Escondido no celular, fixo no PC
           drawer: isDesktop
               ? null
               : _construirMenuLateral(context, corMenuLateral),
-
-          // O CORPO DA TELA
           body: Row(
             children: [
               if (isDesktop)
@@ -62,7 +56,6 @@ class AdminChassi extends StatelessWidget {
     );
   }
 
-  // O VISUAL DO MENU (SIDEBAR)
   Widget _construirMenuLateral(BuildContext context, Color corFundo) {
     final i18n = AppLocalizations.of(context)!;
 
@@ -93,8 +86,7 @@ class AdminChassi extends StatelessWidget {
               PageRouteBuilder(
                 pageBuilder: (context, animation1, animation2) => AdminChassi(
                   titulo: i18n.clinics ?? 'Gestão de Clínicas',
-                  conteudo:
-                      ClinicaGestaoWeb(), // 💡 Sem o "const"! Ajuste o nome se necessário
+                  conteudo: ClinicaGestaoWeb(),
                 ),
                 transitionDuration: Duration.zero,
                 reverseTransitionDuration: Duration.zero,
@@ -109,7 +101,8 @@ class AdminChassi extends StatelessWidget {
               PageRouteBuilder(
                 pageBuilder: (context, animation1, animation2) => AdminChassi(
                   titulo: i18n.labManagement ?? 'Gestão de Laboratórios',
-                  conteudo: LaboratorioGestaoWeb(), // 💡 Sem o "const"!
+                  // 💡 AJUSTE AQUI: Chamando a lista nova em vez do form antigo!
+                  conteudo: const ListaLaboratoriosScreen(),
                 ),
                 transitionDuration: Duration.zero,
                 reverseTransitionDuration: Duration.zero,
@@ -124,8 +117,7 @@ class AdminChassi extends StatelessWidget {
               PageRouteBuilder(
                 pageBuilder: (context, animation1, animation2) => AdminChassi(
                   titulo: i18n.couriers ?? 'Gestão de Motoboys',
-                  conteudo:
-                      EntregadorGestaoWeb(), // 💡 Chamando a tela novinha!
+                  conteudo: EntregadorGestaoWeb(),
                 ),
                 transitionDuration: Duration.zero,
                 reverseTransitionDuration: Duration.zero,
@@ -141,13 +133,10 @@ class AdminChassi extends StatelessWidget {
             i18n.logout ?? 'Sair do Sistema',
             () async {
               await AuthService().logout();
-
-              // Garantir redirecionamento imediato para a tela de login
               if (context.mounted) {
-                Navigator.of(context).pushNamedAndRemoveUntil(
-                  '/', // 💡 Ajuste aqui se a sua rota de login for diferente de '/'
-                  (route) => false,
-                );
+                Navigator.of(
+                  context,
+                ).pushNamedAndRemoveUntil('/', (route) => false);
               }
             },
           ),
@@ -156,7 +145,6 @@ class AdminChassi extends StatelessWidget {
     );
   }
 
-  // Widget auxiliar para os botões do menu
   Widget _itemMenu(IconData icone, String titulo, VoidCallback onTap) {
     return ListTile(
       leading: Icon(icone, color: Colors.white70),
