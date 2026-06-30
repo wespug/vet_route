@@ -11,11 +11,9 @@ class PerfilController extends ChangeNotifier {
   bool _carregando = false;
   bool get carregando => _carregando;
 
-  // 💡 MUDANÇA: Métodos agora não exigem mais IDs externos
   Future<void> carregarPerfis() async {
     _carregando = true;
     notifyListeners();
-
     try {
       _perfis = await _repository.buscarPerfis();
     } catch (e) {
@@ -26,12 +24,41 @@ class PerfilController extends ChangeNotifier {
     }
   }
 
-  Future<void> adicionarPerfil(String nome) async {
+  // 💡 AGORA RECEBE A MATRIZ DE ACESSOS
+  Future<void> adicionarPerfil(
+    String nome,
+    List<String> menus,
+    List<String> submenus,
+  ) async {
     if (nome.isEmpty) return;
 
-    final novoPerfil = PerfilAcesso(id: '', nome: nome);
+    final novoPerfil = PerfilAcesso(
+      id: '',
+      nome: nome,
+      menusAcesso: menus,
+      submenusAcesso: submenus,
+    );
     await _repository.salvarPerfil(novoPerfil);
-    await carregarPerfis(); // Atualiza a lista global
+    await carregarPerfis();
+  }
+
+  // 💡 PERMITE EDITAR PERMISSÕES
+  Future<void> editarPerfil(
+    String id,
+    String nome,
+    List<String> menus,
+    List<String> submenus,
+  ) async {
+    if (nome.isEmpty) return;
+
+    final perfilAtualizado = PerfilAcesso(
+      id: id,
+      nome: nome,
+      menusAcesso: menus,
+      submenusAcesso: submenus,
+    );
+    await _repository.atualizarPerfil(id, perfilAtualizado);
+    await carregarPerfis();
   }
 
   Future<void> excluirPerfil(String perfilId) async {
