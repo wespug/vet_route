@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:vet_route/l10n/app_localizations.dart';
 import 'package:vet_route/screens/web/laboratorios/lista_laboratorios_screen.dart';
+import 'package:vet_route/screens/widgets/gestao_perfis_hub.dart';
+import 'package:vet_route/screens/widgets/gestao_usuarios_hub.dart';
 import 'package:vet_route/services/auth_service.dart';
 
 // Nossas Telas de Gestão
@@ -125,7 +127,56 @@ class AdminChassi extends StatelessWidget {
             );
           }),
 
-          const Divider(color: Colors.white24),
+          // --- NOVO BLOCO: CONTROLE DE ACESSO ---
+          const Divider(color: Colors.white24, height: 32),
+
+          const Padding(
+            padding: EdgeInsets.only(left: 16.0, bottom: 8.0),
+            child: Text(
+              "CONTROLE DE ACESSO",
+              style: TextStyle(
+                color: Colors.white54,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.2,
+              ),
+            ),
+          ),
+
+          // 🛡️ MENU: GESTÃO DE PERFIS
+          _itemMenu(Icons.admin_panel_settings_outlined, 'Gestão de Perfis', () {
+            Navigator.pushReplacement(
+              context,
+              PageRouteBuilder(
+                pageBuilder: (context, animation1, animation2) => AdminChassi(
+                  titulo: 'Gestão de Perfis',
+                  // 💡 Atenção: passe a variável do laboratório que você já tem nessa tela
+                  conteudo: GestaoPerfisHub(),
+                ),
+                transitionDuration: Duration.zero,
+                reverseTransitionDuration: Duration.zero,
+              ),
+            );
+          }),
+
+          // 👥 MENU: USUÁRIOS E PERMISSÕES
+          _itemMenu(Icons.people_alt_outlined, 'Usuários', () {
+            Navigator.pushReplacement(
+              context,
+              PageRouteBuilder(
+                pageBuilder: (context, animation1, animation2) => AdminChassi(
+                  titulo: 'Gestão de Usuários',
+                  // 💡 Atenção: passe a variável do laboratório que você já tem nessa tela
+                  conteudo: GestaoUsuarioHub(),
+                ),
+                transitionDuration: Duration.zero,
+                reverseTransitionDuration: Duration.zero,
+              ),
+            );
+          }),
+
+          // --------------------------------------
+          const Divider(color: Colors.white24, height: 32),
 
           // 🚪 MENU: SAIR
           _itemMenu(
