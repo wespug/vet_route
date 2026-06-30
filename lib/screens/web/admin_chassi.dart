@@ -6,16 +6,44 @@ import 'package:vet_route/screens/widgets/gestao_perfis_hub.dart';
 import 'package:vet_route/screens/widgets/gestao_submenus_hub.dart';
 import 'package:vet_route/screens/widgets/gestao_usuarios_hub.dart';
 import 'package:vet_route/services/auth_service.dart';
+import 'package:vet_route/controllers/permissoes_controller.dart';
 
-// Nossas Telas de Gestão
 import 'package:vet_route/screens/web/entregador_gestao_web.dart';
 import 'package:vet_route/screens/web/clinica_gestao_web.dart';
 
-class AdminChassi extends StatelessWidget {
+class AdminChassi extends StatefulWidget {
   final Widget conteudo;
   final String titulo;
 
   const AdminChassi({super.key, required this.conteudo, required this.titulo});
+
+  @override
+  State<AdminChassi> createState() => _AdminChassiState();
+}
+
+class _AdminChassiState extends State<AdminChassi> {
+  // 💡 CENTRALIZADOR DE ICONES: Transforma String do Firebase em IconData Real do Flutter
+  static const Map<String, IconData> _iconesMapeados = {
+    'local_hospital': Icons.local_hospital,
+    'science': Icons.science,
+    'motorcycle': Icons.motorcycle,
+    'admin_panel_settings': Icons.admin_panel_settings_outlined,
+    'layers': Icons.layers_rounded,
+    'account_tree': Icons.account_tree_outlined,
+    'people': Icons.people_alt_outlined,
+    'dashboard': Icons.dashboard,
+  };
+
+  // 💡 CENTRALIZADOR DE TELAS: Vincula a Rota do Firebase ao Widget correspondente
+  static final Map<String, Widget Function()> _telasMapeadas = {
+    'clinica_gestao': () => ClinicaGestaoWeb(),
+    'lista_laboratorios': () => const ListaLaboratoriosScreen(),
+    'entregador_gestao': () => EntregadorGestaoWeb(),
+    'gestao_perfis': () => const GestaoPerfisHub(),
+    'gestao_menus': () => const GestaoMenusHub(),
+    'gestao_submenus': () => const GestaoSubmenusHub(),
+    'gestao_usuarios': () => const GestaoUsuarioHub(),
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +58,7 @@ class AdminChassi extends StatelessWidget {
           backgroundColor: corFundo,
           appBar: AppBar(
             title: Text(
-              titulo,
+              widget.titulo,
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             backgroundColor: Colors.white,
@@ -50,7 +78,7 @@ class AdminChassi extends StatelessWidget {
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.all(20.0),
-                  child: conteudo,
+                  child: widget.conteudo,
                 ),
               ),
             ],
@@ -65,168 +93,132 @@ class AdminChassi extends StatelessWidget {
 
     return Material(
       color: corFundo,
-      child: ListView(
+      child: Column(
         children: [
           DrawerHeader(
             decoration: const BoxDecoration(color: Color(0xFF23272B)),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 const Icon(Icons.pets, color: Colors.white, size: 40),
-                const SizedBox(height: 10),
-                Text(
-                  i18n.adminMenuHeader ?? 'Vet Route Admin',
-                  style: const TextStyle(color: Colors.white, fontSize: 20),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    i18n.adminMenuHeader ?? 'Vet Route Admin',
+                    style: const TextStyle(color: Colors.white, fontSize: 18),
+                  ),
                 ),
               ],
             ),
           ),
 
-          // 🏥 MENU: CLÍNICAS
-          _itemMenu(Icons.local_hospital, i18n.clinics ?? 'Clínicas', () {
-            Navigator.pushReplacement(
-              context,
-              PageRouteBuilder(
-                pageBuilder: (context, animation1, animation2) => AdminChassi(
-                  titulo: i18n.clinics ?? 'Gestão de Clínicas',
-                  conteudo: ClinicaGestaoWeb(),
-                ),
-                transitionDuration: Duration.zero,
-                reverseTransitionDuration: Duration.zero,
-              ),
-            );
-          }),
+          Expanded(
+            child: ListenableBuilder(
+              listenable: permissoesGlobais,
+              builder: (context, child) {
+                if (permissoesGlobais.carregando) {
+                  return const Center(
+                    child: CircularProgressIndicator(color: Colors.white),
+                  );
+                }
 
-          // 🔬 MENU: LABORATÓRIOS
-          _itemMenu(Icons.science, i18n.lab ?? 'Laboratórios', () {
-            Navigator.pushReplacement(
-              context,
-              PageRouteBuilder(
-                pageBuilder: (context, animation1, animation2) => AdminChassi(
-                  titulo: i18n.labManagement ?? 'Gestão de Laboratórios',
-                  // 💡 AJUSTE AQUI: Chamando a lista nova em vez do form antigo!
-                  conteudo: const ListaLaboratoriosScreen(),
-                ),
-                transitionDuration: Duration.zero,
-                reverseTransitionDuration: Duration.zero,
-              ),
-            );
-          }),
+                // FALLBACK INTELIGENTE: Se não houver nada no banco ainda, carrega a lista legada
+                if (permissoesGlobais.menusPermitidos.isEmpty) {
+                  return ListView(
+                    padding: EdgeInsets.zero,
+                    children: _construirMenuEstaticoFallback(i18n),
+                  );
+                }
 
-          // 🛵 MENU: MOTOBOYS
-          _itemMenu(Icons.motorcycle, i18n.couriers ?? 'Motoboys', () {
-            Navigator.pushReplacement(
-              context,
-              PageRouteBuilder(
-                pageBuilder: (context, animation1, animation2) => AdminChassi(
-                  titulo: i18n.couriers ?? 'Gestão de Motoboys',
-                  conteudo: EntregadorGestaoWeb(),
-                ),
-                transitionDuration: Duration.zero,
-                reverseTransitionDuration: Duration.zero,
-              ),
-            );
-          }),
+                // 🚀 SISTEMA TOTALMENTE DINÂMICO E DATA-DRIVEN
+                return ListView(
+                  padding: EdgeInsets.zero,
+                  children: permissoesGlobais.menusPermitidos.map((menu) {
+                    final submenus = permissoesGlobais.getSubmenusDoMenu(
+                      menu.id,
+                    );
+                    final iconData =
+                        _iconesMapeados[menu.icone] ?? Icons.widgets_outlined;
 
-          // --- NOVO BLOCO: CONTROLE DE ACESSO ---
-          const Divider(color: Colors.white24, height: 32),
+                    if (submenus.isEmpty) {
+                      return _itemMenu(iconData, menu.titulo, () {
+                        _executarNavegacao(context, menu.titulo, menu.rota);
+                      });
+                    }
 
-          const Padding(
-            padding: EdgeInsets.only(left: 16.0, bottom: 8.0),
-            child: Text(
-              "CONTROLE DE ACESSO",
-              style: TextStyle(
-                color: Colors.white54,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.2,
-              ),
+                    return ExpansionTile(
+                      iconColor: Colors.white,
+                      collapsedIconColor: Colors.white70,
+                      leading: Icon(iconData, color: Colors.white70),
+                      title: Text(
+                        menu.titulo,
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                      children: submenus.map((sub) {
+                        return ListTile(
+                          contentPadding: const EdgeInsets.only(left: 56),
+                          leading: const Icon(
+                            Icons.subdirectory_arrow_right,
+                            color: Colors.white54,
+                            size: 18,
+                          ),
+                          title: Text(
+                            sub.titulo,
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 13,
+                            ),
+                          ),
+                          hoverColor: Colors.white12,
+                          onTap: () {
+                            // Submenu usa a rota que foi configurada nele ou herda do pai
+                            _executarNavegacao(context, sub.titulo, menu.rota);
+                          },
+                        );
+                      }).toList(),
+                    );
+                  }).toList(),
+                );
+              },
             ),
           ),
 
-          // 🛡️ MENU: GESTÃO DE PERFIS
-          _itemMenu(Icons.admin_panel_settings_outlined, 'Gestão de Perfis', () {
-            Navigator.pushReplacement(
-              context,
-              PageRouteBuilder(
-                pageBuilder: (context, animation1, animation2) => AdminChassi(
-                  titulo: 'Gestão de Perfis',
-                  // 💡 Atenção: passe a variável do laboratório que você já tem nessa tela
-                  conteudo: GestaoPerfisHub(),
-                ),
-                transitionDuration: Duration.zero,
-                reverseTransitionDuration: Duration.zero,
-              ),
-            );
-          }),
-
-          // 🎛️ NOVO MENU: GESTÃO DE MENUS (LOGADO COM SUCESSO)
-          _itemMenu(Icons.layers_rounded, 'Gestão de Menus', () {
-            Navigator.pushReplacement(
-              context,
-              PageRouteBuilder(
-                pageBuilder: (context, animation1, animation2) =>
-                    const AdminChassi(
-                      titulo: 'Gestão de Menus',
-                      conteudo: GestaoMenusHub(), // Injeta a nova tela global
-                    ),
-                transitionDuration: Duration.zero,
-                reverseTransitionDuration: Duration.zero,
-              ),
-            );
-          }),
-
-          // 🔗 NOVO MENU: GESTÃO DE SUBMENUS
-          _itemMenu(Icons.account_tree_outlined, 'Gestão de Submenus', () {
-            Navigator.pushReplacement(
-              context,
-              PageRouteBuilder(
-                pageBuilder: (context, animation1, animation2) =>
-                    const AdminChassi(
-                      titulo: 'Gestão de Submenus',
-                      conteudo:
-                          GestaoSubmenusHub(), // Injeta a tela de Submenus
-                    ),
-                transitionDuration: Duration.zero,
-                reverseTransitionDuration: Duration.zero,
-              ),
-            );
-          }),
-
-          // 👥 MENU: USUÁRIOS E PERMISSÕES
-          _itemMenu(Icons.people_alt_outlined, 'Usuários', () {
-            Navigator.pushReplacement(
-              context,
-              PageRouteBuilder(
-                pageBuilder: (context, animation1, animation2) => AdminChassi(
-                  titulo: 'Gestão de Usuários',
-                  // 💡 Atenção: passe a variável do laboratório que você já tem nessa tela
-                  conteudo: GestaoUsuarioHub(),
-                ),
-                transitionDuration: Duration.zero,
-                reverseTransitionDuration: Duration.zero,
-              ),
-            );
-          }),
-
-          // --------------------------------------
-          const Divider(color: Colors.white24, height: 32),
-
-          // 🚪 MENU: SAIR
+          const Divider(color: Colors.white24, height: 1),
           _itemMenu(
             Icons.exit_to_app,
             i18n.logout ?? 'Sair do Sistema',
             () async {
               await AuthService().logout();
-              if (context.mounted) {
+              if (context.mounted)
                 Navigator.of(
                   context,
                 ).pushNamedAndRemoveUntil('/', (route) => false);
-              }
             },
           ),
         ],
+      ),
+    );
+  }
+
+  // 💡 Lógica Dinâmica de Roteamento sem Hardcoding
+  void _executarNavegacao(
+    BuildContext context,
+    String titulo,
+    String chaveRota,
+  ) {
+    // Puxa a construtora da tela direto do mapa estático
+    final construtoraTela = _telasMapeadas[chaveRota];
+    final Widget telaDestino = construtoraTela != null
+        ? construtoraTela()
+        : Center(child: Text("Rota '$chaveRota' indefinida."));
+
+    Navigator.pushReplacement(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (context, a1, a2) =>
+            AdminChassi(titulo: titulo, conteudo: telaDestino),
+        transitionDuration: Duration.zero,
+        reverseTransitionDuration: Duration.zero,
       ),
     );
   }
@@ -238,5 +230,77 @@ class AdminChassi extends StatelessWidget {
       hoverColor: Colors.white12,
       onTap: onTap,
     );
+  }
+
+  List<Widget> _construirMenuEstaticoFallback(AppLocalizations i18n) {
+    return [
+      _itemMenu(
+        Icons.local_hospital,
+        i18n.clinics ?? 'Clínicas',
+        () => _executarNavegacao(
+          context,
+          i18n.clinics ?? 'Gestão de Clínicas',
+          'clinica_gestao',
+        ),
+      ),
+      _itemMenu(
+        Icons.science,
+        i18n.lab ?? 'Laboratórios',
+        () => _executarNavegacao(
+          context,
+          i18n.labManagement ?? 'Gestão de Laboratórios',
+          'lista_laboratorios',
+        ),
+      ),
+      _itemMenu(
+        Icons.motorcycle,
+        i18n.couriers ?? 'Motoboys',
+        () => _executarNavegacao(
+          context,
+          i18n.couriers ?? 'Gestão de Motoboys',
+          'entregador_gestao',
+        ),
+      ),
+      const Divider(color: Colors.white24, height: 32),
+      const Padding(
+        padding: EdgeInsets.only(left: 16.0, bottom: 8.0),
+        child: Text(
+          "CONTROLE DE ACESSO",
+          style: TextStyle(
+            color: Colors.white54,
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+      _itemMenu(
+        Icons.admin_panel_settings_outlined,
+        'Gestão de Perfis',
+        () => _executarNavegacao(context, 'Gestão de Perfis', 'gestao_perfis'),
+      ),
+      _itemMenu(
+        Icons.layers_rounded,
+        'Gestão de Menus',
+        () => _executarNavegacao(context, 'Gestão de Menus', 'gestao_menus'),
+      ),
+      _itemMenu(
+        Icons.account_tree_outlined,
+        'Gestão de Submenus',
+        () => _executarNavegacao(
+          context,
+          'Gestão de Submenus',
+          'gestao_submenus',
+        ),
+      ),
+      _itemMenu(
+        Icons.people_alt_outlined,
+        'Usuários',
+        () => _executarNavegacao(
+          context,
+          'Gestão de Usuários',
+          'gestao_usuarios',
+        ),
+      ),
+    ];
   }
 }

@@ -27,6 +27,15 @@ class MenuRepository {
     }
   }
 
+  // 💡 NOVO: Método para persistir as alterações de um menu no Firestore
+  Future<void> atualizarMenu(String menuId, MenuItemModel menu) async {
+    try {
+      await _firestore.collection('menus').doc(menuId).update(menu.toMap());
+    } catch (e) {
+      throw Exception("Erro ao atualizar menu no Firestore: $e");
+    }
+  }
+
   Future<void> deletarMenu(String menuId) async {
     try {
       await _firestore.collection('menus').doc(menuId).delete();

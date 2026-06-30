@@ -14,7 +14,6 @@ class MenuController extends ChangeNotifier {
   Future<void> carregarMenus() async {
     _carregando = true;
     notifyListeners();
-
     try {
       _menus = await _repository.buscarMenus();
     } catch (e) {
@@ -25,11 +24,35 @@ class MenuController extends ChangeNotifier {
     }
   }
 
-  Future<void> adicionarMenu(String titulo) async {
-    if (titulo.isEmpty) return;
+  Future<void> adicionarMenu(String titulo, String icone, String rota) async {
+    if (titulo.isEmpty || rota.isEmpty) return;
 
-    final novoMenu = MenuItemModel(id: '', titulo: titulo);
+    final novoMenu = MenuItemModel(
+      id: '',
+      titulo: titulo,
+      icone: icone,
+      rota: rota,
+    );
     await _repository.salvarMenu(novoMenu);
+    await carregarMenus();
+  }
+
+  // 💡 NOVO: Orquestra o fluxo de modificação de metadados
+  Future<void> editarMenu(
+    String id,
+    String titulo,
+    String icone,
+    String rota,
+  ) async {
+    if (titulo.isEmpty || rota.isEmpty) return;
+
+    final menuModificado = MenuItemModel(
+      id: id,
+      titulo: titulo,
+      icone: icone,
+      rota: rota,
+    );
+    await _repository.atualizarMenu(id, menuModificado);
     await carregarMenus();
   }
 
