@@ -24,7 +24,14 @@ class MenuController extends ChangeNotifier {
     }
   }
 
-  Future<void> adicionarMenu(String titulo, String icone, String rota) async {
+  // 💡 NOVO: Recebe as plataformas
+  Future<void> adicionarMenu(
+    String titulo,
+    String icone,
+    String rota,
+    bool isWeb,
+    bool isMobile,
+  ) async {
     if (titulo.isEmpty || rota.isEmpty) return;
 
     final novoMenu = MenuItemModel(
@@ -32,17 +39,21 @@ class MenuController extends ChangeNotifier {
       titulo: titulo,
       icone: icone,
       rota: rota,
+      isWeb: isWeb,
+      isMobile: isMobile,
     );
     await _repository.salvarMenu(novoMenu);
     await carregarMenus();
   }
 
-  // 💡 NOVO: Orquestra o fluxo de modificação de metadados
+  // 💡 NOVO: Recebe as plataformas
   Future<void> editarMenu(
     String id,
     String titulo,
     String icone,
     String rota,
+    bool isWeb,
+    bool isMobile,
   ) async {
     if (titulo.isEmpty || rota.isEmpty) return;
 
@@ -51,6 +62,8 @@ class MenuController extends ChangeNotifier {
       titulo: titulo,
       icone: icone,
       rota: rota,
+      isWeb: isWeb,
+      isMobile: isMobile,
     );
     await _repository.atualizarMenu(id, menuModificado);
     await carregarMenus();

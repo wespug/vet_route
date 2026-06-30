@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:vet_route/controllers/menu_controller.dart' as custom_menu;
 import 'package:vet_route/controllers/submenu_controller.dart';
 import 'package:vet_route/models/menu_item_model.dart';
+import 'package:vet_route/models/submenu_item_model.dart';
 
 class GestaoSubmenusHub extends StatefulWidget {
   const GestaoSubmenusHub({Key? key}) : super(key: key);
@@ -11,7 +12,6 @@ class GestaoSubmenusHub extends StatefulWidget {
 }
 
 class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
-  // Instanciamos as duas controladoras para relacionar os dados
   final custom_menu.MenuController _menuController =
       custom_menu.MenuController();
   final SubmenuController _submenuController = SubmenuController();
@@ -19,12 +19,37 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
   final TextEditingController _tituloController = TextEditingController();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
+  String? _submenuEdicaoId;
   String? _menuPaiSelecionado;
+  String _iconeSelecionado = 'subdirectory_arrow_right';
+  String _paginaSelecionada = 'clinica_gestao';
+  bool _isWeb = true;
+  bool _isMobile = false;
+
+  final Map<String, IconData> _iconesMapeados = {
+    'subdirectory_arrow_right': Icons.subdirectory_arrow_right_rounded,
+    'analytics': Icons.analytics_outlined,
+    'assignment': Icons.assignment_outlined,
+    'payments': Icons.payments_outlined,
+    'inventory': Icons.inventory_2_outlined,
+    'local_hospital': Icons.local_hospital,
+    'science': Icons.science,
+    'motorcycle': Icons.motorcycle,
+  };
+
+  final Map<String, String> _paginasMapeadas = {
+    'clinica_gestao': 'Gestão de Clínicas',
+    'lista_laboratorios': 'Gestão de Laboratórios',
+    'entregador_gestao': 'Gestão de Entregadores',
+    'gestao_perfis': 'Gestão de Perfis',
+    'gestao_menus': 'Gestão de Menus',
+    'gestao_submenus': 'Gestão de Submenus',
+    'gestao_usuarios': 'Gestão de Usuários',
+  };
 
   @override
   void initState() {
     super.initState();
-    // Carrega ambas as coleções em paralelo
     _menuController.carregarMenus();
     _submenuController.carregarSubmenus();
   }
@@ -37,7 +62,6 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
     super.dispose();
   }
 
-  // Helper para exibir o nome do Menu na tabela em vez do ID
   String _obterNomeMenuPai(String menuId) {
     try {
       return _menuController.menus.firstWhere((m) => m.id == menuId).titulo;
@@ -46,9 +70,38 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
     }
   }
 
+  void _entrarModoEdicao(SubmenuItemModel submenu) {
+    setState(() {
+      _submenuEdicaoId = submenu.id;
+      _menuPaiSelecionado = submenu.menuId;
+      _tituloController.text = submenu.titulo;
+      _iconeSelecionado = _iconesMapeados.containsKey(submenu.icone)
+          ? submenu.icone
+          : 'subdirectory_arrow_right';
+      _paginaSelecionada = _paginasMapeadas.containsKey(submenu.rota)
+          ? submenu.rota
+          : 'clinica_gestao';
+      _isWeb = submenu.isWeb;
+      _isMobile = submenu.isMobile;
+    });
+  }
+
+  void _limparFormulario() {
+    setState(() {
+      _submenuEdicaoId = null;
+      _menuPaiSelecionado = null;
+      _tituloController.clear();
+      _iconeSelecionado = 'subdirectory_arrow_right';
+      _paginaSelecionada = 'clinica_gestao';
+      _isWeb = true;
+      _isMobile = false;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    // 💡 Listenable.merge observa as duas controladoras simultaneamente
+    final bool isEditando = _submenuEdicaoId != null;
+
     return ListenableBuilder(
       listenable: Listenable.merge([_menuController, _submenuController]),
       builder: (context, child) {
@@ -72,92 +125,213 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
               ),
               const SizedBox(height: 4),
               Text(
-                "Crie subníveis de navegação atrelando-os aos Menus principais.",
+                isEditando
+                    ? "A editar as definições do submenu..."
+                    : "Crie subníveis de navegação dinâmicos.",
                 style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
               ),
               const SizedBox(height: 32),
 
-              // PAINEL DE CRIAÇÃO INLINE
+              // PAINEL DE CRIAÇÃO (COM LINHAS)
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
+                  color: isEditando
+                      ? Colors.blue.shade50.withOpacity(0.4)
+                      : Colors.grey.shade50,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.grey.shade200),
+                  border: Border.all(
+                    color: isEditando
+                        ? Colors.blue.shade200
+                        : Colors.grey.shade200,
+                  ),
                 ),
                 child: Form(
                   key: _formKey,
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
+                  child: Column(
                     children: [
-                      Expanded(
-                        flex: 2,
-                        child: DropdownButtonFormField<String>(
-                          value: _menuPaiSelecionado,
-                          decoration: InputDecoration(
-                            labelText: "Menu Pai (Destino)",
-                            prefixIcon: const Icon(Icons.account_tree_outlined),
-                            fillColor: Colors.white,
-                            filled: true,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
+                      Row(
+                        children: [
+                          Expanded(
+                            flex: 2,
+                            child: DropdownButtonFormField<String>(
+                              value: _menuPaiSelecionado,
+                              decoration: InputDecoration(
+                                labelText: "Menu Pai (Destino)",
+                                fillColor: Colors.white,
+                                filled: true,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              items: _menuController.menus
+                                  .map(
+                                    (menu) => DropdownMenuItem(
+                                      value: menu.id,
+                                      child: Text(menu.titulo),
+                                    ),
+                                  )
+                                  .toList(),
+                              onChanged: (val) =>
+                                  setState(() => _menuPaiSelecionado = val),
+                              validator: (v) =>
+                                  v == null ? "Selecione o Menu Pai" : null,
                             ),
                           ),
-                          items: _menuController.menus.map((
-                            MenuItemModel menu,
-                          ) {
-                            return DropdownMenuItem<String>(
-                              value: menu.id,
-                              child: Text(menu.titulo),
-                            );
-                          }).toList(),
-                          onChanged: (val) =>
-                              setState(() => _menuPaiSelecionado = val),
-                          validator: (v) =>
-                              v == null ? "Selecione um Menu Pai" : null,
-                        ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            flex: 3,
+                            child: TextFormField(
+                              controller: _tituloController,
+                              decoration: InputDecoration(
+                                labelText: "Nome do Submenu",
+                                fillColor: Colors.white,
+                                filled: true,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              validator: (v) => v == null || v.trim().isEmpty
+                                  ? "Insira o nome"
+                                  : null,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        flex: 3,
-                        child: TextFormField(
-                          controller: _tituloController,
-                          decoration: InputDecoration(
-                            labelText: "Nome do Submenu",
-                            hintText: "Ex: Relatório Mensal, Fechamento...",
-                            prefixIcon: const Icon(
-                              Icons.subdirectory_arrow_right_rounded,
-                            ),
-                            fillColor: Colors.white,
-                            filled: true,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            flex: 2,
+                            child: DropdownButtonFormField<String>(
+                              value: _iconeSelecionado,
+                              decoration: InputDecoration(
+                                labelText: "Ícone Visual",
+                                fillColor: Colors.white,
+                                filled: true,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              items: _iconesMapeados.keys
+                                  .map(
+                                    (key) => DropdownMenuItem(
+                                      value: key,
+                                      child: Row(
+                                        children: [
+                                          Icon(_iconesMapeados[key], size: 18),
+                                          const SizedBox(width: 8),
+                                          Text(key),
+                                        ],
+                                      ),
+                                    ),
+                                  )
+                                  .toList(),
+                              onChanged: (val) => setState(
+                                () => _iconeSelecionado =
+                                    val ?? 'subdirectory_arrow_right',
+                              ),
                             ),
                           ),
-                          validator: (v) => v == null || v.trim().isEmpty
-                              ? "Insira o nome do submenu"
-                              : null,
-                        ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            flex: 3,
+                            child: DropdownButtonFormField<String>(
+                              value: _paginaSelecionada,
+                              decoration: InputDecoration(
+                                labelText: "Ecrã de Destino",
+                                fillColor: Colors.white,
+                                filled: true,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              items: _paginasMapeadas.keys
+                                  .map(
+                                    (key) => DropdownMenuItem(
+                                      value: key,
+                                      child: Text(_paginasMapeadas[key]!),
+                                    ),
+                                  )
+                                  .toList(),
+                              onChanged: (val) => setState(
+                                () => _paginaSelecionada =
+                                    val ?? 'clinica_gestao',
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        flex: 1,
-                        child: ElevatedButton.icon(
-                          onPressed: _submenuController.carregando
-                              ? null
-                              : _submeterNovoSubmenu,
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 18),
-                            shape: RoundedRectangleBorder(
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              border: Border.all(color: Colors.grey.shade300),
                               borderRadius: BorderRadius.circular(8),
                             ),
+                            child: Row(
+                              children: [
+                                const Text(
+                                  "Visível em:",
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black54,
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                FilterChip(
+                                  label: const Text("Web"),
+                                  selected: _isWeb,
+                                  onSelected: (val) =>
+                                      setState(() => _isWeb = val),
+                                ),
+                                const SizedBox(width: 12),
+                                FilterChip(
+                                  label: const Text("Mobile"),
+                                  selected: _isMobile,
+                                  onSelected: (val) =>
+                                      setState(() => _isMobile = val),
+                                ),
+                              ],
+                            ),
                           ),
-                          icon: const Icon(Icons.add_rounded),
-                          label: const Text(
-                            "Adicionar",
-                            style: TextStyle(fontWeight: FontWeight.bold),
+                          const Spacer(),
+                          if (isEditando)
+                            TextButton(
+                              onPressed: _limparFormulario,
+                              child: const Text(
+                                "Cancelar",
+                                style: TextStyle(color: Colors.grey),
+                              ),
+                            ),
+                          const SizedBox(width: 12),
+                          ElevatedButton.icon(
+                            onPressed: _processarFormulario,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: isEditando
+                                  ? Colors.blue.shade700
+                                  : Theme.of(context).primaryColor,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                                vertical: 16,
+                              ),
+                            ),
+                            icon: Icon(
+                              isEditando ? Icons.save : Icons.add,
+                              color: Colors.white,
+                            ),
+                            label: Text(
+                              isEditando ? "Guardar" : "Adicionar",
+                              style: const TextStyle(color: Colors.white),
+                            ),
                           ),
-                        ),
+                        ],
                       ),
                     ],
                   ),
@@ -165,13 +339,11 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
               ),
               const SizedBox(height: 32),
 
-              // TABELA DE EXIBIÇÃO
+              // TABELA
               Expanded(
                 child:
                     _submenuController.carregando || _menuController.carregando
                     ? const Center(child: CircularProgressIndicator())
-                    : _submenuController.submenus.isEmpty
-                    ? _buildGradeVazia()
                     : _buildTabelaSubmenus(),
               ),
             ],
@@ -181,22 +353,42 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
     );
   }
 
-  void _submeterNovoSubmenu() async {
+  void _processarFormulario() async {
     if (_formKey.currentState!.validate() && _menuPaiSelecionado != null) {
-      final titulo = _tituloController.text.trim();
-
-      await _submenuController.adicionarSubmenu(_menuPaiSelecionado!, titulo);
-      _tituloController.clear();
-      // Opcional: não limpamos o _menuPaiSelecionado caso o usuário queira adicionar vários no mesmo menu
-
-      if (mounted) {
+      if (!_isWeb && !_isMobile) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text("Submenu registrado com sucesso!"),
-            backgroundColor: Colors.green,
+            content: Text("Marque ao menos uma plataforma"),
+            backgroundColor: Colors.red,
           ),
         );
+        return;
       }
+
+      final titulo = _tituloController.text.trim();
+
+      if (_submenuEdicaoId == null) {
+        await _submenuController.adicionarSubmenu(
+          _menuPaiSelecionado!,
+          titulo,
+          _iconeSelecionado,
+          _paginaSelecionada,
+          _isWeb,
+          _isMobile,
+        );
+      } else {
+        await _submenuController.editarSubmenu(
+          _submenuEdicaoId!,
+          _menuPaiSelecionado!,
+          titulo,
+          _iconeSelecionado,
+          _paginaSelecionada,
+          _isWeb,
+          _isMobile,
+        );
+      }
+
+      _limparFormulario();
     }
   }
 
@@ -206,66 +398,81 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
       child: SingleChildScrollView(
         child: DataTable(
           headingRowColor: MaterialStateProperty.all(Colors.grey.shade50),
-          dataRowHeight: 60,
           columns: const [
-            DataColumn(
-              label: Text(
-                'Menu Pai',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ),
-            DataColumn(
-              label: Text(
-                'Nome do Submenu',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ),
-            DataColumn(
-              label: Text(
-                'Ações',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ),
+            DataColumn(label: Text('Menu Pai')),
+            DataColumn(label: Text('Submenu')),
+            DataColumn(label: Text('Ícone')),
+            DataColumn(label: Text('Plataforma')),
+            DataColumn(label: Text('Destino')),
+            DataColumn(label: Text('Ações')),
           ],
-          rows: _submenuController.submenus.map((submenu) {
+          rows: _submenuController.submenus.map((sub) {
             return DataRow(
               cells: [
                 DataCell(
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade200,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      _obterNomeMenuPai(submenu.menuId),
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                      ),
-                    ),
+                  Text(
+                    _obterNomeMenuPai(sub.menuId),
+                    style: TextStyle(color: Colors.grey.shade700),
                   ),
                 ),
                 DataCell(
                   Text(
-                    submenu.titulo,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.indigo,
-                    ),
+                    sub.titulo,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
                 DataCell(
-                  IconButton(
-                    icon: const Icon(
-                      Icons.delete_outline_rounded,
-                      color: Colors.redAccent,
-                    ),
-                    onPressed: () =>
-                        _confirmarExclusao(submenu.id, submenu.titulo),
+                  Icon(
+                    _iconesMapeados[sub.icone] ??
+                        Icons.subdirectory_arrow_right,
+                    size: 20,
+                  ),
+                ),
+                DataCell(
+                  Row(
+                    children: [
+                      if (sub.isWeb)
+                        const Icon(
+                          Icons.laptop_mac,
+                          size: 16,
+                          color: Colors.blue,
+                        ),
+                      if (sub.isMobile)
+                        const Icon(
+                          Icons.smartphone,
+                          size: 16,
+                          color: Colors.green,
+                        ),
+                    ],
+                  ),
+                ),
+                DataCell(
+                  Text(
+                    _paginasMapeadas[sub.rota] ?? sub.rota,
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ),
+                DataCell(
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(
+                          Icons.edit,
+                          color: Colors.blue,
+                          size: 20,
+                        ),
+                        onPressed: () => _entrarModoEdicao(sub),
+                      ),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.delete,
+                          color: Colors.red,
+                          size: 20,
+                        ),
+                        onPressed: () =>
+                            _submenuController.excluirSubmenu(sub.id),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -273,73 +480,6 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
           }).toList(),
         ),
       ),
-    );
-  }
-
-  Widget _buildGradeVazia() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.account_tree_outlined,
-            size: 64,
-            color: Colors.grey.shade300,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            "Nenhum submenu cadastrado na base de dados.",
-            style: TextStyle(fontSize: 16, color: Colors.grey.shade500),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _confirmarExclusao(String id, String titulo) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Row(
-            children: [
-              Icon(Icons.warning_amber_rounded, color: Colors.redAccent),
-              SizedBox(width: 10),
-              Text("Remover Submenu?"),
-            ],
-          ),
-          content: Text("Deseja realmente remover o submenu '$titulo'?"),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Cancelar"),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.redAccent,
-              ),
-              onPressed: () async {
-                Navigator.pop(context);
-                await _submenuController.excluirSubmenu(id);
-                if (mounted)
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text("Submenu removido."),
-                      backgroundColor: Colors.orange,
-                    ),
-                  );
-              },
-              child: const Text(
-                "Remover",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
     );
   }
 }

@@ -14,26 +14,64 @@ class SubmenuController extends ChangeNotifier {
   Future<void> carregarSubmenus() async {
     _carregando = true;
     notifyListeners();
-
     try {
       _submenus = await _repository.buscarSubmenus();
     } catch (e) {
-      debugPrint("Erro na controller de submenus: $e");
+      debugPrint("Erro submenus: $e");
     } finally {
       _carregando = false;
       notifyListeners();
     }
   }
 
-  Future<void> adicionarSubmenu(String menuId, String titulo) async {
-    if (menuId.isEmpty || titulo.isEmpty) return;
+  // 💡 AGORA SIM: Recebe os 6 parâmetros corretamente!
+  Future<void> adicionarSubmenu(
+    String menuId,
+    String titulo,
+    String icone,
+    String rota,
+    bool isWeb,
+    bool isMobile,
+  ) async {
+    if (menuId.isEmpty || titulo.isEmpty || rota.isEmpty) return;
 
     final novoSubmenu = SubmenuItemModel(
       id: '',
       menuId: menuId,
       titulo: titulo,
+      icone: icone,
+      rota: rota,
+      isWeb: isWeb,
+      isMobile: isMobile,
     );
+
     await _repository.salvarSubmenu(novoSubmenu);
+    await carregarSubmenus();
+  }
+
+  // 💡 AGORA SIM: A função editarSubmenu existe!
+  Future<void> editarSubmenu(
+    String id,
+    String menuId,
+    String titulo,
+    String icone,
+    String rota,
+    bool isWeb,
+    bool isMobile,
+  ) async {
+    if (menuId.isEmpty || titulo.isEmpty || rota.isEmpty) return;
+
+    final submenuAtualizado = SubmenuItemModel(
+      id: id,
+      menuId: menuId,
+      titulo: titulo,
+      icone: icone,
+      rota: rota,
+      isWeb: isWeb,
+      isMobile: isMobile,
+    );
+
+    await _repository.atualizarSubmenu(id, submenuAtualizado);
     await carregarSubmenus();
   }
 

@@ -14,7 +14,7 @@ class SubmenuRepository {
           .map((doc) => SubmenuItemModel.fromFirestore(doc.id, doc.data()))
           .toList();
     } catch (e) {
-      throw Exception("Erro ao buscar submenus no Firestore: $e");
+      throw Exception("Erro ao buscar submenus: $e");
     }
   }
 
@@ -25,7 +25,22 @@ class SubmenuRepository {
           .add(submenu.toMap());
       return docRef.id;
     } catch (e) {
-      throw Exception("Erro ao salvar submenu no Firestore: $e");
+      throw Exception("Erro ao salvar submenu: $e");
+    }
+  }
+
+  // 💡 NOVO: Atualizar
+  Future<void> atualizarSubmenu(
+    String submenuId,
+    SubmenuItemModel submenu,
+  ) async {
+    try {
+      await _firestore
+          .collection('submenus')
+          .doc(submenuId)
+          .update(submenu.toMap());
+    } catch (e) {
+      throw Exception("Erro ao atualizar submenu: $e");
     }
   }
 
@@ -33,7 +48,7 @@ class SubmenuRepository {
     try {
       await _firestore.collection('submenus').doc(submenuId).delete();
     } catch (e) {
-      throw Exception("Erro ao deletar submenu no Firestore: $e");
+      throw Exception("Erro ao deletar submenu: $e");
     }
   }
 }

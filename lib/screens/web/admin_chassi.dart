@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:vet_route/l10n/app_localizations.dart';
+import 'package:vet_route/services/auth_service.dart';
+import 'package:vet_route/controllers/permissoes_controller.dart';
+
+// Telas do Sistema
 import 'package:vet_route/screens/web/laboratorios/lista_laboratorios_screen.dart';
 import 'package:vet_route/screens/widgets/gestao_menus_hub.dart';
 import 'package:vet_route/screens/widgets/gestao_perfis_hub.dart';
 import 'package:vet_route/screens/widgets/gestao_submenus_hub.dart';
 import 'package:vet_route/screens/widgets/gestao_usuarios_hub.dart';
-import 'package:vet_route/services/auth_service.dart';
-import 'package:vet_route/controllers/permissoes_controller.dart';
-
 import 'package:vet_route/screens/web/entregador_gestao_web.dart';
 import 'package:vet_route/screens/web/clinica_gestao_web.dart';
 
@@ -22,7 +23,7 @@ class AdminChassi extends StatefulWidget {
 }
 
 class _AdminChassiState extends State<AdminChassi> {
-  // 💡 CENTRALIZADOR DE ICONES: Transforma String do Firebase em IconData Real do Flutter
+  // 💡 ROTEADOR DE ÍCONES: Traduz a string do banco para o ícone visual
   static const Map<String, IconData> _iconesMapeados = {
     'local_hospital': Icons.local_hospital,
     'science': Icons.science,
@@ -32,9 +33,14 @@ class _AdminChassiState extends State<AdminChassi> {
     'account_tree': Icons.account_tree_outlined,
     'people': Icons.people_alt_outlined,
     'dashboard': Icons.dashboard,
+    'subdirectory_arrow_right': Icons.subdirectory_arrow_right_rounded,
+    'analytics': Icons.analytics_outlined,
+    'assignment': Icons.assignment_outlined,
+    'payments': Icons.payments_outlined,
+    'inventory': Icons.inventory_2_outlined,
   };
 
-  // 💡 CENTRALIZADOR DE TELAS: Vincula a Rota do Firebase ao Widget correspondente
+  // 💡 ROTEADOR DE TELAS: Traduz a rota do banco para o Widget real
   static final Map<String, Widget Function()> _telasMapeadas = {
     'clinica_gestao': () => ClinicaGestaoWeb(),
     'lista_laboratorios': () => const ListaLaboratoriosScreen(),
@@ -122,15 +128,19 @@ class _AdminChassiState extends State<AdminChassi> {
                   );
                 }
 
-                // FALLBACK INTELIGENTE: Se não houver nada no banco ainda, carrega a lista legada
+                // 💡 CLEAN CODE: Se não tem menu, apenas informa. Sem fallback estático!
                 if (permissoesGlobais.menusPermitidos.isEmpty) {
-                  return ListView(
-                    padding: EdgeInsets.zero,
-                    children: _construirMenuEstaticoFallback(i18n),
+                  return const Padding(
+                    padding: EdgeInsets.all(20.0),
+                    child: Text(
+                      "Nenhum módulo liberado para o seu perfil de acesso.",
+                      style: TextStyle(color: Colors.white54),
+                      textAlign: TextAlign.center,
+                    ),
                   );
                 }
 
-                // 🚀 SISTEMA TOTALMENTE DINÂMICO E DATA-DRIVEN
+                // 🚀 RENDERIZAÇÃO 100% BASEADA EM DADOS DO FIRESTORE
                 return ListView(
                   padding: EdgeInsets.zero,
                   children: permissoesGlobais.menusPermitidos.map((menu) {
@@ -155,10 +165,14 @@ class _AdminChassiState extends State<AdminChassi> {
                         style: const TextStyle(color: Colors.white),
                       ),
                       children: submenus.map((sub) {
+                        final subIcon =
+                            _iconesMapeados[sub.icone] ??
+                            Icons.subdirectory_arrow_right_rounded;
+
                         return ListTile(
                           contentPadding: const EdgeInsets.only(left: 56),
-                          leading: const Icon(
-                            Icons.subdirectory_arrow_right,
+                          leading: Icon(
+                            subIcon,
                             color: Colors.white54,
                             size: 18,
                           ),
@@ -170,10 +184,8 @@ class _AdminChassiState extends State<AdminChassi> {
                             ),
                           ),
                           hoverColor: Colors.white12,
-                          onTap: () {
-                            // Submenu usa a rota que foi configurada nele ou herda do pai
-                            _executarNavegacao(context, sub.titulo, menu.rota);
-                          },
+                          onTap: () =>
+                              _executarNavegacao(context, sub.titulo, sub.rota),
                         );
                       }).toList(),
                     );
@@ -189,10 +201,11 @@ class _AdminChassiState extends State<AdminChassi> {
             i18n.logout ?? 'Sair do Sistema',
             () async {
               await AuthService().logout();
-              if (context.mounted)
+              if (context.mounted) {
                 Navigator.of(
                   context,
                 ).pushNamedAndRemoveUntil('/', (route) => false);
+              }
             },
           ),
         ],
@@ -200,17 +213,15 @@ class _AdminChassiState extends State<AdminChassi> {
     );
   }
 
-  // 💡 Lógica Dinâmica de Roteamento sem Hardcoding
   void _executarNavegacao(
     BuildContext context,
     String titulo,
     String chaveRota,
   ) {
-    // Puxa a construtora da tela direto do mapa estático
     final construtoraTela = _telasMapeadas[chaveRota];
     final Widget telaDestino = construtoraTela != null
         ? construtoraTela()
-        : Center(child: Text("Rota '$chaveRota' indefinida."));
+        : Center(child: Text("Rota '$chaveRota' indefinida no Roteador."));
 
     Navigator.pushReplacement(
       context,
@@ -230,77 +241,5 @@ class _AdminChassiState extends State<AdminChassi> {
       hoverColor: Colors.white12,
       onTap: onTap,
     );
-  }
-
-  List<Widget> _construirMenuEstaticoFallback(AppLocalizations i18n) {
-    return [
-      _itemMenu(
-        Icons.local_hospital,
-        i18n.clinics ?? 'Clínicas',
-        () => _executarNavegacao(
-          context,
-          i18n.clinics ?? 'Gestão de Clínicas',
-          'clinica_gestao',
-        ),
-      ),
-      _itemMenu(
-        Icons.science,
-        i18n.lab ?? 'Laboratórios',
-        () => _executarNavegacao(
-          context,
-          i18n.labManagement ?? 'Gestão de Laboratórios',
-          'lista_laboratorios',
-        ),
-      ),
-      _itemMenu(
-        Icons.motorcycle,
-        i18n.couriers ?? 'Motoboys',
-        () => _executarNavegacao(
-          context,
-          i18n.couriers ?? 'Gestão de Motoboys',
-          'entregador_gestao',
-        ),
-      ),
-      const Divider(color: Colors.white24, height: 32),
-      const Padding(
-        padding: EdgeInsets.only(left: 16.0, bottom: 8.0),
-        child: Text(
-          "CONTROLE DE ACESSO",
-          style: TextStyle(
-            color: Colors.white54,
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
-      _itemMenu(
-        Icons.admin_panel_settings_outlined,
-        'Gestão de Perfis',
-        () => _executarNavegacao(context, 'Gestão de Perfis', 'gestao_perfis'),
-      ),
-      _itemMenu(
-        Icons.layers_rounded,
-        'Gestão de Menus',
-        () => _executarNavegacao(context, 'Gestão de Menus', 'gestao_menus'),
-      ),
-      _itemMenu(
-        Icons.account_tree_outlined,
-        'Gestão de Submenus',
-        () => _executarNavegacao(
-          context,
-          'Gestão de Submenus',
-          'gestao_submenus',
-        ),
-      ),
-      _itemMenu(
-        Icons.people_alt_outlined,
-        'Usuários',
-        () => _executarNavegacao(
-          context,
-          'Gestão de Usuários',
-          'gestao_usuarios',
-        ),
-      ),
-    ];
   }
 }
