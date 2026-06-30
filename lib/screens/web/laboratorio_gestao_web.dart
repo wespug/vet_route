@@ -259,8 +259,9 @@ class _LaboratorioGestaoWebState extends State<LaboratorioGestaoWeb> {
                                 color: Colors.red,
                               ),
                               onPressed: () {
-                                if (lab.id != null)
+                                if (lab.id != null) {
                                   _controller.deletarLaboratorio(lab.id!);
+                                }
                               },
                             ),
                           ),

@@ -6,8 +6,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class DashboardLaboratorioHub extends StatefulWidget {
   final Laboratorio laboratorio;
-  const DashboardLaboratorioHub({Key? key, required this.laboratorio})
-    : super(key: key);
+  const DashboardLaboratorioHub({super.key, required this.laboratorio});
 
   @override
   State<DashboardLaboratorioHub> createState() =>
@@ -304,7 +303,7 @@ class _DashboardLaboratorioHubState extends State<DashboardLaboratorioHub> {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: corDestaque.withOpacity(0.15),
+                      color: corDestaque.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(icone, size: 32, color: corDestaque),
@@ -465,7 +464,7 @@ class _DashboardLaboratorioHubState extends State<DashboardLaboratorioHub> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: corStatus.withOpacity(0.15),
+              color: corStatus.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(

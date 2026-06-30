@@ -4,8 +4,7 @@ import 'package:vet_route/models/laboratorio_model.dart';
 class GestaoUsuarioHub extends StatefulWidget {
   final Laboratorio laboratorio;
 
-  const GestaoUsuarioHub({Key? key, required this.laboratorio})
-    : super(key: key);
+  const GestaoUsuarioHub({super.key, required this.laboratorio});
 
   @override
   State<GestaoUsuarioHub> createState() => _GestaoUsuarioHubState();

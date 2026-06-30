@@ -6,7 +6,7 @@ import 'package:vet_route/screens/web/laboratorios/cadastro_laboratorio_screen.d
 import 'package:vet_route/screens/web/laboratorios/datalhe_laboratorio_hub.dart';
 
 class ListaLaboratoriosScreen extends StatefulWidget {
-  const ListaLaboratoriosScreen({Key? key}) : super(key: key);
+  const ListaLaboratoriosScreen({super.key});
 
   @override
   State<ListaLaboratoriosScreen> createState() =>
@@ -98,7 +98,7 @@ class _ListaLaboratoriosScreenState extends State<ListaLaboratoriosScreen> {
                   leading: CircleAvatar(
                     backgroundColor: Theme.of(
                       context,
-                    ).primaryColor.withOpacity(0.1),
+                    ).primaryColor.withValues(alpha: 0.1),
                     child: Icon(
                       Icons.biotech,
                       color: Theme.of(context).primaryColor,

@@ -118,10 +118,10 @@ class Filter extends FilterPlatformInterface {
         assert(
           field is String || field is FieldPath || field is FieldPathType,
         ) {
-    final _field = (field is String ? FieldPath.fromString(field) : field);
+    final field = (field is String ? FieldPath.fromString(field) : field);
 
     _filterQuery = _FilterQuery(
-      _field,
+      field,
       _getOperator(
         isEqualTo,
         isNotEqualTo,

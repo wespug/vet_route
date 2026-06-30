@@ -262,8 +262,9 @@ class _EntregadorGestaoWebState extends State<EntregadorGestaoWeb> {
                                 color: Colors.red,
                               ),
                               onPressed: () {
-                                if (entregador.id != null)
+                                if (entregador.id != null) {
                                   _controller.deletarEntregador(entregador.id!);
+                                }
                               },
                             ),
                           ),

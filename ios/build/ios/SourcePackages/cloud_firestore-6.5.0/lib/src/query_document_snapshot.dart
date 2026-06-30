@@ -19,8 +19,7 @@ abstract class QueryDocumentSnapshot<T extends Object?>
 
 class _JsonQueryDocumentSnapshot extends _JsonDocumentSnapshot
     implements QueryDocumentSnapshot<Map<String, dynamic>> {
-  _JsonQueryDocumentSnapshot(_firestore, _delegate)
-      : super(_firestore, _delegate);
+  _JsonQueryDocumentSnapshot(firestore, delegate) : super(firestore, delegate);
 
   @override
   bool get exists => true;
@@ -39,14 +38,11 @@ class _WithConverterQueryDocumentSnapshot<T extends Object?>
     extends _WithConverterDocumentSnapshot<T>
     implements QueryDocumentSnapshot<T> {
   _WithConverterQueryDocumentSnapshot(
-    QueryDocumentSnapshot<Map<String, dynamic>> originalQueryDocumentSnapshot,
-    FromFirestore<T> fromFirestore,
-    ToFirestore<T> toFirestore,
-  ) : super(
-          originalQueryDocumentSnapshot,
-          fromFirestore,
-          toFirestore,
-        );
+    QueryDocumentSnapshot<Map<String, dynamic>>
+    super.originalQueryDocumentSnapshot,
+    super.fromFirestore,
+    super.toFirestore,
+  );
 
   @override
   bool get exists => true;

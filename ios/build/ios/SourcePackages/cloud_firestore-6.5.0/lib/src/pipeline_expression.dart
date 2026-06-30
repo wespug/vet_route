@@ -111,10 +111,7 @@ enum Type {
 abstract class Expression implements PipelineSerializable {
   /// Creates an aliased expression
   AliasedExpression as(String alias) {
-    return AliasedExpression(
-      alias: alias,
-      expression: this,
-    );
+    return AliasedExpression(alias: alias, expression: this);
   }
 
   /// Creates a descending ordering for this expression
@@ -728,12 +725,7 @@ abstract class Expression implements PipelineSerializable {
     String indexAlias,
     Expression transform,
   ) {
-    return _ArrayTransformExpression(
-      this,
-      elementAlias,
-      indexAlias,
-      transform,
-    );
+    return _ArrayTransformExpression(this, elementAlias, indexAlias, transform);
   }
 
   // ============================================================================
@@ -804,9 +796,7 @@ abstract class Expression implements PipelineSerializable {
 
   @override
   Map<String, dynamic> toMap() {
-    return {
-      'name': name,
-    };
+    return {'name': name};
   }
 
   // ============================================================================
@@ -905,9 +895,7 @@ abstract class Expression implements PipelineSerializable {
 
   /// Creates an array expression from elements
   static Expression array(List<Object?> elements) {
-    return _ArrayExpression(
-      elements.map(_toExpression).toList(),
-    );
+    return _ArrayExpression(elements.map(_toExpression).toList());
   }
 
   /// Creates a map expression from key-value pairs
@@ -976,10 +964,7 @@ abstract class Expression implements PipelineSerializable {
   ///
   /// [unit] must be one of: `microsecond`, `millisecond`, `second`, `minute`,
   /// `hour`, `day`.
-  static Expression timestampTruncate(
-    Expression timestamp,
-    String unit,
-  ) {
+  static Expression timestampTruncate(Expression timestamp, String unit) {
     _validateTimestampUnit(unit);
     return _TimestampTruncateExpression(timestamp, unit);
   }
@@ -990,18 +975,12 @@ abstract class Expression implements PipelineSerializable {
   }
 
   /// Checks if a value is in a list (IN operator)
-  static BooleanExpression equalAny(
-    Expression value,
-    List<Object?> values,
-  ) {
+  static BooleanExpression equalAny(Expression value, List<Object?> values) {
     return _EqualAnyExpression(value, values.map(_toExpression).toList());
   }
 
   /// Checks if a value is not in a list (NOT IN operator)
-  static BooleanExpression notEqualAny(
-    Expression value,
-    List<Object?> values,
-  ) {
+  static BooleanExpression notEqualAny(Expression value, List<Object?> values) {
     return _NotEqualAnyExpression(value, values.map(_toExpression).toList());
   }
 
@@ -1011,18 +990,12 @@ abstract class Expression implements PipelineSerializable {
   }
 
   /// Returns an expression if another is absent
-  static Expression ifAbsentStatic(
-    Expression ifExpr,
-    Expression elseExpr,
-  ) {
+  static Expression ifAbsentStatic(Expression ifExpr, Expression elseExpr) {
     return _IfAbsentExpression(ifExpr, elseExpr);
   }
 
   /// Returns a value if an expression is absent
-  static Expression ifAbsentValueStatic(
-    Expression ifExpr,
-    Object? elseValue,
-  ) {
+  static Expression ifAbsentValueStatic(Expression ifExpr, Object? elseValue) {
     return _IfAbsentExpression(ifExpr, _toExpression(elseValue));
   }
 
@@ -1037,10 +1010,7 @@ abstract class Expression implements PipelineSerializable {
   }
 
   /// Returns an expression if another errors
-  static Expression ifErrorStatic(
-    Expression tryExpr,
-    Expression catchExpr,
-  ) {
+  static Expression ifErrorStatic(Expression tryExpr, Expression catchExpr) {
     return _IfErrorExpression(tryExpr, catchExpr);
   }
 
@@ -1269,10 +1239,7 @@ abstract class Expression implements PipelineSerializable {
   }
 
   /// Joins a field's array with a delimiter
-  static Expression joinField(
-    String arrayFieldName,
-    String delimiter,
-  ) {
+  static Expression joinField(String arrayFieldName, String delimiter) {
     return _JoinExpression(Field(arrayFieldName), Constant(delimiter));
   }
 
@@ -1312,42 +1279,27 @@ abstract class Expression implements PipelineSerializable {
   }
 
   /// Adds two expressions
-  static Expression addStatic(
-    Expression first,
-    Expression second,
-  ) {
+  static Expression addStatic(Expression first, Expression second) {
     return _AddExpression(first, second);
   }
 
   /// Adds an expression and a number
-  static Expression addStaticNumber(
-    Expression first,
-    num second,
-  ) {
+  static Expression addStaticNumber(Expression first, num second) {
     return _AddExpression(first, Constant(second));
   }
 
   /// Adds a field and an expression
-  static Expression addField(
-    String numericFieldName,
-    Expression second,
-  ) {
+  static Expression addField(String numericFieldName, Expression second) {
     return _AddExpression(Field(numericFieldName), second);
   }
 
   /// Adds a field and a number
-  static Expression addFieldNumber(
-    String numericFieldName,
-    num second,
-  ) {
+  static Expression addFieldNumber(String numericFieldName, num second) {
     return _AddExpression(Field(numericFieldName), Constant(second));
   }
 
   /// Subtracts two expressions
-  static Expression subtractStatic(
-    Expression minuend,
-    Expression subtrahend,
-  ) {
+  static Expression subtractStatic(Expression minuend, Expression subtrahend) {
     return _SubtractExpression(minuend, subtrahend);
   }
 
@@ -1360,58 +1312,37 @@ abstract class Expression implements PipelineSerializable {
   }
 
   /// Divides two expressions
-  static Expression divideStatic(
-    Expression dividend,
-    Expression divisor,
-  ) {
+  static Expression divideStatic(Expression dividend, Expression divisor) {
     return _DivideExpression(dividend, divisor);
   }
 
   /// Returns modulo of two expressions
-  static Expression moduloStatic(
-    Expression dividend,
-    Expression divisor,
-  ) {
+  static Expression moduloStatic(Expression dividend, Expression divisor) {
     return _ModuloExpression(dividend, divisor);
   }
 
   /// Compares two expressions for equality
-  static BooleanExpression equalStatic(
-    Expression left,
-    Expression right,
-  ) {
+  static BooleanExpression equalStatic(Expression left, Expression right) {
     return _EqualExpression(left, right);
   }
 
   /// Compares expression with value for equality
-  static BooleanExpression equalStaticValue(
-    Expression left,
-    Object? right,
-  ) {
+  static BooleanExpression equalStaticValue(Expression left, Object? right) {
     return _EqualExpression(left, _toExpression(right));
   }
 
   /// Compares field with value for equality
-  static BooleanExpression equalField(
-    String fieldName,
-    Object? value,
-  ) {
+  static BooleanExpression equalField(String fieldName, Object? value) {
     return _EqualExpression(Field(fieldName), _toExpression(value));
   }
 
   /// Compares two expressions for inequality
-  static BooleanExpression notEqualStatic(
-    Expression left,
-    Expression right,
-  ) {
+  static BooleanExpression notEqualStatic(Expression left, Expression right) {
     return _NotEqualExpression(left, right);
   }
 
   /// Compares expression with value for inequality
-  static BooleanExpression notEqualStaticValue(
-    Expression left,
-    Object? right,
-  ) {
+  static BooleanExpression notEqualStaticValue(Expression left, Object? right) {
     return _NotEqualExpression(left, _toExpression(right));
   }
 
@@ -1432,10 +1363,7 @@ abstract class Expression implements PipelineSerializable {
   }
 
   /// Greater than comparison for field
-  static BooleanExpression greaterThanField(
-    String fieldName,
-    Object? value,
-  ) {
+  static BooleanExpression greaterThanField(String fieldName, Object? value) {
     return _GreaterThanExpression(Field(fieldName), _toExpression(value));
   }
 
@@ -1448,26 +1376,17 @@ abstract class Expression implements PipelineSerializable {
   }
 
   /// Less than comparison
-  static BooleanExpression lessThanStatic(
-    Expression left,
-    Expression right,
-  ) {
+  static BooleanExpression lessThanStatic(Expression left, Expression right) {
     return _LessThanExpression(left, right);
   }
 
   /// Less than comparison with value
-  static BooleanExpression lessThanStaticValue(
-    Expression left,
-    Object? right,
-  ) {
+  static BooleanExpression lessThanStaticValue(Expression left, Object? right) {
     return _LessThanExpression(left, _toExpression(right));
   }
 
   /// Less than comparison for field
-  static BooleanExpression lessThanField(
-    String fieldName,
-    Object? value,
-  ) {
+  static BooleanExpression lessThanField(String fieldName, Object? value) {
     return _LessThanExpression(Field(fieldName), _toExpression(value));
   }
 
@@ -1543,10 +1462,7 @@ abstract class Expression implements PipelineSerializable {
   }
 
   /// Splits string
-  static Expression splitStatic(
-    Expression stringExpr,
-    Expression delimiter,
-  ) {
+  static Expression splitStatic(Expression stringExpr, Expression delimiter) {
     return _SplitExpression(stringExpr, delimiter);
   }
 
@@ -1678,10 +1594,7 @@ abstract class Expression implements PipelineSerializable {
   }
 
   /// Creates a raw/custom function expression
-  static Expression rawFunction(
-    String name,
-    List<Expression> args,
-  ) {
+  static Expression rawFunction(String name, List<Expression> args) {
     return _RawFunctionExpression(name, args);
   }
 
@@ -1692,10 +1605,7 @@ abstract class Expression implements PipelineSerializable {
   }
 
   /// Same as [Expression.isType] but usable as a static helper for any [expression].
-  static BooleanExpression isTypeStatic(
-    Expression expression,
-    Type valueType,
-  ) {
+  static BooleanExpression isTypeStatic(Expression expression, Type valueType) {
     return _IsTypeExpression(expression, valueType);
   }
 }
@@ -1719,10 +1629,7 @@ class AliasedExpression extends Selectable {
   @override
   final Expression expression;
 
-  AliasedExpression({
-    required String alias,
-    required this.expression,
-  }) : _alias = alias;
+  AliasedExpression({required this._alias, required this.expression});
 
   @override
   String get name => 'alias';
@@ -1731,10 +1638,7 @@ class AliasedExpression extends Selectable {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'alias': _alias,
-        'expression': expression.toMap(),
-      },
+      'args': {'alias': _alias, 'expression': expression.toMap()},
     };
   }
 }
@@ -1758,9 +1662,7 @@ class Field extends Selectable {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'field': fieldName,
-      },
+      'args': {'field': fieldName},
     };
   }
 }
@@ -1776,9 +1678,7 @@ class _NullExpression extends Expression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'value': null,
-      },
+      'args': {'value': null},
     };
   }
 }
@@ -1841,9 +1741,7 @@ class Concat extends FunctionExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'expressions': expressions.map((expr) => expr.toMap()).toList(),
-      },
+      'args': {'expressions': expressions.map((expr) => expr.toMap()).toList()},
     };
   }
 }
@@ -1861,9 +1759,7 @@ class _ConcatExpression extends FunctionExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'expressions': expressions.map((expr) => expr.toMap()).toList(),
-      },
+      'args': {'expressions': expressions.map((expr) => expr.toMap()).toList()},
     };
   }
 }
@@ -1881,9 +1777,7 @@ class _LengthExpression extends FunctionExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'expression': expression.toMap(),
-      },
+      'args': {'expression': expression.toMap()},
     };
   }
 }
@@ -1901,9 +1795,7 @@ class _ToLowerCaseExpression extends FunctionExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'expression': expression.toMap(),
-      },
+      'args': {'expression': expression.toMap()},
     };
   }
 }
@@ -1921,9 +1813,7 @@ class _ToUpperCaseExpression extends FunctionExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'expression': expression.toMap(),
-      },
+      'args': {'expression': expression.toMap()},
     };
   }
 }
@@ -2033,9 +1923,7 @@ class _TrimExpression extends FunctionExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'expression': expression.toMap(),
-      },
+      'args': {'expression': expression.toMap()},
     };
   }
 }
@@ -2061,10 +1949,7 @@ class _AddExpression extends FunctionExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'left': left.toMap(),
-        'right': right.toMap(),
-      },
+      'args': {'left': left.toMap(), 'right': right.toMap()},
     };
   }
 }
@@ -2083,10 +1968,7 @@ class _SubtractExpression extends FunctionExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'left': left.toMap(),
-        'right': right.toMap(),
-      },
+      'args': {'left': left.toMap(), 'right': right.toMap()},
     };
   }
 }
@@ -2105,10 +1987,7 @@ class _EqualExpression extends BooleanExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'left': left.toMap(),
-        'right': right.toMap(),
-      },
+      'args': {'left': left.toMap(), 'right': right.toMap()},
     };
   }
 }
@@ -2127,10 +2006,7 @@ class _GreaterThanExpression extends BooleanExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'left': left.toMap(),
-        'right': right.toMap(),
-      },
+      'args': {'left': left.toMap(), 'right': right.toMap()},
     };
   }
 }
@@ -2149,10 +2025,7 @@ class _MultiplyExpression extends FunctionExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'left': left.toMap(),
-        'right': right.toMap(),
-      },
+      'args': {'left': left.toMap(), 'right': right.toMap()},
     };
   }
 }
@@ -2171,10 +2044,7 @@ class _DivideExpression extends FunctionExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'left': left.toMap(),
-        'right': right.toMap(),
-      },
+      'args': {'left': left.toMap(), 'right': right.toMap()},
     };
   }
 }
@@ -2193,10 +2063,7 @@ class _ModuloExpression extends FunctionExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'left': left.toMap(),
-        'right': right.toMap(),
-      },
+      'args': {'left': left.toMap(), 'right': right.toMap()},
     };
   }
 }
@@ -2214,9 +2081,7 @@ class _AbsExpression extends FunctionExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'expression': expression.toMap(),
-      },
+      'args': {'expression': expression.toMap()},
     };
   }
 }
@@ -2236,10 +2101,7 @@ class _NotEqualExpression extends BooleanExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'left': left.toMap(),
-        'right': right.toMap(),
-      },
+      'args': {'left': left.toMap(), 'right': right.toMap()},
     };
   }
 }
@@ -2258,10 +2120,7 @@ class _GreaterThanOrEqualExpression extends BooleanExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'left': left.toMap(),
-        'right': right.toMap(),
-      },
+      'args': {'left': left.toMap(), 'right': right.toMap()},
     };
   }
 }
@@ -2280,10 +2139,7 @@ class _LessThanExpression extends BooleanExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'left': left.toMap(),
-        'right': right.toMap(),
-      },
+      'args': {'left': left.toMap(), 'right': right.toMap()},
     };
   }
 }
@@ -2302,10 +2158,7 @@ class _LessThanOrEqualExpression extends BooleanExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'left': left.toMap(),
-        'right': right.toMap(),
-      },
+      'args': {'left': left.toMap(), 'right': right.toMap()},
     };
   }
 }
@@ -2328,10 +2181,7 @@ class _ArrayConcatExpression extends FunctionExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'first': firstArray.toMap(),
-        'second': secondArray.toMap(),
-      },
+      'args': {'first': firstArray.toMap(), 'second': secondArray.toMap()},
     };
   }
 }
@@ -2349,9 +2199,7 @@ class _ArrayConcatMultipleExpression extends FunctionExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'arrays': arrays.map((expr) => expr.toMap()).toList(),
-      },
+      'args': {'arrays': arrays.map((expr) => expr.toMap()).toList()},
     };
   }
 }
@@ -2370,10 +2218,7 @@ class _ArrayContainsExpression extends BooleanExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'array': array.toMap(),
-        'element': element.toMap(),
-      },
+      'args': {'array': array.toMap(), 'element': element.toMap()},
     };
   }
 }
@@ -2457,9 +2302,7 @@ class _ArrayLengthExpression extends FunctionExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'expression': expression.toMap(),
-      },
+      'args': {'expression': expression.toMap()},
     };
   }
 }
@@ -2477,9 +2320,7 @@ class _ArrayReverseExpression extends FunctionExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'expression': expression.toMap(),
-      },
+      'args': {'expression': expression.toMap()},
     };
   }
 }
@@ -2497,9 +2338,7 @@ class _ArraySumExpression extends FunctionExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'expression': expression.toMap(),
-      },
+      'args': {'expression': expression.toMap()},
     };
   }
 }
@@ -2524,10 +2363,7 @@ class _ArraySliceExpression extends FunctionExpression {
     if (sliceLength != null) {
       args['length'] = sliceLength!.toMap();
     }
-    return {
-      'name': name,
-      'args': args,
-    };
+    return {'name': name, 'args': args};
   }
 }
 
@@ -2583,10 +2419,7 @@ class _ArrayTransformExpression extends FunctionExpression {
     if (indexAlias != null) {
       args['index_alias'] = indexAlias;
     }
-    return {
-      'name': name,
-      'args': args,
-    };
+    return {'name': name, 'args': args};
   }
 }
 
@@ -2608,10 +2441,7 @@ class _IfAbsentExpression extends FunctionExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'expression': expression.toMap(),
-        'else': elseExpr.toMap(),
-      },
+      'args': {'expression': expression.toMap(), 'else': elseExpr.toMap()},
     };
   }
 }
@@ -2630,10 +2460,7 @@ class _IfErrorExpression extends Expression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'expression': expression.toMap(),
-        'catch': catchExpr.toMap(),
-      },
+      'args': {'expression': expression.toMap(), 'catch': catchExpr.toMap()},
     };
   }
 }
@@ -2651,9 +2478,7 @@ class _IsAbsentExpression extends BooleanExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'expression': expression.toMap(),
-      },
+      'args': {'expression': expression.toMap()},
     };
   }
 }
@@ -2671,9 +2496,7 @@ class _IsErrorExpression extends BooleanExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'expression': expression.toMap(),
-      },
+      'args': {'expression': expression.toMap()},
     };
   }
 }
@@ -2691,9 +2514,7 @@ class _ExistsExpression extends BooleanExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'expression': expression.toMap(),
-      },
+      'args': {'expression': expression.toMap()},
     };
   }
 }
@@ -2711,9 +2532,7 @@ class _NotExpression extends BooleanExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'expression': expression.toMap(),
-      },
+      'args': {'expression': expression.toMap()},
     };
   }
 }
@@ -2730,9 +2549,7 @@ class _XorExpression extends BooleanExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'expressions': expressions.map((e) => e.toMap()).toList(),
-      },
+      'args': {'expressions': expressions.map((e) => e.toMap()).toList()},
     };
   }
 }
@@ -2749,9 +2566,7 @@ class _AndExpression extends BooleanExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'expressions': expressions.map((e) => e.toMap()).toList(),
-      },
+      'args': {'expressions': expressions.map((e) => e.toMap()).toList()},
     };
   }
 }
@@ -2768,9 +2583,7 @@ class _OrExpression extends BooleanExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'expressions': expressions.map((e) => e.toMap()).toList(),
-      },
+      'args': {'expressions': expressions.map((e) => e.toMap()).toList()},
     };
   }
 }
@@ -2816,9 +2629,7 @@ class _AsBooleanExpression extends BooleanExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'expression': expression.toMap(),
-      },
+      'args': {'expression': expression.toMap()},
     };
   }
 }
@@ -2841,10 +2652,7 @@ class _BitAndExpression extends FunctionExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'left': left.toMap(),
-        'right': right.toMap(),
-      },
+      'args': {'left': left.toMap(), 'right': right.toMap()},
     };
   }
 }
@@ -2863,10 +2671,7 @@ class _BitOrExpression extends FunctionExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'left': left.toMap(),
-        'right': right.toMap(),
-      },
+      'args': {'left': left.toMap(), 'right': right.toMap()},
     };
   }
 }
@@ -2885,10 +2690,7 @@ class _BitXorExpression extends FunctionExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'left': left.toMap(),
-        'right': right.toMap(),
-      },
+      'args': {'left': left.toMap(), 'right': right.toMap()},
     };
   }
 }
@@ -2906,9 +2708,7 @@ class _BitNotExpression extends FunctionExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'expression': expression.toMap(),
-      },
+      'args': {'expression': expression.toMap()},
     };
   }
 }
@@ -2927,10 +2727,7 @@ class _BitLeftShiftExpression extends FunctionExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'expression': expression.toMap(),
-        'amount': amount.toMap(),
-      },
+      'args': {'expression': expression.toMap(), 'amount': amount.toMap()},
     };
   }
 }
@@ -2949,10 +2746,7 @@ class _BitRightShiftExpression extends FunctionExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'expression': expression.toMap(),
-        'amount': amount.toMap(),
-      },
+      'args': {'expression': expression.toMap(), 'amount': amount.toMap()},
     };
   }
 }
@@ -2974,9 +2768,7 @@ class _DocumentIdExpression extends FunctionExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'expression': expression.toMap(),
-      },
+      'args': {'expression': expression.toMap()},
     };
   }
 }
@@ -2994,9 +2786,7 @@ class _CollectionIdExpression extends FunctionExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'expression': expression.toMap(),
-      },
+      'args': {'expression': expression.toMap()},
     };
   }
 }
@@ -3014,9 +2804,7 @@ class _DocumentIdFromRefExpression extends FunctionExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'doc_ref': docRef.path,
-      },
+      'args': {'doc_ref': docRef.path},
     };
   }
 }
@@ -3039,10 +2827,7 @@ class _MapGetExpression extends FunctionExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'map': map.toMap(),
-        'key': key.toMap(),
-      },
+      'args': {'map': map.toMap(), 'key': key.toMap()},
     };
   }
 }
@@ -3060,9 +2845,7 @@ class _CurrentTimestampExpression extends FunctionExpression {
 
   @override
   Map<String, dynamic> toMap() {
-    return {
-      'name': name,
-    };
+    return {'name': name};
   }
 }
 
@@ -3131,10 +2914,7 @@ class _TimestampTruncateExpression extends FunctionExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'timestamp': timestamp.toMap(),
-        'unit': unit,
-      },
+      'args': {'timestamp': timestamp.toMap(), 'unit': unit},
     };
   }
 }
@@ -3200,9 +2980,7 @@ class _ArrayExpression extends FunctionExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'elements': elements.map((expr) => expr.toMap()).toList(),
-      },
+      'args': {'elements': elements.map((expr) => expr.toMap()).toList()},
     };
   }
 }
@@ -3220,9 +2998,7 @@ class _MapExpression extends FunctionExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'data': data.map((k, v) => MapEntry(k, v.toMap())),
-      },
+      'args': {'data': data.map((k, v) => MapEntry(k, v.toMap()))},
     };
   }
 }
@@ -3266,9 +3042,7 @@ class _MapEntriesExpression extends FunctionExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'expression': expression.toMap(),
-      },
+      'args': {'expression': expression.toMap()},
     };
   }
 }
@@ -3287,10 +3061,7 @@ class _RegexFindExpression extends FunctionExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'expression': expression.toMap(),
-        'pattern': pattern.toMap(),
-      },
+      'args': {'expression': expression.toMap(), 'pattern': pattern.toMap()},
     };
   }
 }
@@ -3309,10 +3080,7 @@ class _RegexFindAllExpression extends FunctionExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'expression': expression.toMap(),
-        'pattern': pattern.toMap(),
-      },
+      'args': {'expression': expression.toMap(), 'pattern': pattern.toMap()},
     };
   }
 }
@@ -3355,10 +3123,7 @@ class _StringIndexOfExpression extends FunctionExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'expression': expression.toMap(),
-        'search': search.toMap(),
-      },
+      'args': {'expression': expression.toMap(), 'search': search.toMap()},
     };
   }
 }
@@ -3397,16 +3162,11 @@ class _LtrimExpression extends FunctionExpression {
 
   @override
   Map<String, dynamic> toMap() {
-    final args = <String, dynamic>{
-      'expression': expression.toMap(),
-    };
+    final args = <String, dynamic>{'expression': expression.toMap()};
     if (value != null) {
       args['value'] = value!.toMap();
     }
-    return {
-      'name': name,
-      'args': args,
-    };
+    return {'name': name, 'args': args};
   }
 }
 
@@ -3422,16 +3182,11 @@ class _RtrimExpression extends FunctionExpression {
 
   @override
   Map<String, dynamic> toMap() {
-    final args = <String, dynamic>{
-      'expression': expression.toMap(),
-    };
+    final args = <String, dynamic>{'expression': expression.toMap()};
     if (value != null) {
       args['value'] = value!.toMap();
     }
-    return {
-      'name': name,
-      'args': args,
-    };
+    return {'name': name, 'args': args};
   }
 }
 
@@ -3448,9 +3203,7 @@ class _TypeExpression extends FunctionExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'expression': expression.toMap(),
-      },
+      'args': {'expression': expression.toMap()},
     };
   }
 }
@@ -3469,10 +3222,7 @@ class _IsTypeExpression extends BooleanExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'expression': expression.toMap(),
-        'type': valueType.typeValue,
-      },
+      'args': {'expression': expression.toMap(), 'type': valueType.typeValue},
     };
   }
 }
@@ -3489,16 +3239,11 @@ class _TruncExpression extends FunctionExpression {
 
   @override
   Map<String, dynamic> toMap() {
-    final args = <String, dynamic>{
-      'expression': expression.toMap(),
-    };
+    final args = <String, dynamic>{'expression': expression.toMap()};
     if (decimals != null) {
       args['decimals'] = decimals!.toMap();
     }
-    return {
-      'name': name,
-      'args': args,
-    };
+    return {'name': name, 'args': args};
   }
 }
 
@@ -3511,10 +3256,7 @@ class _RandExpression extends FunctionExpression {
 
   @override
   Map<String, dynamic> toMap() {
-    return {
-      'name': name,
-      'args': <String, dynamic>{},
-    };
+    return {'name': name, 'args': <String, dynamic>{}};
   }
 }
 
@@ -3531,9 +3273,7 @@ class _ArrayFirstExpression extends FunctionExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'expression': expression.toMap(),
-      },
+      'args': {'expression': expression.toMap()},
     };
   }
 }
@@ -3552,10 +3292,7 @@ class _ArrayFirstNExpression extends FunctionExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'expression': expression.toMap(),
-        'n': n.toMap(),
-      },
+      'args': {'expression': expression.toMap(), 'n': n.toMap()},
     };
   }
 }
@@ -3573,9 +3310,7 @@ class _ArrayLastExpression extends FunctionExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'expression': expression.toMap(),
-      },
+      'args': {'expression': expression.toMap()},
     };
   }
 }
@@ -3594,10 +3329,7 @@ class _ArrayLastNExpression extends FunctionExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'expression': expression.toMap(),
-        'n': n.toMap(),
-      },
+      'args': {'expression': expression.toMap(), 'n': n.toMap()},
     };
   }
 }
@@ -3615,9 +3347,7 @@ class _ArrayMaximumExpression extends FunctionExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'expression': expression.toMap(),
-      },
+      'args': {'expression': expression.toMap()},
     };
   }
 }
@@ -3636,10 +3366,7 @@ class _ArrayMaximumNExpression extends FunctionExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'expression': expression.toMap(),
-        'n': n.toMap(),
-      },
+      'args': {'expression': expression.toMap(), 'n': n.toMap()},
     };
   }
 }
@@ -3657,9 +3384,7 @@ class _ArrayMinimumExpression extends FunctionExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'expression': expression.toMap(),
-      },
+      'args': {'expression': expression.toMap()},
     };
   }
 }
@@ -3678,10 +3403,7 @@ class _ArrayMinimumNExpression extends FunctionExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'expression': expression.toMap(),
-        'n': n.toMap(),
-      },
+      'args': {'expression': expression.toMap(), 'n': n.toMap()},
     };
   }
 }
@@ -3728,10 +3450,7 @@ class _ArrayIndexOfAllExpression extends FunctionExpression {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'args': {
-        'expression': expression.toMap(),
-        'element': element.toMap(),
-      },
+      'args': {'expression': expression.toMap(), 'element': element.toMap()},
     };
   }
 }
@@ -3748,9 +3467,6 @@ class _RawFunctionExpression extends FunctionExpression {
 
   @override
   Map<String, dynamic> toMap() {
-    return {
-      'name': name,
-      'args': args.map((expr) => expr.toMap()).toList(),
-    };
+    return {'name': name, 'args': args.map((expr) => expr.toMap()).toList()};
   }
 }

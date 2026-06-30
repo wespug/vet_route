@@ -171,7 +171,7 @@ class _CadastroUsuarioWebState extends State<CadastroUsuarioWeb>
 
                     // Seletor de Tipo de Usuário (Perfil)
                     DropdownButtonFormField<String>(
-                      value: _perfilSelecionado,
+                      initialValue: _perfilSelecionado,
                       decoration: InputDecoration(
                         labelText: i18n.profileLabel,
                         border: const OutlineInputBorder(),

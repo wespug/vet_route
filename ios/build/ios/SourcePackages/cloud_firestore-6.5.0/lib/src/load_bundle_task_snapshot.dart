@@ -9,7 +9,7 @@ class LoadBundleTaskSnapshot {
   LoadBundleTaskSnapshot._(this._delegate) {
     LoadBundleTaskSnapshotPlatform.verify(_delegate);
   }
-  LoadBundleTaskSnapshotPlatform _delegate;
+  final LoadBundleTaskSnapshotPlatform _delegate;
 
   /// How many bytes have been loaded.
   int get bytesLoaded => _delegate.bytesLoaded;

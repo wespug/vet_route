@@ -12,8 +12,7 @@ import 'package:vet_route/screens/web/laboratorios/gestao_usuario_hub.dart';
 class DetalheLaboratorioHub extends StatelessWidget {
   final Laboratorio laboratorio;
 
-  const DetalheLaboratorioHub({Key? key, required this.laboratorio})
-    : super(key: key);
+  const DetalheLaboratorioHub({super.key, required this.laboratorio});
 
   @override
   Widget build(BuildContext context) {

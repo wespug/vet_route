@@ -22,8 +22,8 @@ class PipelineResult {
     this.document,
     this.createTime,
     this.updateTime,
-    Map<String, dynamic>? data,
-  }) : _data = data;
+    this._data,
+  });
 
   /// Retrieves all fields in the result as a map.
   Map<String, dynamic>? data() => _data;

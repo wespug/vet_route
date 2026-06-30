@@ -218,7 +218,7 @@ class _JsonDocumentReference
 @immutable
 class _WithConverterDocumentReference<T extends Object?>
     implements DocumentReference<T> {
-  _WithConverterDocumentReference(
+  const _WithConverterDocumentReference(
     this._originalDocumentReference,
     this._fromFirestore,
     this._toFirestore,

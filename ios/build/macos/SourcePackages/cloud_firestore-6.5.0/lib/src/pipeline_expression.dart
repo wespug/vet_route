@@ -1720,9 +1720,9 @@ class AliasedExpression extends Selectable {
   final Expression expression;
 
   AliasedExpression({
-    required String alias,
+    required this._alias,
     required this.expression,
-  }) : _alias = alias;
+  });
 
   @override
   String get name => 'alias';

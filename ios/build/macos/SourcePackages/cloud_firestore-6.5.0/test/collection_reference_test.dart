@@ -228,7 +228,7 @@ void main() {
 
         expectNotEqual(
           foo.withConverter<int>(
-            fromFirestore: (_, __) => 42,
+            fromFirestore: (_, _) => 42,
             toFirestore: toFirestore,
           ),
           intFoo,
@@ -237,7 +237,7 @@ void main() {
         expectNotEqual(
           foo.withConverter<int>(
             fromFirestore: fromFirestore,
-            toFirestore: (_, __) => {},
+            toFirestore: (_, _) => {},
           ),
           intFoo,
         );
@@ -273,8 +273,8 @@ void main() {
         expect(
           foo
               .withConverter(
-                fromFirestore: (_, __) => 42,
-                toFirestore: (_, __) => {},
+                fromFirestore: (_, _) => 42,
+                toFirestore: (_, _) => {},
               )
               .id,
           foo.id,
@@ -288,8 +288,8 @@ void main() {
         expect(
           subCollection
               .withConverter(
-                fromFirestore: (_, __) => 42,
-                toFirestore: (_, __) => {},
+                fromFirestore: (_, _) => 42,
+                toFirestore: (_, _) => {},
               )
               .path,
           subCollection.path,
@@ -303,8 +303,8 @@ void main() {
         expect(
           subCollection
               .withConverter(
-                fromFirestore: (_, __) => 42,
-                toFirestore: (_, __) => {},
+                fromFirestore: (_, _) => 42,
+                toFirestore: (_, _) => {},
               )
               .parent,
           subCollection.parent,

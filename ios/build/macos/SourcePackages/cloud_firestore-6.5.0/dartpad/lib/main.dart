@@ -52,6 +52,8 @@ extension on Query<Movie> {
 ///
 /// Returns a [MaterialApp].
 class FirestoreExampleApp extends StatelessWidget {
+  const FirestoreExampleApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -66,7 +68,7 @@ class FirestoreExampleApp extends StatelessWidget {
 
 /// Holds all example app films
 class FilmList extends StatefulWidget {
-  const FilmList({Key? key}) : super(key: key);
+  const FilmList({super.key});
 
   @override
   _FilmListState createState() => _FilmListState();
@@ -290,10 +292,10 @@ class Likes extends StatefulWidget {
   /// Constructs a new [Likes] instance with a given [DocumentReference] and
   /// current like count.
   Likes({
-    Key? key,
+    super.key,
     required this.reference,
     required this.currentLikes,
-  }) : super(key: key);
+  });
 
   /// The reference relating to the counter.
   final DocumentReference<Movie> reference;

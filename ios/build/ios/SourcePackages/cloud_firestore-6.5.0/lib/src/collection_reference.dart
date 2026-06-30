@@ -75,9 +75,9 @@ abstract class CollectionReference<T extends Object?> implements Query<T> {
 class _JsonCollectionReference extends _JsonQuery
     implements CollectionReference<Map<String, dynamic>> {
   _JsonCollectionReference(
-    FirebaseFirestore firestore,
-    CollectionReferencePlatform _delegate,
-  ) : super(firestore, _delegate);
+    super.firestore,
+    CollectionReferencePlatform super._delegate,
+  );
 
   @override
   CollectionReferencePlatform get _delegate =>
@@ -88,14 +88,14 @@ class _JsonCollectionReference extends _JsonQuery
 
   @override
   DocumentReference<Map<String, dynamic>>? get parent {
-    DocumentReferencePlatform? _documentReferencePlatform = _delegate.parent;
+    DocumentReferencePlatform? documentReferencePlatform = _delegate.parent;
 
     // Only subcollections have a parent
-    if (_documentReferencePlatform == null) {
+    if (documentReferencePlatform == null) {
       return null;
     }
 
-    return _JsonDocumentReference(firestore, _documentReferencePlatform);
+    return _JsonDocumentReference(firestore, documentReferencePlatform);
   }
 
   @override
@@ -130,11 +130,7 @@ class _JsonCollectionReference extends _JsonQuery
     required FromFirestore<R> fromFirestore,
     required ToFirestore<R> toFirestore,
   }) {
-    return _WithConverterCollectionReference(
-      this,
-      fromFirestore,
-      toFirestore,
-    );
+    return _WithConverterCollectionReference(this, fromFirestore, toFirestore);
   }
 
   @override
@@ -156,15 +152,16 @@ class _JsonCollectionReference extends _JsonQuery
 /// inherited from [Query]).
 @immutable
 class _WithConverterCollectionReference<T extends Object?>
-    extends _WithConverterQuery<T> implements CollectionReference<T> {
+    extends _WithConverterQuery<T>
+    implements CollectionReference<T> {
   _WithConverterCollectionReference(
-    CollectionReference<Map<String, dynamic>> collectionReference,
-    FromFirestore<T> fromFirestore,
-    ToFirestore<T> toFirestore,
-  ) : super(collectionReference, fromFirestore, toFirestore);
+    CollectionReference<Map<String, dynamic>> super.collectionReference,
+    super.fromFirestore,
+    super.toFirestore,
+  );
 
   CollectionReference<Map<String, dynamic>>
-      get _originalCollectionReferenceQuery {
+  get _originalCollectionReferenceQuery {
     return super._originalQuery as CollectionReference<Map<String, dynamic>>;
   }
 
@@ -224,11 +221,11 @@ class _WithConverterCollectionReference<T extends Object?>
 
   @override
   int get hashCode => Object.hash(
-        runtimeType,
-        _originalCollectionReferenceQuery,
-        _fromFirestore,
-        _toFirestore,
-      );
+    runtimeType,
+    _originalCollectionReferenceQuery,
+    _fromFirestore,
+    _toFirestore,
+  );
 
   @override
   String toString() => 'CollectionReference<$T>($path)';

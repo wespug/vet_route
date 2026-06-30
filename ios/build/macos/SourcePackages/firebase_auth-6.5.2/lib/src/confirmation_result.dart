@@ -9,7 +9,7 @@ part of '../firebase_auth.dart';
 ///
 /// This class is only usable on web based platforms.
 class ConfirmationResult {
-  ConfirmationResultPlatform _delegate;
+  final ConfirmationResultPlatform _delegate;
 
   final FirebaseAuth _auth;
 
@@ -28,9 +28,6 @@ class ConfirmationResult {
   /// Finishes a phone number sign-in, link, or reauthentication, given the code
   /// that was sent to the user's mobile device.
   Future<UserCredential> confirm(String verificationCode) async {
-    return UserCredential._(
-      _auth,
-      await _delegate.confirm(verificationCode),
-    );
+    return UserCredential._(_auth, await _delegate.confirm(verificationCode));
   }
 }

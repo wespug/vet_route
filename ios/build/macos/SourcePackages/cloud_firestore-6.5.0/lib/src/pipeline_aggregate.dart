@@ -30,9 +30,9 @@ class AliasedAggregateFunction implements PipelineSerializable {
   final PipelineAggregateFunction aggregateFunction;
 
   AliasedAggregateFunction({
-    required String alias,
+    required this._alias,
     required this.aggregateFunction,
-  }) : _alias = alias;
+  });
 
   String get alias => _alias;
 

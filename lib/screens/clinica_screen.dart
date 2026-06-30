@@ -127,7 +127,7 @@ class _ClinicaScreenState extends State<ClinicaScreen> {
                 Text(
                   i18n.profileClinic,
                   style: TextStyle(
-                    color: colorScheme.onPrimary.withOpacity(0.8),
+                    color: colorScheme.onPrimary.withValues(alpha: 0.8),
                     fontSize: 14,
                   ),
                 ),

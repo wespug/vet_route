@@ -3,8 +3,7 @@ import 'package:vet_route/models/laboratorio_model.dart';
 
 class ConfiguracoesLaboratorioView extends StatelessWidget {
   final Laboratorio laboratorio;
-  const ConfiguracoesLaboratorioView({Key? key, required this.laboratorio})
-    : super(key: key);
+  const ConfiguracoesLaboratorioView({super.key, required this.laboratorio});
 
   @override
   Widget build(BuildContext context) {
@@ -21,7 +20,7 @@ class ConfiguracoesLaboratorioView extends StatelessWidget {
           ),
           ListTile(
             leading: CircleAvatar(
-              backgroundColor: Colors.orange.withOpacity(0.1),
+              backgroundColor: Colors.orange.withValues(alpha: 0.1),
               child: const Icon(Icons.edit, color: Colors.orange),
             ),
             title: const Text("Editar Perfil do Laboratório"),
@@ -32,7 +31,7 @@ class ConfiguracoesLaboratorioView extends StatelessWidget {
           const Divider(),
           ListTile(
             leading: CircleAvatar(
-              backgroundColor: Colors.red.withOpacity(0.1),
+              backgroundColor: Colors.red.withValues(alpha: 0.1),
               child: const Icon(Icons.delete_forever, color: Colors.red),
             ),
             title: const Text("Desativar Laboratório"),

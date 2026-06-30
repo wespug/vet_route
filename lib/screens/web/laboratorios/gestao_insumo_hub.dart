@@ -4,8 +4,7 @@ import 'package:vet_route/models/laboratorio_model.dart';
 class GestaoInsumosHub extends StatelessWidget {
   final Laboratorio laboratorio;
 
-  const GestaoInsumosHub({Key? key, required this.laboratorio})
-    : super(key: key);
+  const GestaoInsumosHub({super.key, required this.laboratorio});
 
   @override
   Widget build(BuildContext context) {

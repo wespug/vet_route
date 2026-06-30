@@ -3,6 +3,7 @@ import 'package:vet_route/l10n/app_localizations.dart';
 import 'package:vet_route/screens/web/laboratorios/lista_laboratorios_screen.dart';
 import 'package:vet_route/screens/widgets/gestao_menus_hub.dart';
 import 'package:vet_route/screens/widgets/gestao_perfis_hub.dart';
+import 'package:vet_route/screens/widgets/gestao_submenus_hub.dart';
 import 'package:vet_route/screens/widgets/gestao_usuarios_hub.dart';
 import 'package:vet_route/services/auth_service.dart';
 
@@ -169,6 +170,23 @@ class AdminChassi extends StatelessWidget {
                     const AdminChassi(
                       titulo: 'Gestão de Menus',
                       conteudo: GestaoMenusHub(), // Injeta a nova tela global
+                    ),
+                transitionDuration: Duration.zero,
+                reverseTransitionDuration: Duration.zero,
+              ),
+            );
+          }),
+
+          // 🔗 NOVO MENU: GESTÃO DE SUBMENUS
+          _itemMenu(Icons.account_tree_outlined, 'Gestão de Submenus', () {
+            Navigator.pushReplacement(
+              context,
+              PageRouteBuilder(
+                pageBuilder: (context, animation1, animation2) =>
+                    const AdminChassi(
+                      titulo: 'Gestão de Submenus',
+                      conteudo:
+                          GestaoSubmenusHub(), // Injeta a tela de Submenus
                     ),
                 transitionDuration: Duration.zero,
                 reverseTransitionDuration: Duration.zero,

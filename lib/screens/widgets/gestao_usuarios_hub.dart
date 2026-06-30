@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 class GestaoUsuarioHub extends StatefulWidget {
   // 💡 TOTALMENTE GLOBAL: Variável e importações de laboratório foram removidas!
-  const GestaoUsuarioHub({Key? key}) : super(key: key);
+  const GestaoUsuarioHub({super.key});
 
   @override
   State<GestaoUsuarioHub> createState() => _GestaoUsuarioHubState();

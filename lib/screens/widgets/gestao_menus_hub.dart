@@ -3,7 +3,7 @@ import 'package:vet_route/controllers/menu_controller.dart' as custom;
 import 'package:vet_route/models/menu_item_model.dart';
 
 class GestaoMenusHub extends StatefulWidget {
-  const GestaoMenusHub({Key? key}) : super(key: key);
+  const GestaoMenusHub({super.key});
 
   @override
   State<GestaoMenusHub> createState() => _GestaoMenusHubState();
@@ -157,7 +157,7 @@ class _GestaoMenusHubState extends State<GestaoMenusHub> {
       width: double.infinity,
       child: SingleChildScrollView(
         child: DataTable(
-          headingRowColor: MaterialStateProperty.all(Colors.grey.shade50),
+          headingRowColor: WidgetStateProperty.all(Colors.grey.shade50),
           dataRowHeight: 60,
           columns: const [
             DataColumn(
@@ -265,13 +265,14 @@ class _GestaoMenusHubState extends State<GestaoMenusHub> {
               onPressed: () async {
                 Navigator.pop(context);
                 await _menuController.excluirMenu(id);
-                if (mounted)
+                if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text("Menu removido do sistema."),
                       backgroundColor: Colors.orange,
                     ),
                   );
+                }
               },
               child: const Text(
                 "Remover",

@@ -5,7 +5,7 @@ import 'package:vet_route/models/laboratorio_model.dart';
 import 'package:vet_route/models/endereco_model.dart'; // 💡 Importante para o Endereço!
 
 class CadastroLaboratorioScreen extends StatefulWidget {
-  const CadastroLaboratorioScreen({Key? key}) : super(key: key);
+  const CadastroLaboratorioScreen({super.key});
 
   @override
   State<CadastroLaboratorioScreen> createState() =>
