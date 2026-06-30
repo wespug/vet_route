@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:vet_route/l10n/app_localizations.dart';
 import 'package:vet_route/screens/web/laboratorios/lista_laboratorios_screen.dart';
+import 'package:vet_route/screens/widgets/gestao_menus_hub.dart';
 import 'package:vet_route/screens/widgets/gestao_perfis_hub.dart';
 import 'package:vet_route/screens/widgets/gestao_usuarios_hub.dart';
 import 'package:vet_route/services/auth_service.dart';
@@ -153,6 +154,22 @@ class AdminChassi extends StatelessWidget {
                   // 💡 Atenção: passe a variável do laboratório que você já tem nessa tela
                   conteudo: GestaoPerfisHub(),
                 ),
+                transitionDuration: Duration.zero,
+                reverseTransitionDuration: Duration.zero,
+              ),
+            );
+          }),
+
+          // 🎛️ NOVO MENU: GESTÃO DE MENUS (LOGADO COM SUCESSO)
+          _itemMenu(Icons.layers_rounded, 'Gestão de Menus', () {
+            Navigator.pushReplacement(
+              context,
+              PageRouteBuilder(
+                pageBuilder: (context, animation1, animation2) =>
+                    const AdminChassi(
+                      titulo: 'Gestão de Menus',
+                      conteudo: GestaoMenusHub(), // Injeta a nova tela global
+                    ),
                 transitionDuration: Duration.zero,
                 reverseTransitionDuration: Duration.zero,
               ),
