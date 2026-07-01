@@ -1,11 +1,12 @@
 class SubmenuItemModel {
   final String id;
-  final String menuId; // Chave do Menu Pai
+  final String menuId; // Referência ao Menu Pai
   final String titulo;
-  final String icone; // 💡 Novo
-  final String rota; // 💡 Novo
-  final bool isWeb; // 💡 Novo
-  final bool isMobile; // 💡 Novo
+  final String icone;
+  final String rota;
+  final bool isWeb;
+  final bool isMobile;
+  final int peso; // 💡 NOVO: Campo para ordenação
 
   SubmenuItemModel({
     required this.id,
@@ -15,6 +16,7 @@ class SubmenuItemModel {
     required this.rota,
     this.isWeb = true,
     this.isMobile = false,
+    this.peso = 99, // 💡 Fallback de segurança joga pro final da lista
   });
 
   Map<String, dynamic> toMap() {
@@ -25,6 +27,7 @@ class SubmenuItemModel {
       'rota': rota,
       'isWeb': isWeb,
       'isMobile': isMobile,
+      'peso': peso, // 💡 Persistindo no Firestore
     };
   }
 
@@ -37,6 +40,7 @@ class SubmenuItemModel {
       rota: data['rota'] ?? '',
       isWeb: data['isWeb'] ?? true,
       isMobile: data['isMobile'] ?? false,
+      peso: data['peso'] ?? 99, // 💡 Lendo do Firestore
     );
   }
 }

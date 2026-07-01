@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // 💡 Necessário para formatar apenas números no input
 import 'package:vet_route/controllers/menu_controller.dart' as custom_menu;
 import 'package:vet_route/controllers/submenu_controller.dart';
 import 'package:vet_route/models/menu_item_model.dart';
@@ -17,6 +18,9 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
   final SubmenuController _submenuController = SubmenuController();
 
   final TextEditingController _tituloController = TextEditingController();
+  final TextEditingController _pesoController = TextEditingController(
+    text: '99',
+  ); // 💡 Controlador do Peso (Padrão: 99)
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
   String? _submenuEdicaoId;
@@ -57,6 +61,7 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
   @override
   void dispose() {
     _tituloController.dispose();
+    _pesoController.dispose(); // 💡 Descartando o controlador do peso
     _menuController.dispose();
     _submenuController.dispose();
     super.dispose();
@@ -75,6 +80,8 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
       _submenuEdicaoId = submenu.id;
       _menuPaiSelecionado = submenu.menuId;
       _tituloController.text = submenu.titulo;
+      _pesoController.text = submenu.peso
+          .toString(); // 💡 Carrega o peso na edição
       _iconeSelecionado = _iconesMapeados.containsKey(submenu.icone)
           ? submenu.icone
           : 'subdirectory_arrow_right';
@@ -91,6 +98,7 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
       _submenuEdicaoId = null;
       _menuPaiSelecionado = null;
       _tituloController.clear();
+      _pesoController.text = '99'; // 💡 Volta ao padrão
       _iconeSelecionado = 'subdirectory_arrow_right';
       _paginaSelecionada = 'clinica_gestao';
       _isWeb = true;
@@ -193,6 +201,34 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
                               ),
                               validator: (v) => v == null || v.trim().isEmpty
                                   ? "Insira o nome"
+                                  : null,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          // 💡 NOVO CAMPO: PESO (ORDEM)
+                          Expanded(
+                            flex: 1,
+                            child: TextFormField(
+                              controller: _pesoController,
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [
+                                FilteringTextInputFormatter
+                                    .digitsOnly, // Apenas números
+                              ],
+                              decoration: InputDecoration(
+                                labelText: "Ordem",
+                                prefixIcon: const Icon(
+                                  Icons.sort_rounded,
+                                  size: 20,
+                                ),
+                                fillColor: Colors.white,
+                                filled: true,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              validator: (v) => v == null || v.trim().isEmpty
+                                  ? "Obrigatório"
                                   : null,
                             ),
                           ),
@@ -366,6 +402,8 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
       }
 
       final titulo = _tituloController.text.trim();
+      final peso =
+          int.tryParse(_pesoController.text.trim()) ?? 99; // 💡 Captura o Peso
 
       if (_submenuEdicaoId == null) {
         await _submenuController.adicionarSubmenu(
@@ -375,6 +413,7 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
           _paginaSelecionada,
           _isWeb,
           _isMobile,
+          peso, // 💡 Passa o peso na criação
         );
       } else {
         await _submenuController.editarSubmenu(
@@ -385,6 +424,7 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
           _paginaSelecionada,
           _isWeb,
           _isMobile,
+          peso, // 💡 Passa o peso na edição
         );
       }
 
@@ -399,6 +439,7 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
         child: DataTable(
           headingRowColor: WidgetStateProperty.all(Colors.grey.shade50),
           columns: const [
+            DataColumn(label: Text('Ordem')), // 💡 Nova Coluna
             DataColumn(label: Text('Menu Pai')),
             DataColumn(label: Text('Submenu')),
             DataColumn(label: Text('Ícone')),
@@ -409,6 +450,26 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
           rows: _submenuController.submenus.map((sub) {
             return DataRow(
               cells: [
+                DataCell(
+                  Container(
+                    // 💡 Destaca visualmente o Peso
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade100,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      sub.peso.toString(),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.orange.shade900,
+                      ),
+                    ),
+                  ),
+                ),
                 DataCell(
                   Text(
                     _obterNomeMenuPai(sub.menuId),

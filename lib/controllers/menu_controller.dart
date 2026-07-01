@@ -16,6 +16,8 @@ class MenuController extends ChangeNotifier {
     notifyListeners();
     try {
       _menus = await _repository.buscarMenus();
+      // 💡 A MÁGICA ACONTECE AQUI: Ordenando a lista pelo peso do menor para o maior!
+      _menus.sort((a, b) => a.peso.compareTo(b.peso));
     } catch (e) {
       debugPrint("Erro na controller de menus: $e");
     } finally {
@@ -24,13 +26,14 @@ class MenuController extends ChangeNotifier {
     }
   }
 
-  // 💡 NOVO: Recebe as plataformas
+  // 💡 ATUALIZADO: Agora recebe também o peso
   Future<void> adicionarMenu(
     String titulo,
     String icone,
     String rota,
     bool isWeb,
     bool isMobile,
+    int peso,
   ) async {
     if (titulo.isEmpty || rota.isEmpty) return;
 
@@ -41,12 +44,13 @@ class MenuController extends ChangeNotifier {
       rota: rota,
       isWeb: isWeb,
       isMobile: isMobile,
+      peso: peso, // 💡 Passando o peso para o Model
     );
     await _repository.salvarMenu(novoMenu);
     await carregarMenus();
   }
 
-  // 💡 NOVO: Recebe as plataformas
+  // 💡 ATUALIZADO: Agora recebe também o peso
   Future<void> editarMenu(
     String id,
     String titulo,
@@ -54,6 +58,7 @@ class MenuController extends ChangeNotifier {
     String rota,
     bool isWeb,
     bool isMobile,
+    int peso,
   ) async {
     if (titulo.isEmpty || rota.isEmpty) return;
 
@@ -64,6 +69,7 @@ class MenuController extends ChangeNotifier {
       rota: rota,
       isWeb: isWeb,
       isMobile: isMobile,
+      peso: peso, // 💡 Passando o peso para o Model
     );
     await _repository.atualizarMenu(id, menuModificado);
     await carregarMenus();

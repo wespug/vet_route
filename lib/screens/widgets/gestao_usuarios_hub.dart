@@ -348,79 +348,86 @@ class _GestaoUsuarioHubState extends State<GestaoUsuarioHub> {
     return SizedBox(
       width: double.infinity,
       child: SingleChildScrollView(
-        child: DataTable(
-          headingRowColor: WidgetStateProperty.all(Colors.grey.shade50),
-          columns: const [
-            DataColumn(label: Text('Status')),
-            DataColumn(label: Text('Nome')),
-            DataColumn(label: Text('E-mail')),
-            DataColumn(label: Text('Perfil')),
-            DataColumn(label: Text('Vínculo')), // <-- Nova Coluna!
-            DataColumn(label: Text('Ações')),
-          ],
-          rows: _usuarioController.usuarios.map((user) {
-            return DataRow(
-              cells: [
-                DataCell(
-                  Icon(
-                    user.ativo ? Icons.check_circle : Icons.cancel,
-                    color: user.ativo ? Colors.green : Colors.red,
-                    size: 20,
-                  ),
-                ),
-                DataCell(
-                  Text(
-                    user.nome,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ),
-                DataCell(Text(user.email)),
-                DataCell(
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
+        // <-- Scroll Vertical
+        child: SingleChildScrollView(
+          // <-- MÁGICA: Scroll Horizontal adicionado!
+          scrollDirection: Axis.horizontal,
+          child: DataTable(
+            headingRowColor: WidgetStateProperty.all(Colors.grey.shade50),
+            columns: const [
+              DataColumn(label: Text('Status')),
+              DataColumn(label: Text('Nome')),
+              DataColumn(label: Text('E-mail')),
+              DataColumn(label: Text('Perfil')),
+              DataColumn(label: Text('Vínculo')),
+              DataColumn(label: Text('Ações')),
+            ],
+            rows: _usuarioController.usuarios.map((user) {
+              return DataRow(
+                cells: [
+                  DataCell(
+                    Icon(
+                      user.ativo ? Icons.check_circle : Icons.cancel,
+                      color: user.ativo ? Colors.green : Colors.red,
+                      size: 20,
                     ),
-                    decoration: BoxDecoration(
-                      color: Colors.indigo.shade50,
-                      borderRadius: BorderRadius.circular(4),
+                  ),
+                  DataCell(
+                    Text(
+                      user.nome,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
-                    child: Text(
-                      _obterNomePerfil(user.perfilId),
-                      style: const TextStyle(
-                        color: Colors.indigo,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
+                  ),
+                  DataCell(Text(user.email)),
+                  DataCell(
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
                       ),
-                    ),
-                  ),
-                ),
-                DataCell(Text(user.vinculoId ?? '1')), // <-- Mostra o Vínculo!
-                DataCell(
-                  Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(
-                          Icons.edit,
-                          color: Colors.blue,
-                          size: 20,
+                      decoration: BoxDecoration(
+                        color: Colors.indigo.shade50,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        _obterNomePerfil(user.perfilId),
+                        style: const TextStyle(
+                          color: Colors.indigo,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
                         ),
-                        onPressed: () => _entrarModoEdicao(user),
                       ),
-                      IconButton(
-                        icon: const Icon(
-                          Icons.delete,
-                          color: Colors.red,
-                          size: 20,
-                        ),
-                        onPressed: () => _confirmarExclusao(user.id),
-                      ),
-                    ],
+                    ),
                   ),
-                ),
-              ],
-            );
-          }).toList(),
+                  DataCell(Text(user.vinculoId ?? '1')),
+                  DataCell(
+                    Row(
+                      mainAxisSize: MainAxisSize
+                          .min, // <-- MÁGICA 2: Previne vazamento na Row
+                      children: [
+                        IconButton(
+                          icon: const Icon(
+                            Icons.edit,
+                            color: Colors.blue,
+                            size: 20,
+                          ),
+                          onPressed: () => _entrarModoEdicao(user),
+                        ),
+                        IconButton(
+                          icon: const Icon(
+                            Icons.delete,
+                            color: Colors.red,
+                            size: 20,
+                          ),
+                          onPressed: () => _confirmarExclusao(user.id),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            }).toList(),
+          ),
         ),
       ),
     );

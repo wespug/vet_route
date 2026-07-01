@@ -16,6 +16,8 @@ class SubmenuController extends ChangeNotifier {
     notifyListeners();
     try {
       _submenus = await _repository.buscarSubmenus();
+      // 💡 A MÁGICA ACONTECE AQUI: Ordenando os submenus pelo peso do menor para o maior!
+      _submenus.sort((a, b) => a.peso.compareTo(b.peso));
     } catch (e) {
       debugPrint("Erro submenus: $e");
     } finally {
@@ -24,7 +26,7 @@ class SubmenuController extends ChangeNotifier {
     }
   }
 
-  // 💡 AGORA SIM: Recebe os 6 parâmetros corretamente!
+  // 💡 ATUALIZADO: Agora recebe também o peso (int)
   Future<void> adicionarSubmenu(
     String menuId,
     String titulo,
@@ -32,6 +34,7 @@ class SubmenuController extends ChangeNotifier {
     String rota,
     bool isWeb,
     bool isMobile,
+    int peso,
   ) async {
     if (menuId.isEmpty || titulo.isEmpty || rota.isEmpty) return;
 
@@ -43,13 +46,14 @@ class SubmenuController extends ChangeNotifier {
       rota: rota,
       isWeb: isWeb,
       isMobile: isMobile,
+      peso: peso, // 💡 Injetando o peso no Model
     );
 
     await _repository.salvarSubmenu(novoSubmenu);
     await carregarSubmenus();
   }
 
-  // 💡 AGORA SIM: A função editarSubmenu existe!
+  // 💡 ATUALIZADO: Agora recebe também o peso (int)
   Future<void> editarSubmenu(
     String id,
     String menuId,
@@ -58,6 +62,7 @@ class SubmenuController extends ChangeNotifier {
     String rota,
     bool isWeb,
     bool isMobile,
+    int peso,
   ) async {
     if (menuId.isEmpty || titulo.isEmpty || rota.isEmpty) return;
 
@@ -69,6 +74,7 @@ class SubmenuController extends ChangeNotifier {
       rota: rota,
       isWeb: isWeb,
       isMobile: isMobile,
+      peso: peso, // 💡 Injetando o peso no Model
     );
 
     await _repository.atualizarSubmenu(id, submenuAtualizado);

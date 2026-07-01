@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // 💡 Necessário para formatar apenas números no input
 import 'package:vet_route/controllers/menu_controller.dart' as custom;
 import 'package:vet_route/models/menu_item_model.dart';
 
@@ -12,13 +13,16 @@ class GestaoMenusHub extends StatefulWidget {
 class _GestaoMenusHubState extends State<GestaoMenusHub> {
   final custom.MenuController _menuController = custom.MenuController();
   final TextEditingController _tituloController = TextEditingController();
+  final TextEditingController _pesoController = TextEditingController(
+    text: '99',
+  ); // 💡 Controlador do Peso (Padrão: 99)
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
   String? _menuEdicaoId;
   String _iconeSelecionado = 'local_hospital';
   String _paginaSelecionada = 'clinica_gestao';
 
-  // 💡 Variáveis de estado para as Checkboxes/Chips
+  // Variáveis de estado para as Checkboxes/Chips
   bool _isWeb = true;
   bool _isMobile = false;
 
@@ -52,6 +56,7 @@ class _GestaoMenusHubState extends State<GestaoMenusHub> {
   @override
   void dispose() {
     _tituloController.dispose();
+    _pesoController.dispose(); // 💡 Descartando o controlador da memória
     _menuController.dispose();
     super.dispose();
   }
@@ -60,6 +65,8 @@ class _GestaoMenusHubState extends State<GestaoMenusHub> {
     setState(() {
       _menuEdicaoId = menu.id;
       _tituloController.text = menu.titulo;
+      _pesoController.text = menu.peso
+          .toString(); // 💡 Carrega o peso no formulário
       _iconeSelecionado = _iconesMapeados.containsKey(menu.icone)
           ? menu.icone
           : 'local_hospital';
@@ -75,6 +82,7 @@ class _GestaoMenusHubState extends State<GestaoMenusHub> {
     setState(() {
       _menuEdicaoId = null;
       _tituloController.clear();
+      _pesoController.text = '99'; // 💡 Volta o peso pro padrão
       _iconeSelecionado = 'local_hospital';
       _paginaSelecionada = 'clinica_gestao';
       _isWeb = true;
@@ -111,7 +119,7 @@ class _GestaoMenusHubState extends State<GestaoMenusHub> {
               Text(
                 isEditando
                     ? "A modificar as configurações do menu..."
-                    : "Defina o nome, ícone, ecrã e as plataformas de cada item.",
+                    : "Defina o nome, ordem (peso), ícone, ecrã e as plataformas de cada item.",
                 style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
               ),
               const SizedBox(height: 32),
@@ -155,6 +163,31 @@ class _GestaoMenusHubState extends State<GestaoMenusHub> {
                               ),
                               validator: (v) => v == null || v.trim().isEmpty
                                   ? "Insira o nome"
+                                  : null,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          // 💡 NOVO CAMPO: PESO (ORDEM)
+                          Expanded(
+                            flex: 1,
+                            child: TextFormField(
+                              controller: _pesoController,
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [
+                                FilteringTextInputFormatter
+                                    .digitsOnly, // Apenas números
+                              ],
+                              decoration: InputDecoration(
+                                labelText: "Ordem",
+                                prefixIcon: const Icon(Icons.sort_rounded),
+                                fillColor: Colors.white,
+                                filled: true,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              validator: (v) => v == null || v.trim().isEmpty
+                                  ? "Obrigatório"
                                   : null,
                             ),
                           ),
@@ -366,14 +399,18 @@ class _GestaoMenusHubState extends State<GestaoMenusHub> {
       }
 
       final titulo = _tituloController.text.trim();
+      final peso =
+          int.tryParse(_pesoController.text.trim()) ?? 99; // 💡 Captura o Peso
 
       if (_menuEdicaoId == null) {
+        // 💡 Passa o peso para a Controller
         await _menuController.adicionarMenu(
           titulo,
           _iconeSelecionado,
           _paginaSelecionada,
           _isWeb,
           _isMobile,
+          peso,
         );
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -384,6 +421,7 @@ class _GestaoMenusHubState extends State<GestaoMenusHub> {
           );
         }
       } else {
+        // 💡 Passa o peso para a Controller
         await _menuController.editarMenu(
           _menuEdicaoId!,
           titulo,
@@ -391,6 +429,7 @@ class _GestaoMenusHubState extends State<GestaoMenusHub> {
           _paginaSelecionada,
           _isWeb,
           _isMobile,
+          peso,
         );
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -415,6 +454,12 @@ class _GestaoMenusHubState extends State<GestaoMenusHub> {
           columns: const [
             DataColumn(
               label: Text(
+                'Ordem',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+            DataColumn(
+              label: Text(
                 'Ícone',
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
@@ -430,7 +475,7 @@ class _GestaoMenusHubState extends State<GestaoMenusHub> {
                 'Plataforma',
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
-            ), // Nova Coluna
+            ),
             DataColumn(
               label: Text(
                 'Ecrã Alvo',
@@ -447,6 +492,26 @@ class _GestaoMenusHubState extends State<GestaoMenusHub> {
           rows: _menuController.menus.map((menu) {
             return DataRow(
               cells: [
+                DataCell(
+                  Container(
+                    // 💡 Destaca visualmente o Peso
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade100,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      menu.peso.toString(),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.orange.shade900,
+                      ),
+                    ),
+                  ),
+                ),
                 DataCell(
                   Icon(
                     _iconesMapeados[menu.icone] ?? Icons.widgets,

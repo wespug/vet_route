@@ -3,16 +3,19 @@ class MenuItemModel {
   final String titulo;
   final String icone;
   final String rota;
-  final bool isWeb; // 💡 Novo: Aparece na Web?
-  final bool isMobile; // 💡 Novo: Aparece na App Mobile?
+  final bool isWeb;
+  final bool isMobile;
+  final int peso; // 💡 Novo: Define a ordem de exibição
 
   MenuItemModel({
     required this.id,
     required this.titulo,
     required this.icone,
     required this.rota,
-    this.isWeb = true, // Por defeito, assume Web
+    this.isWeb = true,
     this.isMobile = false,
+    this.peso =
+        99, // 💡 Padrão: 99 (joga para o fim da lista se não houver peso)
   });
 
   Map<String, dynamic> toMap() {
@@ -22,6 +25,7 @@ class MenuItemModel {
       'rota': rota,
       'isWeb': isWeb,
       'isMobile': isMobile,
+      'peso': peso, // 💡 Persistindo no Firestore
     };
   }
 
@@ -31,8 +35,9 @@ class MenuItemModel {
       titulo: data['titulo'] ?? '',
       icone: data['icone'] ?? 'widgets_outlined',
       rota: data['rota'] ?? '',
-      isWeb: data['isWeb'] ?? true, // Fallback de segurança
+      isWeb: data['isWeb'] ?? true,
       isMobile: data['isMobile'] ?? false,
+      peso: data['peso'] ?? 99, // 💡 Lendo do Firestore (fallback de segurança)
     );
   }
 }
