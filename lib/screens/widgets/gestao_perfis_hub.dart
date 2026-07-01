@@ -5,7 +5,7 @@ import 'package:vet_route/controllers/submenu_controller.dart';
 import 'package:vet_route/models/perfil_acesso_model.dart';
 
 class GestaoPerfisHub extends StatefulWidget {
-  const GestaoPerfisHub({Key? key}) : super(key: key);
+  const GestaoPerfisHub({super.key});
 
   @override
   State<GestaoPerfisHub> createState() => _GestaoPerfisHubState();
@@ -121,7 +121,7 @@ class _GestaoPerfisHubState extends State<GestaoPerfisHub> {
       width: double.infinity,
       child: SingleChildScrollView(
         child: DataTable(
-          headingRowColor: MaterialStateProperty.all(Colors.grey.shade50),
+          headingRowColor: WidgetStateProperty.all(Colors.grey.shade50),
           dataRowHeight: 65,
           columns: const [
             DataColumn(
@@ -413,7 +413,7 @@ class _GestaoPerfisHubState extends State<GestaoPerfisHub> {
                         menusSelecionados.toList(),
                         submenusSelecionados.toList(),
                       );
-                      if (mounted)
+                      if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text(
@@ -422,6 +422,7 @@ class _GestaoPerfisHubState extends State<GestaoPerfisHub> {
                             backgroundColor: Colors.green,
                           ),
                         );
+                      }
                     } else {
                       // EDIÇÃO
                       await _perfilController.editarPerfil(
@@ -430,7 +431,7 @@ class _GestaoPerfisHubState extends State<GestaoPerfisHub> {
                         menusSelecionados.toList(),
                         submenusSelecionados.toList(),
                       );
-                      if (mounted)
+                      if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text(
@@ -439,6 +440,7 @@ class _GestaoPerfisHubState extends State<GestaoPerfisHub> {
                             backgroundColor: Colors.blue,
                           ),
                         );
+                      }
                     }
                   },
                 ),
@@ -477,13 +479,14 @@ class _GestaoPerfisHubState extends State<GestaoPerfisHub> {
               onPressed: () async {
                 Navigator.pop(context);
                 await _perfilController.excluirPerfil(id);
-                if (mounted)
+                if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text("Perfil eliminado."),
                       backgroundColor: Colors.orange,
                     ),
                   );
+                }
               },
               child: const Text(
                 "Eliminar",

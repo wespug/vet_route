@@ -51,7 +51,7 @@ class _CadastroUsuarioWebState extends State<CadastroUsuarioWeb>
         id: userCredential.user!.uid,
         nome: _nomeController.text.trim(),
         email: _emailController.text.trim(),
-        perfil: _perfilSelecionado,
+        perfilId: _perfilSelecionado,
         vinculoId: null, // Por enquanto não vinculamos a nenhuma empresa
       );
 
@@ -59,7 +59,7 @@ class _CadastroUsuarioWebState extends State<CadastroUsuarioWeb>
       await FirebaseFirestore.instance
           .collection('usuarios')
           .doc(novoUsuario.id)
-          .set(novoUsuario.toFirestore());
+          .set(novoUsuario.toMap());
 
       log.i("Usuário ${novoUsuario.email} registrado usando UsuarioModel!");
 

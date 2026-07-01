@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:vet_route/controllers/laboratorio_admin_controller.dart';
 import 'package:vet_route/models/laboratorio_model.dart';
-import 'package:vet_route/models/laboratorio_model.dart';
 import 'package:vet_route/models/endereco_model.dart'; // 💡 Importante para o Endereço!
 
 class CadastroLaboratorioScreen extends StatefulWidget {

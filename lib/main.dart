@@ -10,8 +10,7 @@ import 'firebase_options.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:vet_route/screens/login_screen.dart';
 import 'package:vet_route/screens/web/cadastro_usuario_web.dart';
-import 'package:vet_route/screens/clinica_screen.dart'; // <-- IMPORTANTE: Nossa tela real
-import 'package:vet_route/models/perfil_usuario.dart'; // <-- IMPORTANTE: Nosso novo Enum
+import 'package:vet_route/screens/clinica_screen.dart';
 import 'package:vet_route/services/auth_service.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
@@ -37,115 +36,184 @@ class VetRouteAPP extends StatelessWidget {
         GlobalCupertinoLocalizations.delegate,
       ],
       supportedLocales: const [Locale('pt', ''), Locale('en', '')],
-      home: StreamBuilder<User?>(
-        stream: AuthService().usuarioStatus,
-        builder: (context, authSnapshot) {
-          if (authSnapshot.connectionState == ConnectionState.waiting) {
-            return const Scaffold(
-              body: Center(child: CircularProgressIndicator()),
-            );
-          }
 
-          if (!authSnapshot.hasData) {
-            return const LoginScreen();
-          }
+      // 💡 AS ROTAS MÁGICAS! Aqui a Tela de Login sabe para onde jogar o usuário.
+      // E o mais legal: já aplica as cores (Themes) certas para cada perfil!
+      routes: {
+        '/login': (context) => const LoginScreen(),
+        '/admin': (context) => const CadastroUsuarioWeb(),
+        '/clinica': (context) => Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
+          ),
+          child: const ClinicaScreen(),
+        ),
+        '/laboratorio': (context) => Theme(
+          data: Theme.of(
+            context,
+          ).copyWith(colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal)),
+          child: const LaboratorioScreen(),
+        ),
+        '/motoboy': (context) => Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: Colors.amber.shade700,
+              primary: Colors.amber.shade700,
+              tertiary: Colors.amber.shade700,
+            ),
+          ),
+          child: EntregadorScreen(),
+        ),
+      },
 
-          return FutureBuilder<DocumentSnapshot>(
-            future: FirebaseFirestore.instance
-                .collection('usuarios')
-                .doc(authSnapshot.data!.uid)
-                .get(),
-            builder: (context, firestoreSnapshot) {
-              if (firestoreSnapshot.connectionState ==
-                  ConnectionState.waiting) {
-                return const Scaffold(
-                  body: Center(child: CircularProgressIndicator()),
-                );
-              }
+      // O home agora é o "Guardião" (Gatekeeper) para quando o app for reaberto já logado.
+      home: const AuthGatekeeper(),
+    );
+  }
+}
 
-              if (!firestoreSnapshot.hasData ||
-                  !firestoreSnapshot.data!.exists) {
-                return _telaErroAcesso(
-                  'Perfil de usuário não encontrado no banco de dados.',
-                );
-              }
+// ============================================================================
+// 🛡️ O GUARDIÃO DE ACESSOS (Gatekeeper)
+// Ele funciona quando o usuário já tem a sessão salva no celular e abre o app
+// ============================================================================
+class AuthGatekeeper extends StatelessWidget {
+  const AuthGatekeeper({super.key});
 
-              // 💡 Extrai a String e converte imediatamente para o Enum Blindado
-              final stringPerfil =
-                  firestoreSnapshot.data!.get('perfil') as String?;
-              final perfil = PerfilUsuario.fromString(stringPerfil);
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<User?>(
+      stream: AuthService().usuarioStatus,
+      builder: (context, authSnapshot) {
+        // 1. Está carregando o status de autenticação?
+        if (authSnapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
 
-              // === A GRANDE TRIAGEM (COM ENUMS E SWITCH) ===
+        // 2. Não está logado? Manda para a tela de Login!
+        if (!authSnapshot.hasData) {
+          return const LoginScreen();
+        }
 
-              // SE ESTIVER NO NAVEGADOR (WEB)
-              if (kIsWeb) {
-                if (perfil == PerfilUsuario.administrador) {
-                  return const CadastroUsuarioWeb();
-                } else {
-                  return _telaErroAcesso(
-                    'Acesso Negado. Seu perfil só pode acessar via Aplicativo de Celular.',
+        // 3. O usuário está logado. Vamos buscar os dados dele no banco!
+        return FutureBuilder<DocumentSnapshot>(
+          future: FirebaseFirestore.instance
+              .collection('usuarios')
+              .doc(authSnapshot.data!.uid)
+              .get(),
+          builder: (context, userSnap) {
+            if (userSnap.connectionState == ConnectionState.waiting) {
+              return const Scaffold(
+                body: Center(child: CircularProgressIndicator()),
+              );
+            }
+
+            if (!userSnap.hasData || !userSnap.data!.exists) {
+              return _telaErroAcesso(
+                'Perfil de usuário não encontrado no banco de dados.',
+              );
+            }
+
+            final userData = userSnap.data!.data() as Map<String, dynamic>?;
+
+            // Segurança extra: A conta está ativa?
+            if (userData == null || userData['ativo'] == false) {
+              return _telaErroAcesso(
+                'Esta conta está desativada. Contate o suporte.',
+              );
+            }
+
+            final perfilId = userData['perfilId'] ?? '';
+
+            // 4. Busca o nome do cargo lá na tabela de perfis
+            return FutureBuilder<DocumentSnapshot>(
+              future: FirebaseFirestore.instance
+                  .collection('perfis')
+                  .doc(perfilId)
+                  .get(),
+              builder: (context, perfilSnap) {
+                if (perfilSnap.connectionState == ConnectionState.waiting) {
+                  return const Scaffold(
+                    body: Center(child: CircularProgressIndicator()),
                   );
                 }
-              }
-              // SE ESTIVER NO CELULAR (MOBILE)
-              else {
-                switch (perfil) {
-                  case PerfilUsuario.administrador:
-                    return _telaErroAcesso(
-                      'Administradores devem utilizar a versão Web pelo computador.',
-                    );
 
-                  case PerfilUsuario.clinica:
-                    return Theme(
-                      data: Theme.of(context).copyWith(
-                        colorScheme: ColorScheme.fromSeed(
-                          seedColor: Colors.indigo,
-                        ),
-                      ),
-                      child: const ClinicaScreen(),
-                    );
-
-                  case PerfilUsuario.laboratorio:
-                    return Theme(
-                      data: Theme.of(context).copyWith(
-                        colorScheme: ColorScheme.fromSeed(
-                          seedColor: Colors.teal,
-                        ),
-                      ),
-                      child: const LaboratorioScreen(),
-                    );
-
-                  case PerfilUsuario.entregadores:
-                    return Theme(
-                      data: Theme.of(context).copyWith(
-                        colorScheme: ColorScheme.fromSeed(
-                          seedColor: Colors
-                              .amber
-                              .shade700, // 💡 Esta é a cor que definimos antes
-                          primary: Colors
-                              .amber
-                              .shade700, // Força a AppBar e botões a usarem o nosso Âmbar
-                          tertiary: Colors
-                              .amber
-                              .shade700, // Garante que o terciário seja o nosso Âmbar
-                        ),
-                      ),
-                      child: EntregadorScreen(),
-                    );
-
-                  case PerfilUsuario.desconhecido:
-                    return _telaErroAcesso(
-                      'Perfil inválido ou não reconhecido pelo sistema.',
-                    );
+                if (!perfilSnap.hasData || !perfilSnap.data!.exists) {
+                  return _telaErroAcesso(
+                    'O cargo vinculado a esta conta não existe mais.',
+                  );
                 }
-              }
-            },
-          );
-        },
-      ),
+
+                final perfilData =
+                    perfilSnap.data!.data() as Map<String, dynamic>;
+                final nomePerfil = (perfilData['nome'] ?? '')
+                    .toString()
+                    .toLowerCase();
+
+                // === A GRANDE TRIAGEM AUTOMÁTICA ===
+
+                if (nomePerfil.contains('admin')) {
+                  if (kIsWeb) return const CadastroUsuarioWeb();
+                  return _telaErroAcesso(
+                    'Administradores devem utilizar a versão Web pelo computador.',
+                  );
+                } else if (nomePerfil.contains('clínica') ||
+                    nomePerfil.contains('clinica')) {
+                  if (kIsWeb)
+                    return _telaErroAcesso(
+                      'Acesso da Clínica deve ser feito pelo Celular.',
+                    );
+                  return Theme(
+                    data: Theme.of(context).copyWith(
+                      colorScheme: ColorScheme.fromSeed(
+                        seedColor: Colors.indigo,
+                      ),
+                    ),
+                    child: const ClinicaScreen(),
+                  );
+                } else if (nomePerfil.contains('laboratório') ||
+                    nomePerfil.contains('laboratorio')) {
+                  if (kIsWeb)
+                    return _telaErroAcesso(
+                      'Acesso do Laboratório deve ser feito pelo Celular.',
+                    );
+                  return Theme(
+                    data: Theme.of(context).copyWith(
+                      colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
+                    ),
+                    child: const LaboratorioScreen(),
+                  );
+                } else if (nomePerfil.contains('motoboy') ||
+                    nomePerfil.contains('entregador')) {
+                  if (kIsWeb)
+                    return _telaErroAcesso(
+                      'Acesso do Entregador deve ser feito pelo Celular.',
+                    );
+                  return Theme(
+                    data: Theme.of(context).copyWith(
+                      colorScheme: ColorScheme.fromSeed(
+                        seedColor: Colors.amber.shade700,
+                        primary: Colors.amber.shade700,
+                        tertiary: Colors.amber.shade700,
+                      ),
+                    ),
+                    child: EntregadorScreen(),
+                  );
+                } else {
+                  return _telaErroAcesso(
+                    'Perfil inválido ou não reconhecido pelo sistema.',
+                  );
+                }
+              },
+            );
+          },
+        );
+      },
     );
   }
 
+  // === TELA DE ERRO PADRÃO ===
   Widget _telaErroAcesso(String mensagem) {
     return Scaffold(
       backgroundColor: Colors.red[50],

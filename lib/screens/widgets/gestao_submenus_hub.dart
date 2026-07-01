@@ -5,7 +5,7 @@ import 'package:vet_route/models/menu_item_model.dart';
 import 'package:vet_route/models/submenu_item_model.dart';
 
 class GestaoSubmenusHub extends StatefulWidget {
-  const GestaoSubmenusHub({Key? key}) : super(key: key);
+  const GestaoSubmenusHub({super.key});
 
   @override
   State<GestaoSubmenusHub> createState() => _GestaoSubmenusHubState();
@@ -137,7 +137,7 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   color: isEditando
-                      ? Colors.blue.shade50.withOpacity(0.4)
+                      ? Colors.blue.shade50.withValues(alpha: 0.4)
                       : Colors.grey.shade50,
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
@@ -155,7 +155,7 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
                           Expanded(
                             flex: 2,
                             child: DropdownButtonFormField<String>(
-                              value: _menuPaiSelecionado,
+                              initialValue: _menuPaiSelecionado,
                               decoration: InputDecoration(
                                 labelText: "Menu Pai (Destino)",
                                 fillColor: Colors.white,
@@ -204,7 +204,7 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
                           Expanded(
                             flex: 2,
                             child: DropdownButtonFormField<String>(
-                              value: _iconeSelecionado,
+                              initialValue: _iconeSelecionado,
                               decoration: InputDecoration(
                                 labelText: "Ícone Visual",
                                 fillColor: Colors.white,
@@ -237,7 +237,7 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
                           Expanded(
                             flex: 3,
                             child: DropdownButtonFormField<String>(
-                              value: _paginaSelecionada,
+                              initialValue: _paginaSelecionada,
                               decoration: InputDecoration(
                                 labelText: "Ecrã de Destino",
                                 fillColor: Colors.white,
@@ -397,7 +397,7 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
       width: double.infinity,
       child: SingleChildScrollView(
         child: DataTable(
-          headingRowColor: MaterialStateProperty.all(Colors.grey.shade50),
+          headingRowColor: WidgetStateProperty.all(Colors.grey.shade50),
           columns: const [
             DataColumn(label: Text('Menu Pai')),
             DataColumn(label: Text('Submenu')),

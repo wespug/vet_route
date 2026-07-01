@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:vet_route/l10n/app_localizations.dart';
 import '../../controllers/entregador_admin_controller.dart';
 import '../../models/entregador_model.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart'; // Para o LatLng inicial, se o seu modelo exigir
+// Para o LatLng inicial, se o seu modelo exigir
 
 class EntregadorGestaoWeb extends StatefulWidget {
   const EntregadorGestaoWeb({super.key});

@@ -3,7 +3,7 @@ import 'package:vet_route/controllers/menu_controller.dart' as custom;
 import 'package:vet_route/models/menu_item_model.dart';
 
 class GestaoMenusHub extends StatefulWidget {
-  const GestaoMenusHub({Key? key}) : super(key: key);
+  const GestaoMenusHub({super.key});
 
   @override
   State<GestaoMenusHub> createState() => _GestaoMenusHubState();
@@ -121,7 +121,7 @@ class _GestaoMenusHubState extends State<GestaoMenusHub> {
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   color: isEditando
-                      ? Colors.blue.shade50.withOpacity(0.4)
+                      ? Colors.blue.shade50.withValues(alpha: 0.4)
                       : Colors.grey.shade50,
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
@@ -162,7 +162,7 @@ class _GestaoMenusHubState extends State<GestaoMenusHub> {
                           Expanded(
                             flex: 2,
                             child: DropdownButtonFormField<String>(
-                              value: _iconeSelecionado,
+                              initialValue: _iconeSelecionado,
                               decoration: InputDecoration(
                                 labelText: "Ícone Visual",
                                 fillColor: Colors.white,
@@ -195,7 +195,7 @@ class _GestaoMenusHubState extends State<GestaoMenusHub> {
                           Expanded(
                             flex: 3,
                             child: DropdownButtonFormField<String>(
-                              value: _paginaSelecionada,
+                              initialValue: _paginaSelecionada,
                               decoration: InputDecoration(
                                 labelText: "Ecrã de Destino",
                                 fillColor: Colors.white,
@@ -375,13 +375,14 @@ class _GestaoMenusHubState extends State<GestaoMenusHub> {
           _isWeb,
           _isMobile,
         );
-        if (mounted)
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text("Menu registado!"),
               backgroundColor: Colors.green,
             ),
           );
+        }
       } else {
         await _menuController.editarMenu(
           _menuEdicaoId!,
@@ -391,13 +392,14 @@ class _GestaoMenusHubState extends State<GestaoMenusHub> {
           _isWeb,
           _isMobile,
         );
-        if (mounted)
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text("Configurações atualizadas!"),
               backgroundColor: Colors.blue,
             ),
           );
+        }
       }
 
       _limparFormulario();
@@ -409,7 +411,7 @@ class _GestaoMenusHubState extends State<GestaoMenusHub> {
       width: double.infinity,
       child: SingleChildScrollView(
         child: DataTable(
-          headingRowColor: MaterialStateProperty.all(Colors.grey.shade50),
+          headingRowColor: WidgetStateProperty.all(Colors.grey.shade50),
           columns: const [
             DataColumn(
               label: Text(
@@ -539,13 +541,14 @@ class _GestaoMenusHubState extends State<GestaoMenusHub> {
               onPressed: () async {
                 Navigator.pop(context);
                 await _menuController.excluirMenu(id);
-                if (mounted)
+                if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text("Menu removido."),
                       backgroundColor: Colors.orange,
                     ),
                   );
+                }
               },
               child: const Text(
                 "Remover",
