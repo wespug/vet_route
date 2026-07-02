@@ -12,7 +12,6 @@ class GestaoPerfisHub extends StatefulWidget {
 }
 
 class _GestaoPerfisHubState extends State<GestaoPerfisHub> {
-  // Precisamos das 3 controladoras para cruzar os dados na matriz
   final PerfilController _perfilController = PerfilController();
   final custom_menu.MenuController _menuController =
       custom_menu.MenuController();
@@ -21,7 +20,6 @@ class _GestaoPerfisHubState extends State<GestaoPerfisHub> {
   @override
   void initState() {
     super.initState();
-    // 💡 Carrega o ecossistema inteiro de acessos
     _perfilController.carregarPerfis();
     _menuController.carregarMenus();
     _submenuController.carregarSubmenus();
@@ -70,7 +68,7 @@ class _GestaoPerfisHubState extends State<GestaoPerfisHub> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        "Crie perfis e defina a matriz de acesso (Menus e Submenus) para cada cargo.",
+                        "Crie perfis e defina plataformas e menus permitidos para cada cargo.",
                         style: TextStyle(
                           fontSize: 14,
                           color: Colors.grey.shade600,
@@ -132,7 +130,13 @@ class _GestaoPerfisHubState extends State<GestaoPerfisHub> {
             ),
             DataColumn(
               label: Text(
-                'Nº Permissões (Menus)',
+                'Plataformas',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ), // 💡 Nova Coluna
+            ),
+            DataColumn(
+              label: Text(
+                'Acessos',
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
@@ -163,6 +167,27 @@ class _GestaoPerfisHubState extends State<GestaoPerfisHub> {
                         color: Colors.indigo,
                       ),
                     ),
+                  ),
+                ),
+                DataCell(
+                  // 💡 Visualização rápida de onde o perfil acessa
+                  Row(
+                    children: [
+                      if (perfil.visivelWeb)
+                        const Icon(
+                          Icons.laptop_mac_rounded,
+                          size: 20,
+                          color: Colors.blue,
+                        ),
+                      if (perfil.visivelWeb && perfil.visivelApp)
+                        const SizedBox(width: 8),
+                      if (perfil.visivelApp)
+                        const Icon(
+                          Icons.smartphone_rounded,
+                          size: 20,
+                          color: Colors.green,
+                        ),
+                    ],
                   ),
                 ),
                 DataCell(
@@ -221,7 +246,6 @@ class _GestaoPerfisHubState extends State<GestaoPerfisHub> {
     );
   }
 
-  // 💡 A MAGIA ACONTECE AQUI: O Modal de Matriz de Permissões
   void _abrirMatrizDePermissoes(
     BuildContext context, {
     PerfilAcesso? perfilEdicao,
@@ -230,7 +254,10 @@ class _GestaoPerfisHubState extends State<GestaoPerfisHub> {
       text: perfilEdicao?.nome ?? '',
     );
 
-    // Conjuntos para guardar o estado reativo dos checkboxes (Set impede duplicações automáticas)
+    // 💡 Controle Local para Plataformas no Modal
+    bool isWebChecked = perfilEdicao?.visivelWeb ?? true;
+    bool isAppChecked = perfilEdicao?.visivelApp ?? false;
+
     final Set<String> menusSelecionados = Set.from(
       perfilEdicao?.menusAcesso ?? [],
     );
@@ -240,7 +267,7 @@ class _GestaoPerfisHubState extends State<GestaoPerfisHub> {
 
     showDialog(
       context: context,
-      barrierDismissible: false, // Força a clicar em Cancelar ou Salvar
+      barrierDismissible: false,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setModalState) {
@@ -257,13 +284,13 @@ class _GestaoPerfisHubState extends State<GestaoPerfisHub> {
                   const SizedBox(width: 10),
                   Text(
                     perfilEdicao == null
-                        ? "Criar Matriz de Permissões"
-                        : "Editar Permissões - ${perfilEdicao.nome}",
+                        ? "Novo Perfil"
+                        : "Editar - ${perfilEdicao.nome}",
                   ),
                 ],
               ),
               content: SizedBox(
-                width: 600, // Matriz mais larga para acomodar a estrutura
+                width: 600,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -275,9 +302,61 @@ class _GestaoPerfisHubState extends State<GestaoPerfisHub> {
                         prefixIcon: Icon(Icons.badge_outlined),
                       ),
                     ),
+                    const SizedBox(height: 16),
+
+                    // 💡 SELETORES DE PLATAFORMA MESTRA
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        border: Border.all(color: Colors.grey.shade300),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          const Text(
+                            "Login Permitido em:",
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black54,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          FilterChip(
+                            label: const Text("Painel Web"),
+                            avatar: const Icon(
+                              Icons.laptop_mac_rounded,
+                              size: 16,
+                            ),
+                            selected: isWebChecked,
+                            onSelected: (val) =>
+                                setModalState(() => isWebChecked = val),
+                            selectedColor: Colors.blue.shade100,
+                            checkmarkColor: Colors.blue.shade700,
+                          ),
+                          const SizedBox(width: 12),
+                          FilterChip(
+                            label: const Text("App Mobile"),
+                            avatar: const Icon(
+                              Icons.smartphone_rounded,
+                              size: 16,
+                            ),
+                            selected: isAppChecked,
+                            onSelected: (val) =>
+                                setModalState(() => isAppChecked = val),
+                            selectedColor: Colors.green.shade100,
+                            checkmarkColor: Colors.green.shade700,
+                          ),
+                        ],
+                      ),
+                    ),
+
                     const SizedBox(height: 24),
                     const Text(
-                      "Módulos Permitidos:",
+                      "Módulos Permitidos (Telas):",
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
@@ -285,9 +364,8 @@ class _GestaoPerfisHubState extends State<GestaoPerfisHub> {
                     ),
                     const SizedBox(height: 8),
 
-                    // Estrutura de Árvore (Lista) para Menus e Submenus
                     Container(
-                      height: 350,
+                      height: 300,
                       decoration: BoxDecoration(
                         border: Border.all(color: Colors.grey.shade300),
                         borderRadius: BorderRadius.circular(8),
@@ -302,16 +380,13 @@ class _GestaoPerfisHubState extends State<GestaoPerfisHub> {
                                 final menu = _menuController.menus[index];
                                 final bool isMenuSelecionado = menusSelecionados
                                     .contains(menu.id);
-
-                                // Puxa apenas os submenus deste Menu
                                 final submenusDoMenu = _submenuController
                                     .submenus
                                     .where((s) => s.menuId == menu.id)
                                     .toList();
 
                                 return ExpansionTile(
-                                  initiallyExpanded:
-                                      isMenuSelecionado, // Abre a gaveta se já tiver acesso
+                                  initiallyExpanded: isMenuSelecionado,
                                   leading: Checkbox(
                                     value: isMenuSelecionado,
                                     onChanged: (bool? checked) {
@@ -320,7 +395,6 @@ class _GestaoPerfisHubState extends State<GestaoPerfisHub> {
                                           menusSelecionados.add(menu.id);
                                         } else {
                                           menusSelecionados.remove(menu.id);
-                                          // 💡 UX Sênior: Se desmarcar o pai, desmarca todos os filhos
                                           for (var sub in submenusDoMenu) {
                                             submenusSelecionados.remove(sub.id);
                                           }
@@ -344,7 +418,7 @@ class _GestaoPerfisHubState extends State<GestaoPerfisHub> {
                                     return Padding(
                                       padding: const EdgeInsets.only(
                                         left: 48.0,
-                                      ), // Indentação
+                                      ),
                                       child: CheckboxListTile(
                                         title: Text(
                                           submenu.titulo,
@@ -360,7 +434,6 @@ class _GestaoPerfisHubState extends State<GestaoPerfisHub> {
                                               submenusSelecionados.add(
                                                 submenu.id,
                                               );
-                                              // 💡 UX Sênior: Marcou o filho? Auto-marca o Menu pai para não dar erro de rota
                                               menusSelecionados.add(menu.id);
                                             } else {
                                               submenusSelecionados.remove(
@@ -390,57 +463,50 @@ class _GestaoPerfisHubState extends State<GestaoPerfisHub> {
                 ElevatedButton.icon(
                   icon: const Icon(Icons.save_rounded, size: 18),
                   label: const Text(
-                    "Salvar Permissões",
+                    "Salvar Perfil",
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                   onPressed: () async {
                     if (nomeController.text.isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text("O nome do perfil é obrigatório."),
+                          content: Text("O nome é obrigatório."),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                      return;
+                    }
+                    if (!isWebChecked && !isAppChecked) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            "Marque ao menos uma Plataforma de Login.",
+                          ),
                           backgroundColor: Colors.red,
                         ),
                       );
                       return;
                     }
 
-                    Navigator.pop(context); // Fecha Modal
+                    Navigator.pop(context);
 
                     if (perfilEdicao == null) {
-                      // CRIAÇÃO
                       await _perfilController.adicionarPerfil(
                         nomeController.text.trim(),
                         menusSelecionados.toList(),
                         submenusSelecionados.toList(),
+                        isWebChecked, // 💡 Passando os booleanos!
+                        isAppChecked, // 💡 Passando os booleanos!
                       );
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              "Matriz de acessos criada com sucesso!",
-                            ),
-                            backgroundColor: Colors.green,
-                          ),
-                        );
-                      }
                     } else {
-                      // EDIÇÃO
                       await _perfilController.editarPerfil(
                         perfilEdicao.id,
                         nomeController.text.trim(),
                         menusSelecionados.toList(),
                         submenusSelecionados.toList(),
+                        isWebChecked, // 💡 Passando os booleanos!
+                        isAppChecked, // 💡 Passando os booleanos!
                       );
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              "Permissões atualizadas com sucesso!",
-                            ),
-                            backgroundColor: Colors.blue,
-                          ),
-                        );
-                      }
                     }
                   },
                 ),
@@ -464,9 +530,7 @@ class _GestaoPerfisHubState extends State<GestaoPerfisHub> {
               Text("Apagar Perfil?"),
             ],
           ),
-          content: Text(
-            "Tem a certeza de que deseja eliminar o perfil '$nome' do sistema?",
-          ),
+          content: Text("Deseja eliminar o perfil '$nome'?"),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
@@ -479,14 +543,6 @@ class _GestaoPerfisHubState extends State<GestaoPerfisHub> {
               onPressed: () async {
                 Navigator.pop(context);
                 await _perfilController.excluirPerfil(id);
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text("Perfil eliminado."),
-                      backgroundColor: Colors.orange,
-                    ),
-                  );
-                }
               },
               child: const Text(
                 "Eliminar",

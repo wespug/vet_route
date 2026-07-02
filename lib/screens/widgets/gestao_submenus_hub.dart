@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // 💡 Necessário para formatar apenas números no input
 import 'package:vet_route/controllers/menu_controller.dart' as custom_menu;
 import 'package:vet_route/controllers/submenu_controller.dart';
-import 'package:vet_route/models/menu_item_model.dart';
 import 'package:vet_route/models/submenu_item_model.dart';
 
 class GestaoSubmenusHub extends StatefulWidget {

@@ -46,8 +46,9 @@ class AuthService {
       }
 
       String perfilId = dadosUsuario['perfilId'] ?? '';
-      if (perfilId.isEmpty)
+      if (perfilId.isEmpty) {
         throw Exception("Usuário sem perfil de acesso definido.");
+      }
 
       // 3. Vai na tabela de perfis e descobre qual é o NOME do cargo!
       DocumentSnapshot docPerfil = await _firestore
@@ -55,8 +56,9 @@ class AuthService {
           .doc(perfilId)
           .get();
 
-      if (!docPerfil.exists)
+      if (!docPerfil.exists) {
         throw Exception("O cargo vinculado a esta conta não existe mais.");
+      }
 
       Map<String, dynamic> dadosPerfil =
           docPerfil.data() as Map<String, dynamic>;

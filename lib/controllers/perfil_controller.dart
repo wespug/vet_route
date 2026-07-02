@@ -24,11 +24,13 @@ class PerfilController extends ChangeNotifier {
     }
   }
 
-  // 💡 AGORA RECEBE A MATRIZ DE ACESSOS
+  // 💡 AGORA RECEBE TAMBÉM AS CHAVES DE PLATAFORMA
   Future<void> adicionarPerfil(
     String nome,
     List<String> menus,
     List<String> submenus,
+    bool visivelWeb,
+    bool visivelApp,
   ) async {
     if (nome.isEmpty) return;
 
@@ -37,17 +39,21 @@ class PerfilController extends ChangeNotifier {
       nome: nome,
       menusAcesso: menus,
       submenusAcesso: submenus,
+      visivelWeb: visivelWeb, // 💡 Injetando no Model
+      visivelApp: visivelApp, // 💡 Injetando no Model
     );
     await _repository.salvarPerfil(novoPerfil);
     await carregarPerfis();
   }
 
-  // 💡 PERMITE EDITAR PERMISSÕES
+  // 💡 PERMITE EDITAR AS CHAVES DE PLATAFORMA
   Future<void> editarPerfil(
     String id,
     String nome,
     List<String> menus,
     List<String> submenus,
+    bool visivelWeb,
+    bool visivelApp,
   ) async {
     if (nome.isEmpty) return;
 
@@ -56,6 +62,8 @@ class PerfilController extends ChangeNotifier {
       nome: nome,
       menusAcesso: menus,
       submenusAcesso: submenus,
+      visivelWeb: visivelWeb, // 💡 Atualizando no Model
+      visivelApp: visivelApp, // 💡 Atualizando no Model
     );
     await _repository.atualizarPerfil(id, perfilAtualizado);
     await carregarPerfis();

@@ -37,23 +37,6 @@ class VetRouteAPP extends StatelessWidget {
         GlobalCupertinoLocalizations.delegate,
       ],
       supportedLocales: const [Locale('pt', ''), Locale('en', '')],
-
-      routes: {
-        '/login': (context) => const LoginScreen(),
-        '/admin': (context) => const AdminChassi(
-          titulo: "Vet Route",
-          conteudo: Center(
-            child: Text(
-              "Selecione uma opção no menu lateral",
-              style: TextStyle(fontSize: 20, color: Colors.grey),
-            ),
-          ),
-        ),
-        '/clinica': (context) => const ClinicaScreen(),
-        '/laboratorio': (context) => const LaboratorioScreen(),
-        '/motoboy': (context) => EntregadorScreen(),
-      },
-
       home: const AuthGatekeeper(),
     );
   }
@@ -130,17 +113,12 @@ class AuthGatekeeper extends StatelessWidget {
                 final bool visivelWeb = perfilData['visivelWeb'] ?? false;
                 final bool visivelApp = perfilData['visivelApp'] ?? false;
 
-                final nomePerfil = (perfilData['nome'] ?? '')
-                    .toString()
-                    .toLowerCase();
-
                 // ============================================================
                 // 🖥️ FLUXO DE ACESSO VIA NAVEGADOR (WEB)
                 // ============================================================
                 if (kIsWeb) {
                   if (visivelWeb) {
-                    // Qualquer um que tenha 'visivelWeb: true' ganha a casca administrativa.
-                    // O menu lateral vai carregar APENAS o que ele tiver direito de ver!
+                    // Inicializa as permissões com a flag Web
                     permissoesGlobais.inicializarParaUsuario(perfilId);
 
                     return const AdminChassi(
@@ -157,7 +135,7 @@ class AuthGatekeeper extends StatelessWidget {
                       ),
                     );
                   } else {
-                    AuthService().logout();
+                    //AuthService().logout();
                     return _telaErroAcesso(
                       'Acesso Negado. O seu perfil não possui autorização para aceder à versão Web.',
                     );
@@ -168,31 +146,22 @@ class AuthGatekeeper extends StatelessWidget {
                 // ============================================================
                 else {
                   if (visivelApp) {
-                    // Aqui roteamos para as interfaces operacionais de celular
-                    if (nomePerfil.contains('clínica') ||
-                        nomePerfil.contains('clinica')) {
-                      return const ClinicaScreen();
-                    } else if (nomePerfil.contains('laboratório') ||
-                        nomePerfil.contains('laboratorio')) {
-                      return const LaboratorioScreen();
-                    } else if (nomePerfil.contains('motoboy') ||
-                        nomePerfil.contains('entregador')) {
-                      return EntregadorScreen();
-                    } else {
-                      // Se for um Gestor/Admin tentando acessar o celular e tiver 'visivelApp: true', cai num placeholder
-                      // Futuramente pode ser um Dashboard App de relatórios gerenciais!
-                      return Scaffold(
-                        appBar: AppBar(
-                          title: const Text('App Gestão'),
-                          backgroundColor: Colors.blueGrey.shade900,
-                        ),
-                        body: const Center(
-                          child: Text(
-                            "Visão Mobile Gerencial em Desenvolvimento 🚧",
+                    // Inicializa as permissões com a flag App
+                    permissoesGlobais.inicializarParaUsuario(perfilId);
+
+                    // O Mobile agora usa o mesmo Chassi, mas de forma responsiva!
+                    return const AdminChassi(
+                      titulo: "Vet Route",
+                      conteudo: Center(
+                        child: Text(
+                          "Abra o menu no canto superior esquerdo",
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: Colors.blueGrey,
                           ),
                         ),
-                      );
-                    }
+                      ),
+                    );
                   } else {
                     AuthService().logout();
                     return _telaErroAcesso(

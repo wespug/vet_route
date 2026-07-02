@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:vet_route/l10n/app_localizations.dart';
+import 'package:vet_route/screens/mobile/tela_teste_clinica_mobile.dart';
+import 'package:vet_route/screens/mobile/tela_teste_mobile.dart';
 import 'package:vet_route/services/auth_service.dart';
 import 'package:vet_route/controllers/permissoes_controller.dart';
 
@@ -111,6 +113,8 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
     'gestao_menus': () => const GestaoMenusHub(),
     'gestao_submenus': () => const GestaoSubmenusHub(),
     'gestao_usuarios': () => const GestaoUsuarioHub(),
+    'tela_teste_mobile': () => const TelaTesteMobile(),
+    'tela_teste_clinica_mobile': () => const TelaTesteClinicaMobile(),
   };
 
   @override
@@ -318,7 +322,7 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
                           return _itemMenuBlindado(subIcon, sub.titulo, () {
                             _executarNavegacao(context, sub.titulo, sub.rota);
                           }, isSubmenu: true);
-                        }).toList(),
+                        }),
                     ],
                   );
                 },

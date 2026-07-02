@@ -133,10 +133,11 @@ class _LoginScreenState extends State<LoginScreen> with LoggerMixin {
                                   password: senha,
                                 );
 
-                            if (credential.user == null)
+                            if (credential.user == null) {
                               throw Exception(
                                 "Falha ao recuperar credenciais.",
                               );
+                            }
 
                             // 2. Busca a ficha do usuário no Firestore
                             final docUser = await FirebaseFirestore.instance
