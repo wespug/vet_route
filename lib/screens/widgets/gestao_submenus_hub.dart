@@ -48,6 +48,10 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
     'gestao_menus': 'Gestão de Menus',
     'gestao_submenus': 'Gestão de Submenus',
     'gestao_usuarios': 'Gestão de Usuários',
+
+    'lab_dashboard': 'Painel / Dashboard do Laboratório',
+    'lista_laboratorios_aba': 'Lista Geral de Laboratórios',
+    'lab_adicionar_usuario': 'Adicionar Usuários do Laboratório',
   };
 
   @override

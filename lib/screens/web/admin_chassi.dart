@@ -2,13 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:vet_route/l10n/app_localizations.dart';
-import 'package:vet_route/screens/mobile/tela_teste_clinica_mobile.dart';
-import 'package:vet_route/screens/mobile/tela_teste_mobile.dart';
+import 'package:vet_route/screens/web/laboratorios/laboratorio_hub.dart';
 import 'package:vet_route/services/auth_service.dart';
 import 'package:vet_route/controllers/permissoes_controller.dart';
 
 // Telas do Sistema Administrativo Web
-import 'package:vet_route/screens/web/laboratorios/lista_laboratorios_screen.dart';
 import 'package:vet_route/screens/widgets/gestao_menus_hub.dart';
 import 'package:vet_route/screens/widgets/gestao_perfis_hub.dart';
 import 'package:vet_route/screens/widgets/gestao_submenus_hub.dart';
@@ -45,7 +43,7 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
   late Widget _conteudoAtual;
   late String _tituloAtual;
 
-  // 💡 Lista que armazena os IDs dos menus que estão expandidos atualmente
+  // Lista que armazena os IDs dos menus que estão expandidos atualmente
   final List<String> _menusExpandidosIds = [];
 
   @override
@@ -107,14 +105,13 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
   // ROTEADOR DE TELAS ADMINISTRATIVAS WEB REAL
   static final Map<String, Widget Function()> _telasMapeadas = {
     'clinica_gestao': () => ClinicaGestaoWeb(),
-    'lista_laboratorios': () => const ListaLaboratoriosScreen(),
+    'lista_laboratorios': () =>
+        const LaboratoriosHub(), // 💡 AGORA APONTA DIRETAMENTE PARA O NOSSO HUB DINÂMICO
     'entregador_gestao': () => EntregadorGestaoWeb(),
     'gestao_perfis': () => const GestaoPerfisHub(),
     'gestao_menus': () => const GestaoMenusHub(),
     'gestao_submenus': () => const GestaoSubmenusHub(),
     'gestao_usuarios': () => const GestaoUsuarioHub(),
-    'tela_teste_mobile': () => const TelaTesteMobile(),
-    'tela_teste_clinica_mobile': () => const TelaTesteClinicaMobile(),
   };
 
   @override
@@ -287,15 +284,12 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
                   return Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // 💡 Argumentos posicionais corrigidos
                       _itemMenuBlindado(
                         iconData,
                         menu.titulo,
                         () {
-                          // 💡 Clique no texto: renderiza a tela central imediatamente
                           _executarNavegacao(context, menu.titulo, menu.rota);
                         },
-                        // Se houver submenu, injeta o IconButton isolado na direita, mantendo o alinhamento
                         trailing: submenus.isEmpty
                             ? null
                             : IconButton(
@@ -307,13 +301,11 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
                                   size: 20,
                                 ),
                                 onPressed: () {
-                                  // 💡 Clique na seta: Apenas expande/colapsa de forma estática
                                   _alternarExpansaoMenu(menu.id);
                                 },
                               ),
                       ),
 
-                      // Renderização condicional dos filhos sem quebrar o alinhamento visual
                       if (submenus.isNotEmpty && _idEstaExpandido(menu.id))
                         ...submenus.map((sub) {
                           final subIcon =
@@ -322,7 +314,7 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
                           return _itemMenuBlindado(subIcon, sub.titulo, () {
                             _executarNavegacao(context, sub.titulo, sub.rota);
                           }, isSubmenu: true);
-                        }),
+                        }).toList(),
                     ],
                   );
                 },
@@ -392,7 +384,6 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
     );
   }
 
-  // 💡 Auxiliar de Estado local para gerenciar quais itens estão abertos (Limpo a duplicação)
   bool _idEstaExpandido(String id) => _menusExpandidosIds.contains(id);
 
   void _alternarExpansaoMenu(String id) {
@@ -410,7 +401,7 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
     String titulo,
     String chaveRota,
   ) {
-    debugPrint("🛣️ Roteando área central para chave: $chaveRota");
+    debugPrint("Analisando rota cental para chave: $chaveRota");
     final construtoraTela = _telasMapeadas[chaveRota];
 
     final Widget telaDestino = construtoraTela != null
