@@ -1,23 +1,24 @@
 import 'package:flutter/material.dart';
-import 'package:vet_route/controllers/laboratorio_admin_controller.dart'; // Ajuste o import se necessário
+import 'package:vet_route/controllers/laboratorio_admin_controller.dart';
 import 'package:vet_route/models/laboratorio_model.dart';
-import 'package:vet_route/models/endereco_model.dart'; // Import da classe endereço que você citou
+import 'package:vet_route/models/endereco_model.dart';
 
 class ListaLaboratoriosView extends StatefulWidget {
-  const ListaLaboratoriosView({super.key});
+  final ValueChanged<Laboratorio>
+  onLabSelected; // 💡 GATILHO DA NOVA UX MESTRE-DETALHE
+
+  const ListaLaboratoriosView({super.key, required this.onLabSelected});
 
   @override
   State<ListaLaboratoriosView> createState() => _ListaLaboratoriosViewState();
 }
 
 class _ListaLaboratoriosViewState extends State<ListaLaboratoriosView> {
-  // Instancia a SUA controladora sênior!
   final LaboratorioAdminController _controller = LaboratorioAdminController();
 
   @override
   void initState() {
     super.initState();
-    // Inicia a escuta reativa em tempo real com o Firestore!
     _controller.ouvirLaboratorios();
   }
 
@@ -65,7 +66,6 @@ class _ListaLaboratoriosViewState extends State<ListaLaboratoriosView> {
           ),
           const SizedBox(height: 24),
 
-          // 💡 ValueListenableBuilder PARA OUVIR APENAS A LISTA DA SUA CONTROLADORA
           Expanded(
             child: ValueListenableBuilder<List<Laboratorio>>(
               valueListenable: _controller.laboratorios,
@@ -93,7 +93,6 @@ class _ListaLaboratoriosViewState extends State<ListaLaboratoriosView> {
                   );
                 }
 
-                // A TABELA REAL
                 return Container(
                   width: double.infinity,
                   decoration: BoxDecoration(
@@ -143,27 +142,36 @@ class _ListaLaboratoriosViewState extends State<ListaLaboratoriosView> {
     );
   }
 
-  // 💡 Transformando o SEU Laboratorio em uma Linha Visual da Tabela
   DataRow _buildRowReal(Laboratorio lab) {
     return DataRow(
       cells: [
         DataCell(
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                lab.nome,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.indigo,
-                ),
+          InkWell(
+            onTap: () => widget.onLabSelected(
+              lab,
+            ), // Clicou no nome? Entra no laboratório!
+            borderRadius: BorderRadius.circular(4),
+            child: Padding(
+              padding: const EdgeInsets.all(4.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    lab.nome,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.indigo,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                  Text(
+                    lab.email,
+                    style: const TextStyle(fontSize: 11, color: Colors.grey),
+                  ),
+                ],
               ),
-              Text(
-                lab.email,
-                style: const TextStyle(fontSize: 11, color: Colors.grey),
-              ),
-            ],
+            ),
           ),
         ),
         DataCell(Text(lab.cnpj)),
@@ -172,13 +180,20 @@ class _ListaLaboratoriosViewState extends State<ListaLaboratoriosView> {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // 💡 NOVO: BOTÃO DE EDIÇÃO DO LABORATORIO
+              // 💡 NOVO: Botão de olho para Gerenciar/Entrar no laboratório diretamente
+              IconButton(
+                icon: const Icon(
+                  Icons.visibility_outlined,
+                  color: Colors.indigo,
+                ),
+                tooltip: "Gerenciar Operação",
+                onPressed: () => widget.onLabSelected(lab),
+              ),
               IconButton(
                 icon: const Icon(Icons.edit_note_rounded, color: Colors.blue),
-                tooltip: "Editar Dados",
+                tooltip: "Editar Cadastro",
                 onPressed: () => _abrirModalFormulario(context, labEdicao: lab),
               ),
-              const SizedBox(width: 8),
               IconButton(
                 icon: const Icon(
                   Icons.delete_outline_rounded,
@@ -194,7 +209,6 @@ class _ListaLaboratoriosViewState extends State<ListaLaboratoriosView> {
     );
   }
 
-  // 💡 FORMULÁRIO UNIFICADO (CADASTRO E EDIÇÃO) SEM REPETIÇÃO DE CÓDIGO
   void _abrirModalFormulario(BuildContext context, {Laboratorio? labEdicao}) {
     final bool isEdicao = labEdicao != null;
 
@@ -205,7 +219,6 @@ class _ListaLaboratoriosViewState extends State<ListaLaboratoriosView> {
       text: labEdicao?.telefone ?? '',
     );
 
-    // Campos do Endereço
     final cepController = TextEditingController(
       text: labEdicao?.endereco.cep ?? '',
     );
@@ -301,7 +314,6 @@ class _ListaLaboratoriosViewState extends State<ListaLaboratoriosView> {
                           ),
                         ],
                       ),
-
                       const Padding(
                         padding: EdgeInsets.only(top: 24, bottom: 8),
                         child: Text(
@@ -312,7 +324,6 @@ class _ListaLaboratoriosViewState extends State<ListaLaboratoriosView> {
                           ),
                         ),
                       ),
-
                       Row(
                         children: [
                           Expanded(
@@ -395,7 +406,6 @@ class _ListaLaboratoriosViewState extends State<ListaLaboratoriosView> {
                             return;
                           }
 
-                          // Constrói o Endereco com segurança
                           final enderecoInstancia = Endereco(
                             cep: cepController.text.trim(),
                             logradouro: ruaController.text.trim(),
@@ -405,7 +415,6 @@ class _ListaLaboratoriosViewState extends State<ListaLaboratoriosView> {
                             estado: estadoController.text.trim().toUpperCase(),
                           );
 
-                          // Instancia o modelo Laboratorio
                           final labDados = Laboratorio(
                             id: labEdicao?.id,
                             nome: nomeController.text.trim(),
@@ -416,15 +425,12 @@ class _ListaLaboratoriosViewState extends State<ListaLaboratoriosView> {
                           );
 
                           bool sucesso = false;
-
                           if (isEdicao) {
-                            // Executa a ATUALIZAÇÃO com a sua função do controller
                             sucesso = await _controller.atualizarLaboratorio(
                               labEdicao.id!,
                               labDados,
                             );
                           } else {
-                            // Executa o CADASTRO
                             sucesso = await _controller.salvarLaboratorio(
                               labDados,
                             );
@@ -436,8 +442,8 @@ class _ListaLaboratoriosViewState extends State<ListaLaboratoriosView> {
                               SnackBar(
                                 content: Text(
                                   isEdicao
-                                      ? "Dados atualizados com sucesso!"
-                                      : "Laboratório vinculado com sucesso!",
+                                      ? "Dados atualizados!"
+                                      : "Laboratório vinculado!",
                                 ),
                                 backgroundColor: Colors.green,
                               ),
@@ -477,7 +483,6 @@ class _ListaLaboratoriosViewState extends State<ListaLaboratoriosView> {
     );
   }
 
-  // MODAL ADICIONAL DE SEGURANÇA PARA EXCLUSÃO
   void _confirmarExclusao(Laboratorio lab) {
     showDialog(
       context: context,
@@ -491,7 +496,7 @@ class _ListaLaboratoriosViewState extends State<ListaLaboratoriosView> {
             ],
           ),
           content: Text(
-            "Tem certeza de que deseja excluir o laboratório '${lab.nome}' da rede Vet Route?",
+            "Tem certeza de que deseja excluir o laboratório '${lab.nome}'?",
           ),
           actions: [
             TextButton(
