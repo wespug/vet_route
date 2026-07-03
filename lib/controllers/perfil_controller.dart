@@ -24,13 +24,14 @@ class PerfilController extends ChangeNotifier {
     }
   }
 
-  // 💡 AGORA RECEBE TAMBÉM AS CHAVES DE PLATAFORMA
+  // 💡 AGORA COM 6 ARGUMENTOS: Recebe a lista exibirEm
   Future<void> adicionarPerfil(
     String nome,
     List<String> menus,
     List<String> submenus,
     bool visivelWeb,
     bool visivelApp,
+    List<String> exibirEm, // 💡 Injetado aqui para casar com a View!
   ) async {
     if (nome.isEmpty) return;
 
@@ -39,14 +40,15 @@ class PerfilController extends ChangeNotifier {
       nome: nome,
       menusAcesso: menus,
       submenusAcesso: submenus,
-      visivelWeb: visivelWeb, // 💡 Injetando no Model
-      visivelApp: visivelApp, // 💡 Injetando no Model
+      visivelWeb: visivelWeb,
+      visivelApp: visivelApp,
+      exibirEm: exibirEm, // 💡 Repassando ao modelo
     );
     await _repository.salvarPerfil(novoPerfil);
     await carregarPerfis();
   }
 
-  // 💡 PERMITE EDITAR AS CHAVES DE PLATAFORMA
+  // 💡 AGORA COM 7 ARGUMENTOS: Recebe a lista exibirEm
   Future<void> editarPerfil(
     String id,
     String nome,
@@ -54,6 +56,7 @@ class PerfilController extends ChangeNotifier {
     List<String> submenus,
     bool visivelWeb,
     bool visivelApp,
+    List<String> exibirEm, // 💡 Injetado aqui para casar com a View!
   ) async {
     if (nome.isEmpty) return;
 
@@ -62,8 +65,9 @@ class PerfilController extends ChangeNotifier {
       nome: nome,
       menusAcesso: menus,
       submenusAcesso: submenus,
-      visivelWeb: visivelWeb, // 💡 Atualizando no Model
-      visivelApp: visivelApp, // 💡 Atualizando no Model
+      visivelWeb: visivelWeb,
+      visivelApp: visivelApp,
+      exibirEm: exibirEm, // 💡 Atualizando no modelo
     );
     await _repository.atualizarPerfil(id, perfilAtualizado);
     await carregarPerfis();

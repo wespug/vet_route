@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:vet_route/controllers/permissoes_controller.dart';
-import 'package:vet_route/screens/web/laboratorios/view/adicionar_usuario_lab_view.dart';
+import 'package:vet_route/screens/web/laboratorios/usu%C3%A1rios_lab_view.dart';
 import 'package:vet_route/screens/widgets/generic_tab_hub.dart';
 import 'package:vet_route/models/laboratorio_model.dart';
 
-// 💡 IMPORTS CORRIGIDOS: Sem a pasta 'views' e com o nome no singular!
-// Certifique-se de que estes 3 arquivos estejam na mesma pasta (lib/screens/web/laboratorios/)
+// 💡 IMPORTS BLINDADOS: Apontando exclusivamente para as duas visões definitivas do fluxo Mestre-Detalhe!
 import 'package:vet_route/screens/web/laboratorios/lista_laboratorio_view.dart';
+
+// Telas adicionais do módulo
 import 'package:vet_route/screens/web/laboratorios/lab_dashboard_view.dart';
 
 class LaboratoriosHub extends StatefulWidget {
@@ -17,20 +18,23 @@ class LaboratoriosHub extends StatefulWidget {
 }
 
 class _LaboratoriosHubState extends State<LaboratoriosHub> {
-  // 💡 O Coração da Nova UX: Controla qual laboratório está sob gestão ativa
+  // Coordenador de estado da UX Mestre-Detalhe
   Laboratorio? _labSelecionado;
 
-  // 💡 MAPEAMENTO DINÂMICO DE CHAVES DE SUBMENU DO FIRESTORE
+  // 💡 CENTRALIZADOR DE COMPONENTES DO SUBMENU
+  // Vincula milimetricamente as chaves cadastradas no seu Firestore com a View real correspondente
   Widget _resolverConteudoDaAba(String rotaSubmenu) {
     switch (rotaSubmenu) {
       case 'lab_dashboard':
         return const LabDashboardView();
+
       case 'lab_adicionar_usuario':
-        // Passamos o laboratório selecionado para a tela já nascer com ele travado/pré-selecionado!
-        return AdicionarUsuarioLabView(labContexto: _labSelecionado);
+        // 🟢 INJEÇÃO CRUCIAL: Agora chama a UsuariosLabView passando o contexto do laboratório selecionado
+        return UsuariosLabView(labContexto: _labSelecionado!);
+
       default:
         return _buildPlaceholder(
-          'Funcionalidade ($rotaSubmenu) em desenvolvimento 🚧',
+          'Funcionalidade ($rotaSubmenu) configurada na gestão, mas em desenvolvimento 🚧',
           Icons.construction_rounded,
         );
     }
@@ -59,7 +63,7 @@ class _LaboratoriosHubState extends State<LaboratoriosHub> {
 
   @override
   Widget build(BuildContext context) {
-    // 📊 CENÁRIO 1: NENHUM LABORATÓRIO SELECIONADO -> MOSTRA A LISTAGEM GLOBAL
+    // 📊 CENÁRIO 1: NENHUM LABORATÓRIO SELECIONADO -> EXIBE A TABELA MASTER GLOBAL
     if (_labSelecionado == null) {
       return ListaLaboratoriosView(
         onLabSelected: (lab) {
@@ -70,24 +74,25 @@ class _LaboratoriosHubState extends State<LaboratoriosHub> {
       );
     }
 
-    // 🔬 CENÁRIO 2: LABORATÓRIO SELECIONADO -> EXIBE O HUB DE SUBMENUS CONTEXTUALIZADO
+    // 🔬 CENÁRIO 2: LABORATÓRIO ATIVO -> MONTA O PRODUTO SAAS DINÂMICO BASEADO EM DADOS
     return ListenableBuilder(
       listenable: permissoesGlobais,
       builder: (context, child) {
+        // Encontra o Menu Mestre de Laboratórios para isolar seus submenus
         final menusFiltrados = permissoesGlobais.menusPermitidos.where(
           (m) => m.rota == 'lista_laboratorios',
         );
 
         if (menusFiltrados.isEmpty) {
           return const Center(
-            child: CircularProgressIndicator(color: Colors.blue),
+            child: CircularProgressIndicator(color: Colors.indigo),
           );
         }
 
         final menuPai = menusFiltrados.first;
         final submenus = permissoesGlobais.getSubmenusDoMenu(menuPai.id);
 
-        // Removemos o submenu de listagem se ele vier do banco, pois já passamos por ele
+        // Filtro arquitetural: Remove a listagem geral dos submenus superiores (pois já passamos por ela)
         final submenusFiltrados = submenus
             .where((s) => s.rota != 'lista_laboratorios_aba')
             .toList();
@@ -102,8 +107,8 @@ class _LaboratoriosHubState extends State<LaboratoriosHub> {
                 const SizedBox(height: 40),
                 const Center(
                   child: Text(
-                    "Nenhuma aba operacional (ex: Dashboard, Usuários) liberada para o seu perfil no Firestore.",
-                    style: TextStyle(color: Colors.grey),
+                    "Nenhum submenu ou aba complementar configurada para este módulo no Firestore.",
+                    style: TextStyle(color: Colors.grey, fontSize: 14),
                   ),
                 ),
               ],
@@ -111,9 +116,10 @@ class _LaboratoriosHubState extends State<LaboratoriosHub> {
           );
         }
 
-        // Ordenação por Peso do Firebase
+        // Aplica a ordenação por peso definida na Gestão de Menus
         submenusFiltrados.sort((a, b) => a.peso.compareTo(b.peso));
 
+        // Converte os dados reais em abas injetáveis para o nosso componente mestre genérico
         final abasDinamicas = submenusFiltrados.map((submenu) {
           return TabItemModel(
             titulo: submenu.titulo,
@@ -124,10 +130,11 @@ class _LaboratoriosHubState extends State<LaboratoriosHub> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Cabeçalho de Navegação (Breadcrumb + Botão Voltar)
+            // Barra de Navegação Contextual Sênior (Breadcrumb)
             _buildBarraTopoBreadcrumb(),
             const SizedBox(height: 16),
-            // Renderiza as abas dinamicamente
+
+            // 🚀 EXECUTANDO O SEU COMPONENTE REUTILIZÁVEL MESTRE COM AS VIEWS CORRETAS INSCRITAS!
             Expanded(child: GenericTabHub(abas: abasDinamicas)),
           ],
         );
@@ -135,7 +142,7 @@ class _LaboratoriosHubState extends State<LaboratoriosHub> {
     );
   }
 
-  // 💡 Componente Visual Sênior de Navegação e Contexto
+  // 💡 Componente Visual Breadcrumb para Destravar e Voltar o Contexto Mestre
   Widget _buildBarraTopoBreadcrumb() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -181,7 +188,7 @@ class _LaboratoriosHubState extends State<LaboratoriosHub> {
             onPressed: () {
               setState(() {
                 _labSelecionado =
-                    null; // Zera o estado e o chassi volta para a lista global!
+                    null; // Reseta o estado e o chassi força o retorno à listagem
               });
             },
             icon: const Icon(Icons.arrow_back_rounded, size: 16),

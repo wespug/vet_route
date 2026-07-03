@@ -99,7 +99,6 @@ class _GestaoPerfisHubState extends State<GestaoPerfisHub> {
               ),
               const SizedBox(height: 32),
 
-              // TABELA DE EXIBIÇÃO
               Expanded(
                 child: _perfilController.carregando
                     ? const Center(child: CircularProgressIndicator())
@@ -132,7 +131,7 @@ class _GestaoPerfisHubState extends State<GestaoPerfisHub> {
               label: Text(
                 'Plataformas',
                 style: TextStyle(fontWeight: FontWeight.bold),
-              ), // 💡 Nova Coluna
+              ),
             ),
             DataColumn(
               label: Text(
@@ -170,7 +169,6 @@ class _GestaoPerfisHubState extends State<GestaoPerfisHub> {
                   ),
                 ),
                 DataCell(
-                  // 💡 Visualização rápida de onde o perfil acessa
                   Row(
                     children: [
                       if (perfil.visivelWeb)
@@ -253,8 +251,6 @@ class _GestaoPerfisHubState extends State<GestaoPerfisHub> {
     final nomeController = TextEditingController(
       text: perfilEdicao?.nome ?? '',
     );
-
-    // 💡 Controle Local para Plataformas no Modal
     bool isWebChecked = perfilEdicao?.visivelWeb ?? true;
     bool isAppChecked = perfilEdicao?.visivelApp ?? false;
 
@@ -264,6 +260,9 @@ class _GestaoPerfisHubState extends State<GestaoPerfisHub> {
     final Set<String> submenusSelecionados = Set.from(
       perfilEdicao?.submenusAcesso ?? [],
     );
+
+    // 💡 Nossa regra de exibição Data-Driven
+    List<String> exibirEmSelecionados = List.from(perfilEdicao?.exibirEm ?? []);
 
     showDialog(
       context: context,
@@ -291,165 +290,250 @@ class _GestaoPerfisHubState extends State<GestaoPerfisHub> {
               ),
               content: SizedBox(
                 width: 600,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    TextField(
-                      controller: nomeController,
-                      decoration: const InputDecoration(
-                        labelText: "Nome do Cargo / Perfil",
-                        prefixIcon: Icon(Icons.badge_outlined),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      TextField(
+                        controller: nomeController,
+                        decoration: const InputDecoration(
+                          labelText: "Nome do Cargo / Perfil",
+                          prefixIcon: Icon(Icons.badge_outlined),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 16),
+                      const SizedBox(height: 16),
 
-                    // 💡 SELETORES DE PLATAFORMA MESTRA
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade50,
+                          border: Border.all(color: Colors.grey.shade300),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            const Text(
+                              "Login Permitido em:",
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black54,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            FilterChip(
+                              label: const Text("Painel Web"),
+                              avatar: const Icon(
+                                Icons.laptop_mac_rounded,
+                                size: 16,
+                              ),
+                              selected: isWebChecked,
+                              onSelected: (val) =>
+                                  setModalState(() => isWebChecked = val),
+                              selectedColor: Colors.blue.shade100,
+                              checkmarkColor: Colors.blue.shade700,
+                            ),
+                            const SizedBox(width: 12),
+                            FilterChip(
+                              label: const Text("App Mobile"),
+                              avatar: const Icon(
+                                Icons.smartphone_rounded,
+                                size: 16,
+                              ),
+                              selected: isAppChecked,
+                              onSelected: (val) =>
+                                  setModalState(() => isAppChecked = val),
+                              selectedColor: Colors.green.shade100,
+                              checkmarkColor: Colors.green.shade700,
+                            ),
+                          ],
+                        ),
                       ),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade50,
-                        border: Border.all(color: Colors.grey.shade300),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
+
+                      const SizedBox(height: 24),
+                      const Row(
                         children: [
-                          const Text(
-                            "Login Permitido em:",
+                          Icon(
+                            Icons.visibility_rounded,
+                            size: 18,
+                            color: Colors.indigo,
+                          ),
+                          SizedBox(width: 8),
+                          Text(
+                            "Regra de Exibição (Onde cadastrar esse perfil?)",
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              color: Colors.black54,
+                              color: Colors.indigo,
                             ),
-                          ),
-                          const SizedBox(width: 16),
-                          FilterChip(
-                            label: const Text("Painel Web"),
-                            avatar: const Icon(
-                              Icons.laptop_mac_rounded,
-                              size: 16,
-                            ),
-                            selected: isWebChecked,
-                            onSelected: (val) =>
-                                setModalState(() => isWebChecked = val),
-                            selectedColor: Colors.blue.shade100,
-                            checkmarkColor: Colors.blue.shade700,
-                          ),
-                          const SizedBox(width: 12),
-                          FilterChip(
-                            label: const Text("App Mobile"),
-                            avatar: const Icon(
-                              Icons.smartphone_rounded,
-                              size: 16,
-                            ),
-                            selected: isAppChecked,
-                            onSelected: (val) =>
-                                setModalState(() => isAppChecked = val),
-                            selectedColor: Colors.green.shade100,
-                            checkmarkColor: Colors.green.shade700,
                           ),
                         ],
                       ),
-                    ),
-
-                    const SizedBox(height: 24),
-                    const Text(
-                      "Módulos Permitidos (Telas):",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                      const SizedBox(height: 4),
+                      Text(
+                        "Marque em quais painéis (Ex: Laboratórios, Clínicas) este perfil será exibido no Dropdown de operadores.",
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 8),
+                      const SizedBox(height: 8),
 
-                    Container(
-                      height: 300,
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey.shade300),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: _menuController.menus.isEmpty
-                          ? const Center(
-                              child: Text("Nenhum menu base registado."),
-                            )
-                          : ListView.builder(
-                              itemCount: _menuController.menus.length,
-                              itemBuilder: (context, index) {
-                                final menu = _menuController.menus[index];
-                                final bool isMenuSelecionado = menusSelecionados
-                                    .contains(menu.id);
-                                final submenusDoMenu = _submenuController
-                                    .submenus
-                                    .where((s) => s.menuId == menu.id)
-                                    .toList();
-
-                                return ExpansionTile(
-                                  initiallyExpanded: isMenuSelecionado,
-                                  leading: Checkbox(
-                                    value: isMenuSelecionado,
+                      // 💡 MVC PURO: Reutilizando a lista de menus já carregada pela Controller
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade50,
+                          border: Border.all(color: Colors.grey.shade300),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        constraints: const BoxConstraints(maxHeight: 180),
+                        child: _menuController.menus.isEmpty
+                            ? const Center(
+                                child: Text(
+                                  "Nenhum menu mestre cadastrado.",
+                                  style: TextStyle(color: Colors.grey),
+                                ),
+                              )
+                            : ListView(
+                                shrinkWrap: true,
+                                children: _menuController.menus.map((menu) {
+                                  return CheckboxListTile(
+                                    title: Text(
+                                      menu.titulo,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                    subtitle: Text(
+                                      "Chave de Rota: ${menu.rota}",
+                                      style: TextStyle(
+                                        color: Colors.grey.shade500,
+                                        fontSize: 10,
+                                      ),
+                                    ),
+                                    activeColor: Colors.indigo,
+                                    value: exibirEmSelecionados.contains(
+                                      menu.rota,
+                                    ),
                                     onChanged: (bool? checked) {
                                       setModalState(() {
                                         if (checked == true) {
-                                          menusSelecionados.add(menu.id);
+                                          exibirEmSelecionados.add(menu.rota);
                                         } else {
-                                          menusSelecionados.remove(menu.id);
-                                          for (var sub in submenusDoMenu) {
-                                            submenusSelecionados.remove(sub.id);
-                                          }
+                                          exibirEmSelecionados.remove(
+                                            menu.rota,
+                                          );
                                         }
                                       });
                                     },
-                                  ),
-                                  title: Text(
-                                    menu.titulo,
-                                    style: TextStyle(
-                                      fontWeight: isMenuSelecionado
-                                          ? FontWeight.bold
-                                          : FontWeight.normal,
-                                    ),
-                                  ),
-                                  children: submenusDoMenu.map((submenu) {
-                                    final bool isSubmenuSelecionado =
-                                        submenusSelecionados.contains(
-                                          submenu.id,
-                                        );
-                                    return Padding(
-                                      padding: const EdgeInsets.only(
-                                        left: 48.0,
-                                      ),
-                                      child: CheckboxListTile(
-                                        title: Text(
-                                          submenu.titulo,
-                                          style: const TextStyle(fontSize: 14),
-                                        ),
-                                        value: isSubmenuSelecionado,
-                                        dense: true,
-                                        controlAffinity:
-                                            ListTileControlAffinity.leading,
-                                        onChanged: (bool? checked) {
-                                          setModalState(() {
-                                            if (checked == true) {
-                                              submenusSelecionados.add(
-                                                submenu.id,
-                                              );
-                                              menusSelecionados.add(menu.id);
-                                            } else {
+                                  );
+                                }).toList(),
+                              ),
+                      ),
+
+                      const SizedBox(height: 24),
+                      const Text(
+                        "Módulos Permitidos (Telas que ele pode acessar):",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+
+                      Container(
+                        height: 300,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey.shade300),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: _menuController.menus.isEmpty
+                            ? const Center(
+                                child: Text("Nenhum menu base registado."),
+                              )
+                            : ListView.builder(
+                                itemCount: _menuController.menus.length,
+                                itemBuilder: (context, index) {
+                                  final menu = _menuController.menus[index];
+                                  final bool isMenuSelecionado =
+                                      menusSelecionados.contains(menu.id);
+                                  final submenusDoMenu = _submenuController
+                                      .submenus
+                                      .where((s) => s.menuId == menu.id)
+                                      .toList();
+
+                                  return ExpansionTile(
+                                    initiallyExpanded: isMenuSelecionado,
+                                    leading: Checkbox(
+                                      value: isMenuSelecionado,
+                                      onChanged: (bool? checked) {
+                                        setModalState(() {
+                                          if (checked == true) {
+                                            menusSelecionados.add(menu.id);
+                                          } else {
+                                            menusSelecionados.remove(menu.id);
+                                            for (var sub in submenusDoMenu)
                                               submenusSelecionados.remove(
-                                                submenu.id,
+                                                sub.id,
                                               );
-                                            }
-                                          });
-                                        },
+                                          }
+                                        });
+                                      },
+                                    ),
+                                    title: Text(
+                                      menu.titulo,
+                                      style: TextStyle(
+                                        fontWeight: isMenuSelecionado
+                                            ? FontWeight.bold
+                                            : FontWeight.normal,
                                       ),
-                                    );
-                                  }).toList(),
-                                );
-                              },
-                            ),
-                    ),
-                  ],
+                                    ),
+                                    children: submenusDoMenu.map((submenu) {
+                                      final bool isSubmenuSelecionado =
+                                          submenusSelecionados.contains(
+                                            submenu.id,
+                                          );
+                                      return Padding(
+                                        padding: const EdgeInsets.only(
+                                          left: 48.0,
+                                        ),
+                                        child: CheckboxListTile(
+                                          title: Text(
+                                            submenu.titulo,
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                          value: isSubmenuSelecionado,
+                                          dense: true,
+                                          controlAffinity:
+                                              ListTileControlAffinity.leading,
+                                          onChanged: (bool? checked) {
+                                            setModalState(() {
+                                              if (checked == true) {
+                                                submenusSelecionados.add(
+                                                  submenu.id,
+                                                );
+                                                menusSelecionados.add(menu.id);
+                                              } else {
+                                                submenusSelecionados.remove(
+                                                  submenu.id,
+                                                );
+                                              }
+                                            });
+                                          },
+                                        ),
+                                      );
+                                    }).toList(),
+                                  );
+                                },
+                              ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
               actions: [
@@ -488,25 +572,49 @@ class _GestaoPerfisHubState extends State<GestaoPerfisHub> {
                       return;
                     }
 
-                    Navigator.pop(context);
+                    Navigator.pop(
+                      context,
+                    ); // Fecha o modal imediatamente para UX responsiva
 
-                    if (perfilEdicao == null) {
-                      await _perfilController.adicionarPerfil(
-                        nomeController.text.trim(),
-                        menusSelecionados.toList(),
-                        submenusSelecionados.toList(),
-                        isWebChecked, // 💡 Passando os booleanos!
-                        isAppChecked, // 💡 Passando os booleanos!
-                      );
-                    } else {
-                      await _perfilController.editarPerfil(
-                        perfilEdicao.id,
-                        nomeController.text.trim(),
-                        menusSelecionados.toList(),
-                        submenusSelecionados.toList(),
-                        isWebChecked, // 💡 Passando os booleanos!
-                        isAppChecked, // 💡 Passando os booleanos!
-                      );
+                    // 💡 CHAMADAS LIMPAS DELEGADAS À CONTROLLER
+                    try {
+                      if (perfilEdicao == null) {
+                        await _perfilController.adicionarPerfil(
+                          nomeController.text.trim(),
+                          menusSelecionados.toList(),
+                          submenusSelecionados.toList(),
+                          isWebChecked,
+                          isAppChecked,
+                          exibirEmSelecionados, // Regra de exibição repassada!
+                        );
+                      } else {
+                        await _perfilController.editarPerfil(
+                          perfilEdicao.id,
+                          nomeController.text.trim(),
+                          menusSelecionados.toList(),
+                          submenusSelecionados.toList(),
+                          isWebChecked,
+                          isAppChecked,
+                          exibirEmSelecionados, // Regra de exibição repassada!
+                        );
+                      }
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text("Perfil salvo com sucesso!"),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text("Erro ao salvar: $e"),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
                     }
                   },
                 ),
