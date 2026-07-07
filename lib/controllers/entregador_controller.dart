@@ -1,33 +1,105 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // 💡 Adicionado para o ouvirEntregadores
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/entregador_model.dart';
-import '../models/perfil_usuario.dart'; // 💡 Adicionado para acessar o Enum
+import '../models/perfil_usuario.dart';
 import '../repositories/firestore_coleta_repository.dart';
 
 class EntregadorController {
-  final FirestoreColetaRepository _repository;
-  final FirebaseFirestore _db =
-      FirebaseFirestore.instance; // 💡 Instância do banco
+  final FirestoreColetaRepository? _repository;
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  // --- ESTADOS REATIVOS (USO DO APP) ---
-  final ValueNotifier<List<Entregador>> entregadoresAtivos = ValueNotifier([]);
-  final ValueNotifier<Set<Marker>> marcadores = ValueNotifier({});
-  final ValueNotifier<bool> isLoading = ValueNotifier(true);
+  // --- ESTADOS REATIVOS (COMPARTILHADOS) ---
+  final ValueNotifier<bool> isLoading = ValueNotifier<bool>(false);
 
   // --- ESTADOS REATIVOS (USO DO ADMIN) ---
-  final ValueNotifier<List<Entregador>> todosEntregadores = ValueNotifier(
-    [],
-  ); // 💡 Armazena a lista total
+  final ValueNotifier<List<Entregador>> todosEntregadores =
+      ValueNotifier<List<Entregador>>([]);
 
-  EntregadorController(this._repository);
+  // --- ESTADOS REATIVOS (USO DO MOBILE/APP) ---
+  final ValueNotifier<List<Entregador>> entregadoresAtivos = ValueNotifier([]);
+  final ValueNotifier<Set<Marker>> marcadores = ValueNotifier({});
 
-  Future<void> inicializarRadar(ColorScheme cs) async {
+  // 💡 Construtor com repositório opcional: o App usa, o Admin não.
+  EntregadorController([this._repository]);
+
+  // =========================================================================
+  // 🟢 MÉTODOS DE ADMINISTRAÇÃO WEB (CRUD NO FIRESTORE)
+  // =========================================================================
+
+  Future<void> carregarEntregadores() async {
     isLoading.value = true;
     try {
-      // 💡 Atenção: Certifique-se de que o método obterEntregadoresAtivos
-      // foi criado lá no seu FirestoreColetaRepository!
-      final lista = await _repository.obterEntregadoresAtivos();
+      final snapshot = await _db
+          .collection('usuarios')
+          .where(
+            'perfil',
+            isEqualTo: PerfilUsuario.entregadores.toFirestoreString,
+          )
+          .get();
+
+      todosEntregadores.value = snapshot.docs
+          .map((doc) => Entregador.fromFirestore(doc))
+          .toList();
+    } catch (e) {
+      debugPrint('Erro ao carregar entregadores: $e');
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  Future<bool> salvarEntregador(Entregador entregador) async {
+    isLoading.value = true;
+    try {
+      await _db.collection('usuarios').add(entregador.toMap());
+      await carregarEntregadores();
+      return true;
+    } catch (e) {
+      debugPrint('Erro ao salvar entregador: $e');
+      return false;
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  Future<bool> atualizarEntregador(String id, Entregador entregador) async {
+    isLoading.value = true;
+    try {
+      await _db.collection('usuarios').doc(id).update(entregador.toMap());
+      await carregarEntregadores();
+      return true;
+    } catch (e) {
+      debugPrint('Erro ao atualizar entregador: $e');
+      return false;
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  Future<bool> deletarEntregador(String id) async {
+    isLoading.value = true;
+    try {
+      await _db.collection('usuarios').doc(id).delete();
+      await carregarEntregadores();
+      return true;
+    } catch (e) {
+      debugPrint('Erro ao deletar entregador: $e');
+      return false;
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  // =========================================================================
+  // 🔵 MÉTODOS MOBILE / APP
+  // =========================================================================
+
+  Future<void> inicializarRadar(ColorScheme cs) async {
+    if (_repository == null) return;
+
+    isLoading.value = true;
+    try {
+      final lista = await _repository!.obterEntregadoresAtivos();
       entregadoresAtivos.value = lista;
       _atualizarMarcadores(lista, cs);
     } catch (e) {
@@ -40,17 +112,17 @@ class EntregadorController {
   void _atualizarMarcadores(List<Entregador> lista, ColorScheme cs) {
     marcadores.value = lista
         .map(
-          // 💡 É AQUI QUE O "e" NASCE! Ele representa 1 entregador da lista.
           (e) => Marker(
             markerId: MarkerId(
               e.id ?? DateTime.now().microsecondsSinceEpoch.toString(),
             ),
-            // position: e.localizacao,
             icon: BitmapDescriptor.defaultMarkerWithHue(
               _converterColorToHue(cs.tertiary),
             ),
-            // 💡 O INFO WINDOW FICA AQUI DENTRO DO MARKER!
-            infoWindow: InfoWindow(title: e.nome, snippet: e.veiculo),
+            infoWindow: InfoWindow(
+              title: e.nome,
+              snippet: e.veiculo?.modelo ?? 'Veículo não informado',
+            ),
           ),
         )
         .toSet();
@@ -60,26 +132,10 @@ class EntregadorController {
     return HSVColor.fromColor(color).hue;
   }
 
-  // 💡 O MÉTODO INJETADO AQUI!
-  void ouvirEntregadores() {
-    _db
-        .collection('usuarios')
-        .where(
-          'perfil',
-          isEqualTo: PerfilUsuario.entregadores.firebaseValue,
-        ) // 💡 Uso seguro do Enum
-        .snapshots()
-        .listen((snapshot) {
-          todosEntregadores.value = snapshot.docs
-              .map((doc) => Entregador.fromFirestore(doc))
-              .toList();
-        });
-  }
-
   void dispose() {
+    isLoading.dispose();
+    todosEntregadores.dispose();
     entregadoresAtivos.dispose();
     marcadores.dispose();
-    isLoading.dispose();
-    todosEntregadores.dispose(); // 💡 Descarte da nova variável
   }
 }

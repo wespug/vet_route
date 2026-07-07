@@ -12,7 +12,7 @@ import 'package:vet_route/screens/widgets/gestao_menus_hub.dart';
 import 'package:vet_route/screens/widgets/gestao_perfis_hub.dart';
 import 'package:vet_route/screens/widgets/gestao_submenus_hub.dart';
 import 'package:vet_route/screens/widgets/gestao_usuarios_hub.dart';
-import 'package:vet_route/screens/web/entregador_gestao_web.dart';
+import 'package:vet_route/screens/web/entregadores/entregadores_hub.dart'; // 💡 IMPORT NOVO AQUI!
 
 class AdminChassi extends StatelessWidget {
   final Widget conteudo;
@@ -123,7 +123,6 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
   // ROTEADOR DE TELAS ADMINISTRATIVAS WEB REAL
   static final Map<String, Widget Function()> _telasMapeadas = {
     'clinica_gestao': () {
-      // 💡 CORRIGIDO AQUI PARA BATER COM O SEU FIRESTORE
       debugPrint(
         "🚀 [ROTEADOR CHASSI] Injetando instância real de ClinicasHub()",
       );
@@ -135,7 +134,13 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
       );
       return const LaboratoriosHub();
     },
-    'entregador_gestao': () => EntregadorGestaoWeb(),
+    'entregador_gestao': () {
+      // 💡 CORRIGIDO AQUI PARA APONTAR PARA O NOVO HUB!
+      debugPrint(
+        "🚀 [ROTEADOR CHASSI] Injetando instância real de EntregadoresHub()",
+      );
+      return const EntregadoresHub();
+    },
     'gestao_perfis': () => const GestaoPerfisHub(),
     'gestao_menus': () => const GestaoMenusHub(),
     'gestao_submenus': () => const GestaoSubmenusHub(),

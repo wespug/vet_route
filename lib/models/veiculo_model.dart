@@ -1,13 +1,26 @@
-// lib/models/veiculo_model.dart
-
-// Criamos uma lista fechada de opções válidas para o sistema
-enum TipoVeiculo { moto, carro, uber, taxi, aviao }
-
 class Veiculo {
-  final TipoVeiculo tipo;
-  final String? placa; // Opcional, pois bicicleta não tem placa
-  final String? modelo; // Ex: Honda CG 160, Boeing 737...
-  final String? cor;
+  final String placa;
+  final String modelo;
+  final String cor;
+  final String tipo; // Ex: Moto, Carro, Van
 
-  Veiculo({required this.tipo, this.placa, this.modelo, this.cor});
+  Veiculo({
+    required this.placa,
+    required this.modelo,
+    required this.cor,
+    required this.tipo,
+  });
+
+  Map<String, dynamic> toMap() {
+    return {'placa': placa, 'modelo': modelo, 'cor': cor, 'tipo': tipo};
+  }
+
+  factory Veiculo.fromMap(Map<String, dynamic> map) {
+    return Veiculo(
+      placa: map['placa'] ?? '',
+      modelo: map['modelo'] ?? '',
+      cor: map['cor'] ?? '',
+      tipo: map['tipo'] ?? 'Moto',
+    );
+  }
 }
