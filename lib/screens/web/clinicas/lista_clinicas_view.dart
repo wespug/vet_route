@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:vet_route/models/clinica_model.dart';
+import 'package:vet_route/models/endereco_model.dart';
 import 'package:vet_route/controllers/clinica_controller.dart';
 import 'package:vet_route/repositories/firestore_coleta_repository.dart';
 
 class ListaClinicasView extends StatefulWidget {
-  final Function(Clinica) onClinicaSelected;
+  final ValueChanged<Clinica> onClinicaSelected;
 
   const ListaClinicasView({super.key, required this.onClinicaSelected});
 
@@ -28,15 +29,216 @@ class _ListaClinicasViewState extends State<ListaClinicasView> {
     super.dispose();
   }
 
-  void _abrirModalCadastro({Clinica? clinicaEdicao}) {
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                "Clínicas Parceiras 🏥",
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+              ElevatedButton.icon(
+                onPressed: () => _abrirModalFormulario(context),
+                icon: const Icon(Icons.add_business_rounded),
+                label: const Text(
+                  "Nova Clínica",
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 16,
+                  ),
+                  backgroundColor: Colors.teal,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+
+          Expanded(
+            child: ValueListenableBuilder<List<Clinica>>(
+              valueListenable: _clinicaController.todasClinicas,
+              builder: (context, listaClinicas, child) {
+                if (listaClinicas.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.domain_disabled_rounded,
+                          size: 64,
+                          color: Colors.grey.shade300,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          "Nenhuma clínica cadastrada ainda.",
+                          style: TextStyle(
+                            color: Colors.grey.shade500,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey.shade200),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: SingleChildScrollView(
+                    child: DataTable(
+                      headingRowColor: WidgetStateProperty.all(
+                        Colors.grey.shade50,
+                      ),
+                      columns: const [
+                        DataColumn(
+                          label: Text(
+                            'Clínica',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        DataColumn(
+                          label: Text(
+                            'CNPJ',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        DataColumn(
+                          label: Text(
+                            'Localização',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        DataColumn(
+                          label: Text(
+                            'Ações',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                      rows: listaClinicas
+                          .map((clinica) => _buildRowReal(clinica))
+                          .toList(),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  DataRow _buildRowReal(Clinica clinica) {
+    return DataRow(
+      cells: [
+        DataCell(
+          InkWell(
+            onTap: () => widget.onClinicaSelected(clinica),
+            borderRadius: BorderRadius.circular(4),
+            child: Padding(
+              padding: const EdgeInsets.all(4.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    clinica.nome,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.teal,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                  Text(
+                    clinica.email,
+                    style: const TextStyle(fontSize: 11, color: Colors.grey),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        DataCell(Text(clinica.cnpj.isNotEmpty ? clinica.cnpj : 'N/A')),
+        DataCell(
+          Text("${clinica.endereco.cidade} - ${clinica.endereco.estado}"),
+        ),
+        DataCell(
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.visibility_outlined, color: Colors.teal),
+                tooltip: "Acessar Painel",
+                onPressed: () => widget.onClinicaSelected(clinica),
+              ),
+              IconButton(
+                icon: const Icon(Icons.edit_note_rounded, color: Colors.blue),
+                tooltip: "Editar Cadastro",
+                onPressed: () =>
+                    _abrirModalFormulario(context, clinicaEdicao: clinica),
+              ),
+              IconButton(
+                icon: const Icon(
+                  Icons.delete_outline_rounded,
+                  color: Colors.redAccent,
+                ),
+                tooltip: "Remover Clínica",
+                onPressed: () => _confirmarExclusao(clinica),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _abrirModalFormulario(BuildContext context, {Clinica? clinicaEdicao}) {
     final bool isEdicao = clinicaEdicao != null;
-    final formKey = GlobalKey<FormState>();
 
     final nomeController = TextEditingController(
       text: clinicaEdicao?.nome ?? '',
     );
+    final cnpjController = TextEditingController(
+      text: clinicaEdicao?.cnpj ?? '',
+    );
     final emailController = TextEditingController(
       text: clinicaEdicao?.email ?? '',
+    );
+    final telefoneController = TextEditingController(
+      text: clinicaEdicao?.telefone ?? '',
+    );
+
+    final cepController = TextEditingController(
+      text: clinicaEdicao?.endereco.cep ?? '',
+    );
+    final ruaController = TextEditingController(
+      text: clinicaEdicao?.endereco.logradouro ?? '',
+    );
+    final numeroController = TextEditingController(
+      text: clinicaEdicao?.endereco.numero ?? '',
+    );
+    final cidadeController = TextEditingController(
+      text: clinicaEdicao?.endereco.cidade ?? '',
+    );
+    final estadoController = TextEditingController(
+      text: clinicaEdicao?.endereco.estado ?? '',
     );
 
     showDialog(
@@ -55,7 +257,7 @@ class _ListaClinicasViewState extends State<ListaClinicasView> {
                   Icon(
                     isEdicao
                         ? Icons.edit_note_rounded
-                        : Icons.add_business_rounded,
+                        : Icons.local_hospital_rounded,
                     color: Colors.teal,
                   ),
                   const SizedBox(width: 10),
@@ -63,32 +265,127 @@ class _ListaClinicasViewState extends State<ListaClinicasView> {
                 ],
               ),
               content: SizedBox(
-                width: 400,
-                child: Form(
-                  key: formKey,
+                width: 600,
+                child: SingleChildScrollView(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      TextFormField(
-                        controller: nomeController,
-                        decoration: const InputDecoration(
-                          labelText: "Nome da Clínica",
-                          prefixIcon: Icon(Icons.local_hospital_outlined),
+                      const Text(
+                        "Dados Principais",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.teal,
                         ),
-                        validator: (val) => val == null || val.isEmpty
-                            ? "Campo obrigatório"
-                            : null,
                       ),
-                      const SizedBox(height: 16),
-                      TextFormField(
-                        controller: emailController,
-                        decoration: const InputDecoration(
-                          labelText: "E-mail de Contato",
-                          prefixIcon: Icon(Icons.alternate_email),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: nomeController,
+                              decoration: const InputDecoration(
+                                labelText: "Razão Social / Nome",
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: TextField(
+                              controller: cnpjController,
+                              decoration: const InputDecoration(
+                                labelText: "CNPJ",
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: emailController,
+                              decoration: const InputDecoration(
+                                labelText: "E-mail de Contato",
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: TextField(
+                              controller: telefoneController,
+                              decoration: const InputDecoration(
+                                labelText: "Telefone",
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const Padding(
+                        padding: EdgeInsets.only(top: 24, bottom: 8),
+                        child: Text(
+                          "Localização",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.teal,
+                          ),
                         ),
-                        validator: (val) => val == null || val.isEmpty
-                            ? "Campo obrigatório"
-                            : null,
+                      ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: cepController,
+                              decoration: const InputDecoration(
+                                labelText: "CEP",
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            flex: 2,
+                            child: TextField(
+                              controller: cidadeController,
+                              decoration: const InputDecoration(
+                                labelText: "Cidade",
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: TextField(
+                              controller: estadoController,
+                              maxLength: 2,
+                              decoration: const InputDecoration(
+                                labelText: "Estado (UF)",
+                                counterText: "",
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      Row(
+                        children: [
+                          Expanded(
+                            flex: 3,
+                            child: TextField(
+                              controller: ruaController,
+                              decoration: const InputDecoration(
+                                labelText: "Rua / Avenida",
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: TextField(
+                              controller: numeroController,
+                              decoration: const InputDecoration(
+                                labelText: "Número",
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -106,40 +403,59 @@ class _ListaClinicasViewState extends State<ListaClinicasView> {
                   onPressed: isLoading
                       ? null
                       : () async {
-                          if (!formKey.currentState!.validate()) return;
+                          if (nomeController.text.isEmpty ||
+                              cnpjController.text.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text("Preencha Nome e CNPJ."),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                            return;
+                          }
 
-                          try {
-                            if (isEdicao) {
-                              await _clinicaController.editarClinica(
-                                clinicaEdicao
-                                    .id!, // 💡 GARANTIA DE NÃO-NULO AQUI
-                                nomeController.text.trim(),
-                                emailController.text.trim(),
-                              );
-                            } else {
-                              await _clinicaController.adicionarClinica(
-                                nomeController.text.trim(),
-                                emailController.text.trim(),
-                              );
-                            }
+                          final enderecoInstancia = Endereco(
+                            cep: cepController.text.trim(),
+                            logradouro: ruaController.text.trim(),
+                            numero: numeroController.text.trim(),
+                            bairro: clinicaEdicao?.endereco.bairro ?? '',
+                            cidade: cidadeController.text.trim(),
+                            estado: estadoController.text.trim().toUpperCase(),
+                          );
 
-                            if (context.mounted) {
-                              Navigator.pop(context);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text("Clínica salva com sucesso!"),
-                                  backgroundColor: Colors.green,
+                          final clinicaDados = Clinica(
+                            id: clinicaEdicao?.id,
+                            nome: nomeController.text.trim(),
+                            email: emailController.text.trim(),
+                            telefone: telefoneController.text.trim(),
+                            cnpj: cnpjController.text.trim(),
+                            endereco: enderecoInstancia,
+                          );
+
+                          bool sucesso = false;
+                          if (isEdicao && clinicaEdicao?.id != null) {
+                            sucesso = await _clinicaController.atualizarClinica(
+                              clinicaEdicao!.id!,
+                              clinicaDados,
+                            );
+                          } else {
+                            sucesso = await _clinicaController.salvarClinica(
+                              clinicaDados,
+                            );
+                          }
+
+                          if (sucesso && context.mounted) {
+                            Navigator.pop(context);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  isEdicao
+                                      ? "Dados atualizados!"
+                                      : "Clínica vinculada!",
                                 ),
-                              );
-                            }
-                          } catch (e) {
-                            if (context.mounted)
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text("Erro: $e"),
-                                  backgroundColor: Colors.red,
-                                ),
-                              );
+                                backgroundColor: Colors.green,
+                              ),
+                            );
                           }
                         },
                   icon: isLoading
@@ -151,8 +467,17 @@ class _ListaClinicasViewState extends State<ListaClinicasView> {
                             strokeWidth: 2,
                           ),
                         )
-                      : const Icon(Icons.save_rounded, size: 18),
-                  label: Text(isLoading ? "Salvando..." : "Salvar"),
+                      : Icon(
+                          isEdicao
+                              ? Icons.check_circle_outline
+                              : Icons.save_rounded,
+                          size: 18,
+                        ),
+                  label: Text(
+                    isLoading
+                        ? "Processando..."
+                        : (isEdicao ? "Atualizar" : "Salvar"),
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.teal,
                     foregroundColor: Colors.white,
@@ -192,226 +517,24 @@ class _ListaClinicasViewState extends State<ListaClinicasView> {
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.redAccent,
-                foregroundColor: Colors.white,
               ),
               onPressed: () async {
                 Navigator.pop(context);
-                try {
-                  await _clinicaController.excluirClinica(
-                    clinica.id!,
-                  ); // 💡 GARANTIA DE NÃO-NULO AQUI
-                  if (context.mounted)
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text("Clínica removida com sucesso."),
-                        backgroundColor: Colors.blueGrey,
-                      ),
-                    );
-                } catch (e) {
-                  if (context.mounted)
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text("Erro: $e"),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
+                if (clinica.id != null) {
+                  await _clinicaController.deletarClinica(clinica.id!);
                 }
               },
               child: const Text(
                 "Excluir Definitivamente",
-                style: TextStyle(fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ],
         );
       },
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    "Gestão de Clínicas 🏥",
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    "Gerencie as clínicas parceiras e acesse seus painéis individuais.",
-                    style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
-                  ),
-                ],
-              ),
-              ElevatedButton.icon(
-                onPressed: () => _abrirModalCadastro(),
-                icon: const Icon(Icons.add_business_rounded),
-                label: const Text(
-                  "Nova Clínica",
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 16,
-                  ),
-                  backgroundColor: Colors.teal,
-                  foregroundColor: Colors.white,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 32),
-
-          Expanded(
-            child: ListenableBuilder(
-              listenable: Listenable.merge([
-                _clinicaController.todasClinicas,
-                _clinicaController.isLoading,
-              ]),
-              builder: (context, child) {
-                if (_clinicaController.isLoading.value &&
-                    _clinicaController.todasClinicas.value.isEmpty) {
-                  return const Center(
-                    child: CircularProgressIndicator(color: Colors.teal),
-                  );
-                }
-
-                if (_clinicaController.todasClinicas.value.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.domain_disabled_rounded,
-                          size: 64,
-                          color: Colors.grey.shade300,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          "Nenhuma clínica cadastrada no banco de dados.",
-                          style: TextStyle(
-                            color: Colors.grey.shade500,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-
-                return Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    border: Border.all(color: Colors.grey.shade200),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: SingleChildScrollView(
-                    child: DataTable(
-                      headingRowColor: WidgetStateProperty.all(
-                        Colors.grey.shade50,
-                      ),
-                      columns: const [
-                        DataColumn(
-                          label: Text(
-                            'Nome da Clínica',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                        DataColumn(
-                          label: Text(
-                            'E-mail de Contato',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                        DataColumn(
-                          label: Text(
-                            'Ações',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                      ],
-                      rows: _clinicaController.todasClinicas.value.map((
-                        clinica,
-                      ) {
-                        return DataRow(
-                          cells: [
-                            DataCell(
-                              Text(
-                                clinica.nome,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.teal,
-                                ),
-                              ),
-                            ),
-                            DataCell(Text(clinica.email)),
-                            DataCell(
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  ElevatedButton.icon(
-                                    icon: const Icon(
-                                      Icons.login_rounded,
-                                      size: 16,
-                                    ),
-                                    label: const Text("Acessar Painel"),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.teal.shade50,
-                                      foregroundColor: Colors.teal.shade700,
-                                      elevation: 0,
-                                    ),
-                                    onPressed: () =>
-                                        widget.onClinicaSelected(clinica),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.edit_note_rounded,
-                                      color: Colors.blue,
-                                    ),
-                                    tooltip: "Editar Cadastro",
-                                    onPressed: () => _abrirModalCadastro(
-                                      clinicaEdicao: clinica,
-                                    ),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.delete_outline_rounded,
-                                      color: Colors.redAccent,
-                                    ),
-                                    tooltip: "Excluir Clínica",
-                                    onPressed: () =>
-                                        _confirmarExclusao(clinica),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        );
-                      }).toList(),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

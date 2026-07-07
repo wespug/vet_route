@@ -36,32 +36,10 @@ class ClinicaController {
     isLoading.value = true;
     try {
       final snapshot = await _db.collection('clinicas').get();
-      todasClinicas.value = snapshot.docs.map<Clinica>((doc) {
-        final data = doc.data();
-        return Clinica(
-          id: doc.id,
-          nome: data['nome'] ?? 'Sem nome',
-          email: data['email'] ?? 'Sem e-mail',
-          telefone: data['telefone'] ?? 'Sem telefone',
-          cnpj: data['cnpj'] ?? '00.000.000/0000-00',
-          // 💡 ALINHADO PERFEITAMENTE: Mapeamento usando o construtor real de Endereco
-          endereco: Endereco(
-            cep: data['cep'] ?? '',
-            logradouro: data['logradouro'] ?? 'A definir',
-            numero: data['numero'] ?? '',
-            complemento: data['complemento'] ?? '',
-            bairro: data['bairro'] ?? '',
-            cidade: data['cidade'] ?? '',
-            estado: data['estado'] ?? '',
-            latitude: data['latitude'] != null
-                ? (data['latitude'] as num).toDouble()
-                : null,
-            longitude: data['longitude'] != null
-                ? (data['longitude'] as num).toDouble()
-                : null,
-          ),
-        );
-      }).toList();
+      // 💡 OLHA A MÁGICA: O seu modelo faz todo o trabalho sujo!
+      todasClinicas.value = snapshot.docs
+          .map((doc) => Clinica.fromFirestore(doc))
+          .toList();
     } catch (e) {
       debugPrint('Erro ao carregar clínicas: $e');
     } finally {
@@ -69,57 +47,44 @@ class ClinicaController {
     }
   }
 
-  Future<void> adicionarClinica(String nome, String email) async {
+  Future<bool> salvarClinica(Clinica clinica) async {
     isLoading.value = true;
     try {
-      await _db.collection('clinicas').add({
-        'nome': nome,
-        'email': email,
-        'telefone': '',
-        'cnpj': '',
-        'cep': '',
-        'logradouro': '',
-        'numero': '',
-        'complemento': '',
-        'bairro': '',
-        'cidade': '',
-        'estado': '',
-        'ativo': true,
-        'dataCriacao': FieldValue.serverTimestamp(),
-      });
+      // 💡 Delegação perfeita: a Controller só chama o toMap() do seu Modelo
+      await _db.collection('clinicas').add(clinica.toMap());
       await carregarClinicas();
+      return true;
     } catch (e) {
       debugPrint('Erro ao adicionar clínica: $e');
-      rethrow;
+      return false;
     } finally {
       isLoading.value = false;
     }
   }
 
-  Future<void> editarClinica(String id, String nome, String email) async {
+  Future<bool> atualizarClinica(String id, Clinica clinica) async {
     isLoading.value = true;
     try {
-      await _db.collection('clinicas').doc(id).update({
-        'nome': nome,
-        'email': email,
-      });
+      await _db.collection('clinicas').doc(id).update(clinica.toMap());
       await carregarClinicas();
+      return true;
     } catch (e) {
       debugPrint('Erro ao editar clínica: $e');
-      rethrow;
+      return false;
     } finally {
       isLoading.value = false;
     }
   }
 
-  Future<void> excluirClinica(String id) async {
+  Future<bool> deletarClinica(String id) async {
     isLoading.value = true;
     try {
       await _db.collection('clinicas').doc(id).delete();
       await carregarClinicas();
+      return true;
     } catch (e) {
       debugPrint('Erro ao excluir clínica: $e');
-      rethrow;
+      return false;
     } finally {
       isLoading.value = false;
     }

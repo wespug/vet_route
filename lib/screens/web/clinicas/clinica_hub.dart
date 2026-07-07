@@ -3,8 +3,10 @@ import 'package:vet_route/controllers/permissoes_controller.dart';
 import 'package:vet_route/screens/widgets/generic_tab_hub.dart';
 import 'package:vet_route/models/clinica_model.dart';
 
-// 💡 IMPORTS BLINDADOS: Apontando para a View Real!
+// 💡 IMPORTS BLINDADOS: Apontando exclusivamente para as duas visões definitivas do fluxo Mestre-Detalhe!
 import 'package:vet_route/screens/web/clinicas/lista_clinicas_view.dart';
+
+// TODO: Importar as futuras telas do módulo de clínicas quando forem criadas
 // import 'package:vet_route/screens/web/clinicas/clinica_dashboard_view.dart';
 // import 'package:vet_route/screens/web/clinicas/usuarios_clinica_view.dart';
 
@@ -16,23 +18,30 @@ class ClinicasHub extends StatefulWidget {
 }
 
 class _ClinicasHubState extends State<ClinicasHub> {
+  // Coordenador de estado da UX Mestre-Detalhe
   Clinica? _clinicaSelecionada;
 
+  // 💡 CENTRALIZADOR DE COMPONENTES DO SUBMENU
+  // Vincula milimetricamente as chaves cadastradas no seu Firestore com a View real correspondente
   Widget _resolverConteudoDaAba(String rotaSubmenu) {
     switch (rotaSubmenu) {
       case 'clinica_dashboard':
         return _buildPlaceholder(
-          'Dashboard da Clínica em desenvolvimento 📊',
-          Icons.analytics_outlined,
+          'Painel de Controle da Clínica em desenvolvimento 🚧',
+          Icons.dashboard_customize_rounded,
         );
+      // return const ClinicaDashboardView(); // Descomente quando criar a tela
+
       case 'clinica_adicionar_usuario':
         return _buildPlaceholder(
-          'Gestão de Operadores da Clínica em desenvolvimento 👥',
-          Icons.people_alt_outlined,
+          'Gestão de Usuários da Clínica em desenvolvimento 🚧',
+          Icons.people_alt_rounded,
         );
+      // return UsuariosClinicaView(clinicaContexto: _clinicaSelecionada!); // Descomente quando criar a tela
+
       default:
         return _buildPlaceholder(
-          'Funcionalidade ($rotaSubmenu) configurada, mas em desenvolvimento 🚧',
+          'Funcionalidade ($rotaSubmenu) configurada na gestão, mas em desenvolvimento 🚧',
           Icons.construction_rounded,
         );
     }
@@ -61,7 +70,7 @@ class _ClinicasHubState extends State<ClinicasHub> {
 
   @override
   Widget build(BuildContext context) {
-    // 📊 CENÁRIO 1: NENHUMA CLÍNICA SELECIONADA -> EXIBE A LISTA REAL!
+    // 📊 CENÁRIO 1: NENHUMA CLÍNICA SELECIONADA -> EXIBE A TABELA MASTER GLOBAL
     if (_clinicaSelecionada == null) {
       return ListaClinicasView(
         onClinicaSelected: (clinica) {
@@ -72,20 +81,25 @@ class _ClinicasHubState extends State<ClinicasHub> {
       );
     }
 
-    // 🏥 CENÁRIO 2: CLÍNICA ATIVA -> MONTA O PRODUTO SAAS
+    // 🏥 CENÁRIO 2: CLÍNICA ATIVA -> MONTA O PRODUTO SAAS DINÂMICO BASEADO EM DADOS
     return ListenableBuilder(
       listenable: permissoesGlobais,
       builder: (context, child) {
+        // Encontra o Menu Mestre de Clínicas para isolar seus submenus
         final menusFiltrados = permissoesGlobais.menusPermitidos.where(
-          (m) => m.rota == 'clinica_gestao',
+          (m) => m.rota == 'clinica_gestao', // 💡 CORRIGIDO AQUI TAMBÉM!
         );
-        if (menusFiltrados.isEmpty)
+
+        if (menusFiltrados.isEmpty) {
           return const Center(
             child: CircularProgressIndicator(color: Colors.teal),
           );
+        }
 
         final menuPai = menusFiltrados.first;
         final submenus = permissoesGlobais.getSubmenusDoMenu(menuPai.id);
+
+        // Filtro arquitetural: Remove a listagem geral dos submenus superiores (pois já passamos por ela)
         final submenusFiltrados = submenus
             .where((s) => s.rota != 'lista_clinicas_aba')
             .toList();
@@ -100,7 +114,7 @@ class _ClinicasHubState extends State<ClinicasHub> {
                 const SizedBox(height: 40),
                 const Center(
                   child: Text(
-                    "Nenhum submenu configurado para este módulo no Firestore.",
+                    "Nenhum submenu ou aba complementar configurada para este módulo no Firestore.",
                     style: TextStyle(color: Colors.grey, fontSize: 14),
                   ),
                 ),
@@ -109,7 +123,10 @@ class _ClinicasHubState extends State<ClinicasHub> {
           );
         }
 
+        // Aplica a ordenação por peso definida na Gestão de Menus
         submenusFiltrados.sort((a, b) => a.peso.compareTo(b.peso));
+
+        // Converte os dados reais em abas injetáveis para o nosso componente mestre genérico
         final abasDinamicas = submenusFiltrados.map((submenu) {
           return TabItemModel(
             titulo: submenu.titulo,
@@ -120,8 +137,11 @@ class _ClinicasHubState extends State<ClinicasHub> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Barra de Navegação Contextual Sênior (Breadcrumb)
             _buildBarraTopoBreadcrumb(),
             const SizedBox(height: 16),
+
+            // 🚀 EXECUTANDO O SEU COMPONENTE REUTILIZÁVEL MESTRE COM AS VIEWS CORRETAS INSCRITAS!
             Expanded(child: GenericTabHub(abas: abasDinamicas)),
           ],
         );
@@ -129,6 +149,7 @@ class _ClinicasHubState extends State<ClinicasHub> {
     );
   }
 
+  // 💡 Componente Visual Breadcrumb para Destravar e Voltar o Contexto Mestre
   Widget _buildBarraTopoBreadcrumb() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -143,7 +164,7 @@ class _ClinicasHubState extends State<ClinicasHub> {
           Row(
             children: [
               const Icon(
-                Icons.local_hospital_rounded,
+                Icons.local_hospital_outlined,
                 color: Colors.grey,
                 size: 20,
               ),
@@ -175,7 +196,12 @@ class _ClinicasHubState extends State<ClinicasHub> {
             ],
           ),
           TextButton.icon(
-            onPressed: () => setState(() => _clinicaSelecionada = null),
+            onPressed: () {
+              setState(() {
+                _clinicaSelecionada =
+                    null; // Reseta o estado e o chassi força o retorno à listagem
+              });
+            },
             icon: const Icon(Icons.arrow_back_rounded, size: 16),
             label: const Text(
               "Voltar para Lista",

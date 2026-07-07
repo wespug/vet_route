@@ -56,6 +56,7 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
 
   Future<void> _carregarDadosUsuario() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
+    debugPrint("🔍 [DEBUG CHASSI] UID do usuário atual logado: $uid");
     if (uid != null) {
       try {
         final doc = await FirebaseFirestore.instance
@@ -69,11 +70,24 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
           });
 
           final perfilId = doc.data()?['perfilId'];
+          debugPrint(
+            "🔍 [DEBUG CHASSI] Documento encontrado! PerfilId vinculado no Firestore: $perfilId",
+          );
           if (perfilId != null) {
             await permissoesGlobais.inicializarParaUsuario(perfilId);
+            debugPrint(
+              "🔍 [DEBUG CHASSI] Menus permitidos carregados da lista: ${permissoesGlobais.menusPermitidos.map((m) => m.rota).toList()}",
+            );
           }
+        } else {
+          debugPrint(
+            "⚠️ [DEBUG CHASSI] Documento do usuário não existe na coleção 'usuarios' para o UID $uid",
+          );
         }
       } catch (e) {
+        debugPrint(
+          "❌ [DEBUG CHASSI] Falha crítica ao ler dados do usuário ou carregar permissões: $e",
+        );
         if (mounted) {
           setState(() {
             _nomeUsuarioLogado = "Administrador";
@@ -82,6 +96,10 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
           });
         }
       }
+    } else {
+      debugPrint(
+        "⚠️ [DEBUG CHASSI] Nenhum usuário retornado pelo FirebaseAuth.instance.currentUser",
+      );
     }
   }
 
@@ -104,8 +122,19 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
 
   // ROTEADOR DE TELAS ADMINISTRATIVAS WEB REAL
   static final Map<String, Widget Function()> _telasMapeadas = {
-    'lista_clinica': () => const ClinicasHub(),
-    'lista_laboratorios': () => const LaboratoriosHub(),
+    'clinica_gestao': () {
+      // 💡 CORRIGIDO AQUI PARA BATER COM O SEU FIRESTORE
+      debugPrint(
+        "🚀 [ROTEADOR CHASSI] Injetando instância real de ClinicasHub()",
+      );
+      return const ClinicasHub();
+    },
+    'lista_laboratorios': () {
+      debugPrint(
+        "🚀 [ROTEADOR CHASSI] Injetando instância real de LaboratoriosHub()",
+      );
+      return const LaboratoriosHub();
+    },
     'entregador_gestao': () => EntregadorGestaoWeb(),
     'gestao_perfis': () => const GestaoPerfisHub(),
     'gestao_menus': () => const GestaoMenusHub(),
@@ -196,7 +225,7 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
                 padding: const EdgeInsets.all(12),
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.2),
+                  color: Colors.black.withAlpha(51),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: Colors.white10),
                 ),
@@ -258,7 +287,7 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
                 return const Padding(
                   padding: EdgeInsets.all(20.0),
                   child: Text(
-                    "A carregar permissões...",
+                    "Nenhum menu liberado para o seu perfil no Firestore.",
                     style: TextStyle(color: Colors.white54, fontSize: 12),
                     textAlign: TextAlign.center,
                   ),
@@ -400,7 +429,10 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
     String titulo,
     String chaveRota,
   ) {
-    debugPrint("Analisando rota cental para chave: $chaveRota");
+    debugPrint(
+      "🚨 [DEBUG NAVEGAÇÃO] Clique detectado! Título: '$titulo' | Chave da Rota vinda do menu: '$chaveRota'",
+    );
+
     final construtoraTela = _telasMapeadas[chaveRota];
 
     final Widget telaDestino = construtoraTela != null
@@ -411,6 +443,16 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
               style: const TextStyle(fontSize: 18, color: Colors.grey),
             ),
           );
+
+    if (construtoraTela == null) {
+      debugPrint(
+        "⚠️ [DEBUG NAVEGAÇÃO] A chave '$chaveRota' NÃO foi mapeada no mapa _telasMapeadas do Chassi!",
+      );
+    } else {
+      debugPrint(
+        "🎯 [DEBUG NAVEGAÇÃO] Redirecionando com sucesso para a view de '$chaveRota'",
+      );
+    }
 
     setState(() {
       _tituloAtual = titulo;
