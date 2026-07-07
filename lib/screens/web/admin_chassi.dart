@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:vet_route/l10n/app_localizations.dart';
+import 'package:vet_route/screens/web/clinicas/clinica_hub.dart';
 import 'package:vet_route/screens/web/laboratorios/laboratorio_hub.dart';
 import 'package:vet_route/services/auth_service.dart';
 import 'package:vet_route/controllers/permissoes_controller.dart';
@@ -12,7 +13,6 @@ import 'package:vet_route/screens/widgets/gestao_perfis_hub.dart';
 import 'package:vet_route/screens/widgets/gestao_submenus_hub.dart';
 import 'package:vet_route/screens/widgets/gestao_usuarios_hub.dart';
 import 'package:vet_route/screens/web/entregador_gestao_web.dart';
-import 'package:vet_route/screens/web/clinica_gestao_web.dart';
 
 class AdminChassi extends StatelessWidget {
   final Widget conteudo;
@@ -104,9 +104,8 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
 
   // ROTEADOR DE TELAS ADMINISTRATIVAS WEB REAL
   static final Map<String, Widget Function()> _telasMapeadas = {
-    'clinica_gestao': () => ClinicaGestaoWeb(),
-    'lista_laboratorios': () =>
-        const LaboratoriosHub(), // 💡 AGORA APONTA DIRETAMENTE PARA O NOSSO HUB DINÂMICO
+    'lista_clinica': () => const ClinicasHub(),
+    'lista_laboratorios': () => const LaboratoriosHub(),
     'entregador_gestao': () => EntregadorGestaoWeb(),
     'gestao_perfis': () => const GestaoPerfisHub(),
     'gestao_menus': () => const GestaoMenusHub(),
