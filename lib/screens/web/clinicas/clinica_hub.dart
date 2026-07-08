@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:vet_route/controllers/permissoes_controller.dart';
-import 'package:vet_route/screens/web/clinicas/clinica_usuario_view.dart';
 import 'package:vet_route/screens/widgets/generic_tab_hub.dart';
 import 'package:vet_route/models/clinica_model.dart';
 import 'package:vet_route/screens/web/clinicas/lista_clinicas_view.dart';
 import 'package:vet_route/screens/web/clinicas/clinica_dashboard_view.dart';
+import 'package:vet_route/screens/web/clinicas/clinica_usuario_view.dart';
 
 class ClinicasHub extends StatefulWidget {
   const ClinicasHub({super.key});
@@ -15,6 +17,61 @@ class ClinicasHub extends StatefulWidget {
 
 class _ClinicasHubState extends State<ClinicasHub> {
   Clinica? _clinicaSelecionada;
+  bool _isLoading = true; // 🔒 Bloqueia a tela até verificarmos a identidade
+  bool _isUsuarioRestrito = false; // 🔒 Esconde o botão de voltar
+
+  @override
+  void initState() {
+    super.initState();
+    _verificarVinculoUsuario();
+  }
+
+  // 🛡️ CATRACA DE SEGURANÇA MULTI-TENANT
+  Future<void> _verificarVinculoUsuario() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      // 1. Busca o usuário logado
+      final userDoc = await FirebaseFirestore.instance
+          .collection('usuarios')
+          .doc(user.uid)
+          .get();
+
+      final userData = userDoc.data();
+
+      // 2. Verifica se ele tem um Vínculo Corporativo (vinculoId)
+      if (userData != null &&
+          userData.containsKey('vinculoId') &&
+          userData['vinculoId'] != null &&
+          userData['vinculoId'].toString().isNotEmpty) {
+        final vinculoId = userData['vinculoId'];
+
+        // 3. Busca os dados reais da Clínica vinculada
+        final clinicaDoc = await FirebaseFirestore.instance
+            .collection('clinicas')
+            .doc(vinculoId)
+            .get();
+
+        if (clinicaDoc.exists) {
+          setState(() {
+            // Injeta a clínica no estado usando o seu Model perfeito
+            _clinicaSelecionada = Clinica.fromFirestore(clinicaDoc);
+            _isUsuarioRestrito = true; // Trava o operador na clínica dele
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint("Erro de Segurança ao verificar vínculo: $e");
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
 
   Widget _resolverConteudoDaAba(String rotaSubmenu) {
     switch (rotaSubmenu) {
@@ -24,8 +81,7 @@ class _ClinicasHubState extends State<ClinicasHub> {
       case 'clinica_adicionar_usuario':
         return UsuariosClinicaView(
           clinicaContexto: _clinicaSelecionada!,
-          chavePermissao:
-              'clinica_gestao', // 💡 AQUI ESTÁ A CORREÇÃO! A chave foi injetada!
+          chavePermissao: 'clinica_gestao',
         );
 
       default:
@@ -59,6 +115,12 @@ class _ClinicasHubState extends State<ClinicasHub> {
 
   @override
   Widget build(BuildContext context) {
+    // ⏳ Aguarda a verificação de segurança antes de desenhar qualquer coisa
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator(color: Colors.teal));
+    }
+
+    // 📊 NENHUMA CLÍNICA SELECIONADA (Apenas Administradores Globais verão isso)
     if (_clinicaSelecionada == null) {
       return ListaClinicasView(
         onClinicaSelected: (clinica) {
@@ -69,6 +131,7 @@ class _ClinicasHubState extends State<ClinicasHub> {
       );
     }
 
+    // 🏥 CLÍNICA ATIVA (Visão do Operador ou Admin na tela de detalhes)
     return ListenableBuilder(
       listenable: permissoesGlobais,
       builder: (context, child) {
@@ -174,19 +237,21 @@ class _ClinicasHubState extends State<ClinicasHub> {
               ),
             ],
           ),
-          TextButton.icon(
-            onPressed: () {
-              setState(() {
-                _clinicaSelecionada = null;
-              });
-            },
-            icon: const Icon(Icons.arrow_back_rounded, size: 16),
-            label: const Text(
-              "Voltar para Lista",
-              style: TextStyle(fontWeight: FontWeight.bold),
+          // 🔒 Se o usuário for restrito, arrancamos o botão de "Voltar"!
+          if (!_isUsuarioRestrito)
+            TextButton.icon(
+              onPressed: () {
+                setState(() {
+                  _clinicaSelecionada = null;
+                });
+              },
+              icon: const Icon(Icons.arrow_back_rounded, size: 16),
+              label: const Text(
+                "Voltar para Lista",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              style: TextButton.styleFrom(foregroundColor: Colors.teal),
             ),
-            style: TextButton.styleFrom(foregroundColor: Colors.teal),
-          ),
         ],
       ),
     );

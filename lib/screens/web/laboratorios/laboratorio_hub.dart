@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:vet_route/controllers/permissoes_controller.dart';
 import 'package:vet_route/screens/web/laboratorios/usu%C3%A1rios_lab_view.dart';
 import 'package:vet_route/screens/widgets/generic_tab_hub.dart';
 import 'package:vet_route/models/laboratorio_model.dart';
-
-// 💡 IMPORTS BLINDADOS: Apontando exclusivamente para as duas visões definitivas do fluxo Mestre-Detalhe!
 import 'package:vet_route/screens/web/laboratorios/lista_laboratorio_view.dart';
-
-// Telas adicionais do módulo
 import 'package:vet_route/screens/web/laboratorios/lab_dashboard_view.dart';
 
 class LaboratoriosHub extends StatefulWidget {
@@ -18,22 +16,72 @@ class LaboratoriosHub extends StatefulWidget {
 }
 
 class _LaboratoriosHubState extends State<LaboratoriosHub> {
-  // Coordenador de estado da UX Mestre-Detalhe
   Laboratorio? _labSelecionado;
+  bool _isLoading = true; // 🔒 Bloqueia o vazamento de dados na inicialização
+  bool _isUsuarioRestrito = false; // 🔒 Controla a exibição do botão voltar
 
-  // 💡 CENTRALIZADOR DE COMPONENTES DO SUBMENU
-  // Vincula milimetricamente as chaves cadastradas no seu Firestore com a View real correspondente
+  @override
+  void initState() {
+    super.initState();
+    _verificarVinculoUsuario();
+  }
+
+  // 🛡️ CATRACA DE SEGURANÇA MULTI-TENANT PARA LABORATÓRIOS
+  Future<void> _verificarVinculoUsuario() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      // 1. Busca o perfil do usuário logado diretamente na fonte
+      final userDoc = await FirebaseFirestore.instance
+          .collection('usuarios')
+          .doc(user.uid)
+          .get();
+
+      final userData = userDoc.data();
+
+      // 2. Verifica se ele possui um vínculo com algum Laboratório
+      if (userData != null &&
+          userData.containsKey('vinculoId') &&
+          userData['vinculoId'] != null &&
+          userData['vinculoId'].toString().isNotEmpty) {
+        final vinculoId = userData['vinculoId'];
+
+        // 3. Busca na nuvem as informações reais deste laboratório específico
+        final laboratorioDoc = await FirebaseFirestore.instance
+            .collection('laboratorios')
+            .doc(vinculoId)
+            .get();
+
+        if (laboratorioDoc.exists) {
+          setState(() {
+            // Injeta o laboratório diretamente no chassi da view usando o fromFirestore do modelo
+            _labSelecionado = Laboratorio.fromFirestore(laboratorioDoc);
+            _isUsuarioRestrito = true; // Isola o operador impedindo bypass
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint("Erro Crítico de Segurança no Hub de Labs: $e");
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
   Widget _resolverConteudoDaAba(String rotaSubmenu) {
     switch (rotaSubmenu) {
       case 'lab_dashboard':
         return const LabDashboardView();
 
       case 'lab_adicionar_usuario':
-        // 🟢 INJEÇÃO CRUCIAL E CORRETA: Agora chama a UsuariosLabView passando a chave de permissão
         return UsuariosLabView(
           labContexto: _labSelecionado!,
-          chavePermissao:
-              'lista_laboratorios', // 💡 AQUI ESTÁ A CORREÇÃO! A chave foi injetada!
+          chavePermissao: 'lista_laboratorios',
         );
 
       default:
@@ -67,7 +115,14 @@ class _LaboratoriosHubState extends State<LaboratoriosHub> {
 
   @override
   Widget build(BuildContext context) {
-    // 📊 CENÁRIO 1: NENHUM LABORATÓRIO SELECIONADO -> EXIBE A TABELA MASTER GLOBAL
+    // ⏳ Trava de renderização enquanto o banco de dados responde
+    if (_isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(color: Colors.indigo),
+      );
+    }
+
+    // 📊 NENHUM LABORATÓRIO SELECIONADO (Apenas Admins Globais chegam aqui)
     if (_labSelecionado == null) {
       return ListaLaboratoriosView(
         onLabSelected: (lab) {
@@ -78,11 +133,10 @@ class _LaboratoriosHubState extends State<LaboratoriosHub> {
       );
     }
 
-    // 🔬 CENÁRIO 2: LABORATÓRIO ATIVO -> MONTA O PRODUTO SAAS DINÂMICO BASEADO EM DADOS
+    // 🔬 LABORATÓRIO ATIVO (Visão corporativa filtrada na nuvem)
     return ListenableBuilder(
       listenable: permissoesGlobais,
       builder: (context, child) {
-        // Encontra o Menu Mestre de Laboratórios para isolar seus submenus
         final menusFiltrados = permissoesGlobais.menusPermitidos.where(
           (m) => m.rota == 'lista_laboratorios',
         );
@@ -96,7 +150,6 @@ class _LaboratoriosHubState extends State<LaboratoriosHub> {
         final menuPai = menusFiltrados.first;
         final submenus = permissoesGlobais.getSubmenusDoMenu(menuPai.id);
 
-        // Filtro arquitetural: Remove a listagem geral dos submenus superiores (pois já passamos por ela)
         final submenusFiltrados = submenus
             .where((s) => s.rota != 'lista_laboratorios_aba')
             .toList();
@@ -120,10 +173,8 @@ class _LaboratoriosHubState extends State<LaboratoriosHub> {
           );
         }
 
-        // Aplica a ordenação por peso definida na Gestão de Menus
         submenusFiltrados.sort((a, b) => a.peso.compareTo(b.peso));
 
-        // Converte os dados reais em abas injetáveis para o nosso componente mestre genérico
         final abasDinamicas = submenusFiltrados.map((submenu) {
           return TabItemModel(
             titulo: submenu.titulo,
@@ -134,11 +185,8 @@ class _LaboratoriosHubState extends State<LaboratoriosHub> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Barra de Navegação Contextual Sênior (Breadcrumb)
             _buildBarraTopoBreadcrumb(),
             const SizedBox(height: 16),
-
-            // 🚀 EXECUTANDO O SEU COMPONENTE REUTILIZÁVEL MESTRE COM AS VIEWS CORRETAS INSCRITAS!
             Expanded(child: GenericTabHub(abas: abasDinamicas)),
           ],
         );
@@ -146,7 +194,6 @@ class _LaboratoriosHubState extends State<LaboratoriosHub> {
     );
   }
 
-  // 💡 Componente Visual Breadcrumb para Destravar e Voltar o Contexto Mestre
   Widget _buildBarraTopoBreadcrumb() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -188,20 +235,21 @@ class _LaboratoriosHubState extends State<LaboratoriosHub> {
               ),
             ],
           ),
-          TextButton.icon(
-            onPressed: () {
-              setState(() {
-                _labSelecionado =
-                    null; // Reseta o estado e o chassi força o retorno à listagem
-              });
-            },
-            icon: const Icon(Icons.arrow_back_rounded, size: 16),
-            label: const Text(
-              "Voltar para Lista",
-              style: TextStyle(fontWeight: FontWeight.bold),
+          // 🔒 Se for operador vinculado, removemos o controle de fuga para a listagem master global
+          if (!_isUsuarioRestrito)
+            TextButton.icon(
+              onPressed: () {
+                setState(() {
+                  _labSelecionado = null;
+                });
+              },
+              icon: const Icon(Icons.arrow_back_rounded, size: 16),
+              label: const Text(
+                "Voltar para Lista",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              style: TextButton.styleFrom(foregroundColor: Colors.indigo),
             ),
-            style: TextButton.styleFrom(foregroundColor: Colors.indigo),
-          ),
         ],
       ),
     );
