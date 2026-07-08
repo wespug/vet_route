@@ -17,8 +17,8 @@ class ClinicasHub extends StatefulWidget {
 
 class _ClinicasHubState extends State<ClinicasHub> {
   Clinica? _clinicaSelecionada;
-  bool _isLoading = true; // 🔒 Bloqueia a tela até verificarmos a identidade
-  bool _isUsuarioRestrito = false; // 🔒 Esconde o botão de voltar
+  bool _isLoading = true;
+  bool _isUsuarioRestrito = false;
 
   @override
   void initState() {
@@ -26,7 +26,6 @@ class _ClinicasHubState extends State<ClinicasHub> {
     _verificarVinculoUsuario();
   }
 
-  // 🛡️ CATRACA DE SEGURANÇA MULTI-TENANT
   Future<void> _verificarVinculoUsuario() async {
     try {
       final user = FirebaseAuth.instance.currentUser;
@@ -35,7 +34,6 @@ class _ClinicasHubState extends State<ClinicasHub> {
         return;
       }
 
-      // 1. Busca o usuário logado
       final userDoc = await FirebaseFirestore.instance
           .collection('usuarios')
           .doc(user.uid)
@@ -43,14 +41,12 @@ class _ClinicasHubState extends State<ClinicasHub> {
 
       final userData = userDoc.data();
 
-      // 2. Verifica se ele tem um Vínculo Corporativo (vinculoId)
       if (userData != null &&
           userData.containsKey('vinculoId') &&
           userData['vinculoId'] != null &&
           userData['vinculoId'].toString().isNotEmpty) {
         final vinculoId = userData['vinculoId'];
 
-        // 3. Busca os dados reais da Clínica vinculada
         final clinicaDoc = await FirebaseFirestore.instance
             .collection('clinicas')
             .doc(vinculoId)
@@ -58,14 +54,13 @@ class _ClinicasHubState extends State<ClinicasHub> {
 
         if (clinicaDoc.exists) {
           setState(() {
-            // Injeta a clínica no estado usando o seu Model perfeito
             _clinicaSelecionada = Clinica.fromFirestore(clinicaDoc);
-            _isUsuarioRestrito = true; // Trava o operador na clínica dele
+            _isUsuarioRestrito = true;
           });
         }
       }
     } catch (e) {
-      debugPrint("Erro de Segurança ao verificar vínculo: $e");
+      debugPrint("Erro ao verificar vínculo: $e");
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -74,6 +69,8 @@ class _ClinicasHubState extends State<ClinicasHub> {
   }
 
   Widget _resolverConteudoDaAba(String rotaSubmenu) {
+    // Como garantimos no build que esta função só roda se houver clínica selecionada,
+    // o operador '!' é 100% seguro aqui e nunca causará crash.
     switch (rotaSubmenu) {
       case 'clinica_dashboard':
         return ClinicaDashboardView(clinicaContexto: _clinicaSelecionada!);
@@ -115,23 +112,61 @@ class _ClinicasHubState extends State<ClinicasHub> {
 
   @override
   Widget build(BuildContext context) {
-    // ⏳ Aguarda a verificação de segurança antes de desenhar qualquer coisa
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator(color: Colors.teal));
     }
 
-    // 📊 NENHUMA CLÍNICA SELECIONADA (Apenas Administradores Globais verão isso)
+    // 🌐 PASSO 1 DO ADMIN: NENHUMA EMPRESA SELECIONADA
+    // Exibe única e exclusivamente a lista de seleção, eliminando as abas vazias do topo!
     if (_clinicaSelecionada == null) {
-      return ListaClinicasView(
-        onClinicaSelected: (clinica) {
-          setState(() {
-            _clinicaSelecionada = clinica;
-          });
-        },
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(24),
+            margin: const EdgeInsets.only(left: 24, right: 24, top: 24),
+            decoration: BoxDecoration(
+              color: Colors.teal.shade50.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.teal.shade100),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.add_business_rounded,
+                  color: Colors.teal.shade700,
+                  size: 24,
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    "Painel de Controle Corporativo: Selecione uma Clínica na lista abaixo para gerenciar seus operadores e visualizar o dashboard de coletas.",
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.black87,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: ListaClinicasView(
+              onClinicaSelected: (clinica) {
+                setState(() {
+                  _clinicaSelecionada = clinica;
+                });
+              },
+            ),
+          ),
+        ],
       );
     }
 
-    // 🏥 CLÍNICA ATIVA (Visão do Operador ou Admin na tela de detalhes)
+    // 🏥 PASSO 2: CLÍNICA SELECIONADA ATIVA
+    // Infla com maestria o chassi de abas dinâmicas baseado nas permissões do Firestore
     return ListenableBuilder(
       listenable: permissoesGlobais,
       builder: (context, child) {
@@ -195,6 +230,7 @@ class _ClinicasHubState extends State<ClinicasHub> {
   Widget _buildBarraTopoBreadcrumb() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      margin: const EdgeInsets.only(left: 24, right: 24, top: 24),
       decoration: BoxDecoration(
         color: Colors.grey.shade50,
         borderRadius: BorderRadius.circular(8),
@@ -237,17 +273,17 @@ class _ClinicasHubState extends State<ClinicasHub> {
               ),
             ],
           ),
-          // 🔒 Se o usuário for restrito, arrancamos o botão de "Voltar"!
           if (!_isUsuarioRestrito)
             TextButton.icon(
               onPressed: () {
                 setState(() {
-                  _clinicaSelecionada = null;
+                  _clinicaSelecionada =
+                      null; // Reseta o estado e volta para a lista limpa
                 });
               },
-              icon: const Icon(Icons.arrow_back_rounded, size: 16),
+              icon: const Icon(Icons.swap_horiz_rounded, size: 16),
               label: const Text(
-                "Voltar para Lista",
+                "Alternar Clínica",
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
               style: TextButton.styleFrom(foregroundColor: Colors.teal),

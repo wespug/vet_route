@@ -105,209 +105,28 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
     'inventory': Icons.inventory_2_outlined,
   };
 
-  // 💡 COMBOBOX REAL (Busca os dados direto do Firestore)
-  Widget _telaSelecaoVinculoReal(String nomeColecao, String tipoLabel) {
-    String? selecionadoId;
-
-    return StatefulBuilder(
-      builder: (context, setLocalState) {
-        // Se o Admin já escolheu, mostramos o Board!
-        if (selecionadoId != null) {
-          return _telaAvisoVinculo(tipoLabel, selecionadoId!);
-        }
-
-        // Se ainda não escolheu, vamos buscar no Firebase
-        return FutureBuilder<QuerySnapshot>(
-          future: FirebaseFirestore.instance.collection(nomeColecao).get(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-
-            if (snapshot.hasError) {
-              return Center(child: Text("Erro ao carregar $tipoLabel."));
-            }
-
-            final docs = snapshot.data?.docs ?? [];
-
-            if (docs.isEmpty) {
-              return Center(
-                child: Text(
-                  "Nenhum(a) $tipoLabel cadastrado(a) no banco de dados.",
-                  style: const TextStyle(fontSize: 16, color: Colors.grey),
-                ),
-              );
-            }
-
-            return Center(
-              child: Container(
-                width: 500,
-                padding: const EdgeInsets.all(32),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.grey.shade200,
-                      blurRadius: 10,
-                      spreadRadius: 2,
-                    ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.travel_explore,
-                          size: 32,
-                          color: Colors.blueAccent,
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          "Selecione um(a) $tipoLabel",
-                          style: const TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      "Como Administrador, escolha de qual local você deseja ver o Dashboard:",
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    DropdownButtonFormField<String>(
-                      decoration: InputDecoration(
-                        labelText: "Lista de $tipoLabel",
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        filled: true,
-                        fillColor: Colors.grey.shade50,
-                      ),
-                      items: docs.map((doc) {
-                        final data = doc.data() as Map<String, dynamic>;
-                        final nome = data['nome'] ?? 'Sem nome definido';
-                        return DropdownMenuItem<String>(
-                          value: doc.id,
-                          child: Text(nome),
-                        );
-                      }).toList(),
-                      onChanged: (valor) {
-                        if (valor != null) {
-                          setLocalState(() {
-                            selecionadoId = valor;
-                          });
-                        }
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  // 💡 TELA PLACEHOLDER (Para não quebrar a compilação enquanto você não me der a tela real)
-  Widget _telaAvisoVinculo(String tipo, String id) {
-    return Center(
-      child: Container(
-        padding: const EdgeInsets.all(32),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.shade200,
-              blurRadius: 10,
-              spreadRadius: 2,
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.dashboard, size: 64, color: Colors.green),
-            const SizedBox(height: 16),
-            Text(
-              "Dashboard: $tipo",
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              "Visualizando dados reais do ID:\n$id",
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 14, color: Colors.black87),
-            ),
-            const SizedBox(height: 24),
-            Container(
-              padding: const EdgeInsets.all(12),
-              color: Colors.yellow.shade100,
-              child: const Text(
-                "👨‍💻 A lógica está pronta e puxando do BD! Agora só precisamos substituir esta tela verde pela sua classe de Detalhes real.",
-                style: TextStyle(color: Colors.orange),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
+  // 💡 CENTRAL DE ROTEAMENTO (Agora limpa e focada nos Hubs Mestre!)
   Widget _obterTelaDestino(String chaveRota, String titulo) {
     switch (chaveRota) {
+      // 🏥 Roteamento Clínicas: Qualquer clique em Clínica joga para o Hub, que decide o que mostrar
       case 'clinica_gestao':
+      case 'clinica_dashboard':
+      case 'clinica_adicionar_usuario':
         return const ClinicasHub();
 
+      // 🔬 Roteamento Laboratórios: Qualquer clique em Laboratório joga para o Hub
       case 'lista_laboratorios':
       case 'lista_laboratorios_aba':
+      case 'lab_dashboard':
+      case 'lab_adicionar_usuario':
         return const LaboratoriosHub();
 
+      // 🏍️ Roteamento Entregadores
       case 'entregador_gestao':
+      case 'entregador_dashboard':
         return const EntregadoresHub();
 
-      // === ROTEAMENTO INTELIGENTE COM COMBOBOX REAL DO FIREBASE ===
-      case 'clinica_dashboard':
-        if (_vinculoId != null && _vinculoId!.isNotEmpty) {
-          return _telaAvisoVinculo('Clínica', _vinculoId!);
-        }
-        return _telaSelecaoVinculoReal(
-          'clinicas',
-          'Clínica',
-        ); // ⬅️ Vai ler a coleção "clinicas"
-
-      case 'lab_dashboard':
-        if (_vinculoId != null && _vinculoId!.isNotEmpty) {
-          return _telaAvisoVinculo('Laboratório', _vinculoId!);
-        }
-        return _telaSelecaoVinculoReal(
-          'laboratorios',
-          'Laboratório',
-        ); // ⬅️ Vai ler a coleção "laboratorios"
-
-      case 'entregador_dashboard':
-        if (_vinculoId != null && _vinculoId!.isNotEmpty) {
-          return _telaAvisoVinculo('Entregador', _vinculoId!);
-        }
-        return _telaSelecaoVinculoReal(
-          'entregadores',
-          'Entregador',
-        ); // ⬅️ Vai ler a coleção "entregadores"
-      // ====================================================
-
+      // ⚙️ Roteamento de Configurações Globais
       case 'gestao_perfis':
         return const GestaoPerfisHub();
       case 'gestao_menus':

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:vet_route/controllers/permissoes_controller.dart';
-import 'package:vet_route/screens/web/laboratorios/usu%C3%A1rios_lab_view.dart';
+import 'package:vet_route/screens/web/laboratorios/usuarios_lab_view.dart';
 import 'package:vet_route/screens/widgets/generic_tab_hub.dart';
 import 'package:vet_route/models/laboratorio_model.dart';
 import 'package:vet_route/screens/web/laboratorios/lista_laboratorio_view.dart';
@@ -17,8 +17,8 @@ class LaboratoriosHub extends StatefulWidget {
 
 class _LaboratoriosHubState extends State<LaboratoriosHub> {
   Laboratorio? _labSelecionado;
-  bool _isLoading = true; // 🔒 Bloqueia o vazamento de dados na inicialização
-  bool _isUsuarioRestrito = false; // 🔒 Controla a exibição do botão voltar
+  bool _isLoading = true;
+  bool _isUsuarioRestrito = false;
 
   @override
   void initState() {
@@ -26,7 +26,6 @@ class _LaboratoriosHubState extends State<LaboratoriosHub> {
     _verificarVinculoUsuario();
   }
 
-  // 🛡️ CATRACA DE SEGURANÇA MULTI-TENANT PARA LABORATÓRIOS
   Future<void> _verificarVinculoUsuario() async {
     try {
       final user = FirebaseAuth.instance.currentUser;
@@ -35,7 +34,6 @@ class _LaboratoriosHubState extends State<LaboratoriosHub> {
         return;
       }
 
-      // 1. Busca o perfil do usuário logado diretamente na fonte
       final userDoc = await FirebaseFirestore.instance
           .collection('usuarios')
           .doc(user.uid)
@@ -43,14 +41,12 @@ class _LaboratoriosHubState extends State<LaboratoriosHub> {
 
       final userData = userDoc.data();
 
-      // 2. Verifica se ele possui um vínculo com algum Laboratório
       if (userData != null &&
           userData.containsKey('vinculoId') &&
           userData['vinculoId'] != null &&
           userData['vinculoId'].toString().isNotEmpty) {
         final vinculoId = userData['vinculoId'];
 
-        // 3. Busca na nuvem as informações reais deste laboratório específico
         final laboratorioDoc = await FirebaseFirestore.instance
             .collection('laboratorios')
             .doc(vinculoId)
@@ -58,9 +54,8 @@ class _LaboratoriosHubState extends State<LaboratoriosHub> {
 
         if (laboratorioDoc.exists) {
           setState(() {
-            // Injeta o laboratório diretamente no chassi da view usando o fromFirestore do modelo
             _labSelecionado = Laboratorio.fromFirestore(laboratorioDoc);
-            _isUsuarioRestrito = true; // Isola o operador impedindo bypass
+            _isUsuarioRestrito = true;
           });
         }
       }
@@ -86,7 +81,7 @@ class _LaboratoriosHubState extends State<LaboratoriosHub> {
 
       default:
         return _buildPlaceholder(
-          'Funcionalidade ($rotaSubmenu) configurada na gestão, mas em desenvolvimento 🚧',
+          'Funcionalidade ($rotaSubmenu) configurada na gestão, mas em development 🚧',
           Icons.construction_rounded,
         );
     }
@@ -115,25 +110,62 @@ class _LaboratoriosHubState extends State<LaboratoriosHub> {
 
   @override
   Widget build(BuildContext context) {
-    // ⏳ Trava de renderização enquanto o banco de dados responde
     if (_isLoading) {
       return const Center(
         child: CircularProgressIndicator(color: Colors.indigo),
       );
     }
 
-    // 📊 NENHUM LABORATÓRIO SELECIONADO (Apenas Admins Globais chegam aqui)
+    // 🌐 PASSO 1 DO ADMIN: NENHUM LABORATÓRIO SELECIONADO
+    // Esconde as abas e foca 100% na seleção do parceiro
     if (_labSelecionado == null) {
-      return ListaLaboratoriosView(
-        onLabSelected: (lab) {
-          setState(() {
-            _labSelecionado = lab;
-          });
-        },
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(24),
+            margin: const EdgeInsets.only(left: 24, right: 24, top: 24),
+            decoration: BoxDecoration(
+              color: Colors.indigo.shade50.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.indigo.shade100),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.biotech_rounded,
+                  color: Colors.indigo.shade700,
+                  size: 24,
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    "Painel de Controle Corporativo: Selecione um Laboratório na lista abaixo para auditar sua operação e gerenciar contas de acesso.",
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.black87,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: ListaLaboratoriosView(
+              onLabSelected: (lab) {
+                setState(() {
+                  _labSelecionado = lab;
+                });
+              },
+            ),
+          ),
+        ],
       );
     }
 
-    // 🔬 LABORATÓRIO ATIVO (Visão corporativa filtrada na nuvem)
+    // 🔬 LABORATÓRIO SELECIONADO ATIVO
     return ListenableBuilder(
       listenable: permissoesGlobais,
       builder: (context, child) {
@@ -197,6 +229,7 @@ class _LaboratoriosHubState extends State<LaboratoriosHub> {
   Widget _buildBarraTopoBreadcrumb() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      margin: const EdgeInsets.only(left: 24, right: 24, top: 24),
       decoration: BoxDecoration(
         color: Colors.grey.shade50,
         borderRadius: BorderRadius.circular(8),
@@ -235,17 +268,17 @@ class _LaboratoriosHubState extends State<LaboratoriosHub> {
               ),
             ],
           ),
-          // 🔒 Se for operador vinculado, removemos o controle de fuga para a listagem master global
           if (!_isUsuarioRestrito)
             TextButton.icon(
               onPressed: () {
                 setState(() {
-                  _labSelecionado = null;
+                  _labSelecionado =
+                      null; // Reseta o estado e volta à lista mestre
                 });
               },
-              icon: const Icon(Icons.arrow_back_rounded, size: 16),
+              icon: const Icon(Icons.swap_horiz_rounded, size: 16),
               label: const Text(
-                "Voltar para Lista",
+                "Alternar Laboratório",
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
               style: TextButton.styleFrom(foregroundColor: Colors.indigo),
