@@ -29,8 +29,12 @@ class _LaboratoriosHubState extends State<LaboratoriosHub> {
         return const LabDashboardView();
 
       case 'lab_adicionar_usuario':
-        // 🟢 INJEÇÃO CRUCIAL: Agora chama a UsuariosLabView passando o contexto do laboratório selecionado
-        return UsuariosLabView(labContexto: _labSelecionado!);
+        // 🟢 INJEÇÃO CRUCIAL E CORRETA: Agora chama a UsuariosLabView passando a chave de permissão
+        return UsuariosLabView(
+          labContexto: _labSelecionado!,
+          chavePermissao:
+              'lista_laboratorios', // 💡 AQUI ESTÁ A CORREÇÃO! A chave foi injetada!
+        );
 
       default:
         return _buildPlaceholder(

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // 💡 Necessário para formatar apenas números no input
+import 'package:flutter/services.dart';
 import 'package:vet_route/controllers/menu_controller.dart' as custom_menu;
 import 'package:vet_route/controllers/submenu_controller.dart';
 import 'package:vet_route/models/submenu_item_model.dart';
@@ -19,7 +19,7 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
   final TextEditingController _tituloController = TextEditingController();
   final TextEditingController _pesoController = TextEditingController(
     text: '99',
-  ); // 💡 Controlador do Peso (Padrão: 99)
+  );
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
   String? _submenuEdicaoId;
@@ -38,16 +38,16 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
     'local_hospital': Icons.local_hospital,
     'science': Icons.science,
     'motorcycle': Icons.motorcycle,
+    'people_alt': Icons
+        .people_alt_rounded, // 💡 Adicionei um ícone extra bacana para usuários!
   };
 
   final Map<String, String> _paginasMapeadas = {
     'lab_dashboard': 'Dashboard do Laboratório',
-    'clinica_dashboard': 'Dashboard da Clínica', // 💡 Corrigido o português
+    'clinica_dashboard': 'Dashboard da Clínica',
     'entregador_dashboard': 'Dashboard do Entregador',
-    'lista_laboratorios_aba': 'Lista Geral de Laboratórios',
     'lab_adicionar_usuario': 'Adicionar Usuários do Laboratório',
-    'clinica_gestao':
-        'Gestão de Clínicas', // 💡 Adicionado para não quebrar o Dropdown!
+    'clinica_adicionar_usuario': 'Adicionar Usuários da Clínica',
   };
 
   @override
@@ -60,7 +60,7 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
   @override
   void dispose() {
     _tituloController.dispose();
-    _pesoController.dispose(); // 💡 Descartando o controlador do peso
+    _pesoController.dispose();
     _menuController.dispose();
     _submenuController.dispose();
     super.dispose();
@@ -79,8 +79,7 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
       _submenuEdicaoId = submenu.id;
       _menuPaiSelecionado = submenu.menuId;
       _tituloController.text = submenu.titulo;
-      _pesoController.text = submenu.peso
-          .toString(); // 💡 Carrega o peso na edição
+      _pesoController.text = submenu.peso.toString();
       _iconeSelecionado = _iconesMapeados.containsKey(submenu.icone)
           ? submenu.icone
           : 'subdirectory_arrow_right';
@@ -97,7 +96,7 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
       _submenuEdicaoId = null;
       _menuPaiSelecionado = null;
       _tituloController.clear();
-      _pesoController.text = '99'; // 💡 Volta ao padrão
+      _pesoController.text = '99';
       _iconeSelecionado = 'subdirectory_arrow_right';
       _paginaSelecionada = 'clinica_gestao';
       _isWeb = true;
@@ -139,7 +138,6 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
               ),
               const SizedBox(height: 32),
 
-              // PAINEL DE CRIAÇÃO (COM LINHAS)
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
@@ -204,15 +202,13 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
                             ),
                           ),
                           const SizedBox(width: 12),
-                          // 💡 NOVO CAMPO: PESO (ORDEM)
                           Expanded(
                             flex: 1,
                             child: TextFormField(
                               controller: _pesoController,
                               keyboardType: TextInputType.number,
                               inputFormatters: [
-                                FilteringTextInputFormatter
-                                    .digitsOnly, // Apenas números
+                                FilteringTextInputFormatter.digitsOnly,
                               ],
                               decoration: InputDecoration(
                                 labelText: "Ordem",
@@ -374,7 +370,6 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
               ),
               const SizedBox(height: 32),
 
-              // TABELA
               Expanded(
                 child:
                     _submenuController.carregando || _menuController.carregando
@@ -401,8 +396,7 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
       }
 
       final titulo = _tituloController.text.trim();
-      final peso =
-          int.tryParse(_pesoController.text.trim()) ?? 99; // 💡 Captura o Peso
+      final peso = int.tryParse(_pesoController.text.trim()) ?? 99;
 
       if (_submenuEdicaoId == null) {
         await _submenuController.adicionarSubmenu(
@@ -412,7 +406,7 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
           _paginaSelecionada,
           _isWeb,
           _isMobile,
-          peso, // 💡 Passa o peso na criação
+          peso,
         );
       } else {
         await _submenuController.editarSubmenu(
@@ -423,7 +417,7 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
           _paginaSelecionada,
           _isWeb,
           _isMobile,
-          peso, // 💡 Passa o peso na edição
+          peso,
         );
       }
 
@@ -438,7 +432,7 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
         child: DataTable(
           headingRowColor: WidgetStateProperty.all(Colors.grey.shade50),
           columns: const [
-            DataColumn(label: Text('Ordem')), // 💡 Nova Coluna
+            DataColumn(label: Text('Ordem')),
             DataColumn(label: Text('Menu Pai')),
             DataColumn(label: Text('Submenu')),
             DataColumn(label: Text('Ícone')),
@@ -451,7 +445,6 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
               cells: [
                 DataCell(
                   Container(
-                    // 💡 Destaca visualmente o Peso
                     padding: const EdgeInsets.symmetric(
                       horizontal: 10,
                       vertical: 4,

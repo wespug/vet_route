@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:vet_route/controllers/permissoes_controller.dart';
+import 'package:vet_route/screens/web/clinicas/clinica_usuario_view.dart';
 import 'package:vet_route/screens/widgets/generic_tab_hub.dart';
 import 'package:vet_route/models/clinica_model.dart';
 import 'package:vet_route/screens/web/clinicas/lista_clinicas_view.dart';
@@ -15,18 +16,16 @@ class ClinicasHub extends StatefulWidget {
 class _ClinicasHubState extends State<ClinicasHub> {
   Clinica? _clinicaSelecionada;
 
-  // 🎯 O LUGAR QUE VOCÊ PROCURAVA ESTÁ EXATAMENTE AQUI!
-  // O texto que você digitar no campo "Rota" do seu Gestor de Submenus
-  // deve bater perfeitamente com um desses "case" abaixo para inflar a tela correta.
   Widget _resolverConteudoDaAba(String rotaSubmenu) {
     switch (rotaSubmenu) {
       case 'clinica_dashboard':
         return ClinicaDashboardView(clinicaContexto: _clinicaSelecionada!);
 
       case 'clinica_adicionar_usuario':
-        return _buildPlaceholder(
-          'Gestão de Usuários da Clínica em desenvolvimento 🚧',
-          Icons.people_alt_rounded,
+        return UsuariosClinicaView(
+          clinicaContexto: _clinicaSelecionada!,
+          chavePermissao:
+              'clinica_gestao', // 💡 AQUI ESTÁ A CORREÇÃO! A chave foi injetada!
         );
 
       default:

@@ -3,23 +3,23 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:vet_route/controllers/perfil_controller.dart';
-import 'package:vet_route/models/laboratorio_model.dart';
+import 'package:vet_route/models/clinica_model.dart';
 
-class UsuariosLabView extends StatefulWidget {
-  final Laboratorio labContexto;
+class UsuariosClinicaView extends StatefulWidget {
+  final Clinica clinicaContexto;
   final String chavePermissao; // 💡 NOVO: A chave dinâmica entra aqui!
 
-  const UsuariosLabView({
+  const UsuariosClinicaView({
     super.key,
-    required this.labContexto,
+    required this.clinicaContexto,
     required this.chavePermissao, // 💡 Exigida na criação da tela
   });
 
   @override
-  State<UsuariosLabView> createState() => _UsuariosLabViewState();
+  State<UsuariosClinicaView> createState() => _UsuariosClinicaViewState();
 }
 
-class _UsuariosLabViewState extends State<UsuariosLabView> {
+class _UsuariosClinicaViewState extends State<UsuariosClinicaView> {
   final PerfilController _perfilController = PerfilController();
 
   @override
@@ -60,7 +60,7 @@ class _UsuariosLabViewState extends State<UsuariosLabView> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    "Operadores do Sistema 👥",
+                    "Operadores da Clínica 👥",
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
@@ -69,7 +69,7 @@ class _UsuariosLabViewState extends State<UsuariosLabView> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    "Lista de contas com acesso exclusivo ao painel de ${widget.labContexto.nome}",
+                    "Lista de contas com acesso exclusivo ao painel de ${widget.clinicaContexto.nome}",
                     style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
                   ),
                 ],
@@ -86,7 +86,7 @@ class _UsuariosLabViewState extends State<UsuariosLabView> {
                     horizontal: 20,
                     vertical: 16,
                   ),
-                  backgroundColor: Colors.indigo,
+                  backgroundColor: Colors.teal,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
@@ -101,12 +101,12 @@ class _UsuariosLabViewState extends State<UsuariosLabView> {
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
                   .collection('usuarios')
-                  .where('vinculoId', isEqualTo: widget.labContexto.id)
+                  .where('vinculoId', isEqualTo: widget.clinicaContexto.id)
                   .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(
-                    child: CircularProgressIndicator(color: Colors.indigo),
+                    child: CircularProgressIndicator(color: Colors.teal),
                   );
                 }
 
@@ -122,7 +122,7 @@ class _UsuariosLabViewState extends State<UsuariosLabView> {
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          "Nenhum operador vinculado a este laboratório.",
+                          "Nenhum operador vinculado a esta clínica.",
                           style: TextStyle(
                             color: Colors.grey.shade500,
                             fontSize: 15,
@@ -194,7 +194,7 @@ class _UsuariosLabViewState extends State<UsuariosLabView> {
                                     data['nome'] ?? 'Sem nome',
                                     style: const TextStyle(
                                       fontWeight: FontWeight.w600,
-                                      color: Colors.indigo,
+                                      color: Colors.teal,
                                     ),
                                   ),
                                 ),
@@ -206,14 +206,14 @@ class _UsuariosLabViewState extends State<UsuariosLabView> {
                                       vertical: 4,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: Colors.indigo.shade50,
+                                      color: Colors.teal.shade50,
                                       borderRadius: BorderRadius.circular(4),
                                     ),
                                     child: Text(
                                       _obterNomeDoPerfil(perfilId),
                                       style: TextStyle(
                                         fontSize: 12,
-                                        color: Colors.indigo.shade700,
+                                        color: Colors.teal.shade700,
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
@@ -334,7 +334,7 @@ class _UsuariosLabViewState extends State<UsuariosLabView> {
                     isEdicao
                         ? Icons.manage_accounts_rounded
                         : Icons.person_add_alt_1_rounded,
-                    color: Colors.indigo,
+                    color: Colors.teal,
                   ),
                   const SizedBox(width: 10),
                   Text(
@@ -356,14 +356,14 @@ class _UsuariosLabViewState extends State<UsuariosLabView> {
                           padding: const EdgeInsets.all(12),
                           width: double.infinity,
                           decoration: BoxDecoration(
-                            color: Colors.indigo.shade50,
+                            color: Colors.teal.shade50,
                             borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: Colors.indigo.shade100),
+                            border: Border.all(color: Colors.teal.shade100),
                           ),
                           child: Text(
-                            "🔒 Vínculo Corporativo Automatizado:\n${widget.labContexto.nome}",
+                            "🔒 Vínculo Corporativo Automatizado:\n${widget.clinicaContexto.nome}",
                             style: TextStyle(
-                              color: Colors.indigo.shade800,
+                              color: Colors.teal.shade800,
                               fontWeight: FontWeight.bold,
                               fontSize: 13,
                               height: 1.3,
@@ -418,15 +418,13 @@ class _UsuariosLabViewState extends State<UsuariosLabView> {
                         ListenableBuilder(
                           listenable: _perfilController,
                           builder: (context, child) {
-                            final perfisPermitidosParaLab = _perfilController
-                                .perfis
-                                .where((perfil) {
+                            final perfisPermitidosParaClinica =
+                                _perfilController.perfis.where((perfil) {
                                   // 💡 USA A CHAVE INJETADA PELO CONSTRUTOR
                                   return perfil.exibirEm.contains(
                                     widget.chavePermissao,
                                   );
-                                })
-                                .toList();
+                                }).toList();
 
                             return DropdownButtonFormField<String>(
                               value: idPerfilSelecionado,
@@ -434,7 +432,7 @@ class _UsuariosLabViewState extends State<UsuariosLabView> {
                                 labelText: "Perfil Operacional / Permissões",
                                 prefixIcon: Icon(Icons.gpp_good_outlined),
                               ),
-                              items: perfisPermitidosParaLab.map((perfil) {
+                              items: perfisPermitidosParaClinica.map((perfil) {
                                 return DropdownMenuItem<String>(
                                   value: perfil.id,
                                   child: Text(perfil.nome),
@@ -505,7 +503,7 @@ class _UsuariosLabViewState extends State<UsuariosLabView> {
                                     'nome': nomeController.text.trim(),
                                     'email': emailController.text.trim(),
                                     'perfilId': idPerfilSelecionado,
-                                    'vinculoId': widget.labContexto.id,
+                                    'vinculoId': widget.clinicaContexto.id,
                                     'ativo': true,
                                     'dataCriacao': FieldValue.serverTimestamp(),
                                   });
@@ -523,13 +521,14 @@ class _UsuariosLabViewState extends State<UsuariosLabView> {
                               );
                             }
                           } catch (e) {
-                            if (context.mounted)
+                            if (context.mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: Text("Falha: $e"),
                                   backgroundColor: Colors.red,
                                 ),
                               );
+                            }
                           } finally {
                             setModalState(() => salvando = false);
                           }
@@ -555,7 +554,7 @@ class _UsuariosLabViewState extends State<UsuariosLabView> {
                         : (isEdicao ? "Atualizar" : "Confirmar"),
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.indigo,
+                    backgroundColor: Colors.teal,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(6),
