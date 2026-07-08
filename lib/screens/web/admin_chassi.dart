@@ -12,7 +12,7 @@ import 'package:vet_route/screens/widgets/gestao_menus_hub.dart';
 import 'package:vet_route/screens/widgets/gestao_perfis_hub.dart';
 import 'package:vet_route/screens/widgets/gestao_submenus_hub.dart';
 import 'package:vet_route/screens/widgets/gestao_usuarios_hub.dart';
-import 'package:vet_route/screens/web/entregadores/entregadores_hub.dart'; // 💡 IMPORT NOVO AQUI!
+import 'package:vet_route/screens/web/entregadores/entregadores_hub.dart';
 
 class AdminChassi extends StatelessWidget {
   final Widget conteudo;
@@ -39,11 +39,11 @@ class _AdminChassiStateful extends StatefulWidget {
 class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
   String _nomeUsuarioLogado = "A carregar...";
   String _emailUsuarioLogado = "A carregar...";
+  String? _vinculoId;
 
   late Widget _conteudoAtual;
   late String _tituloAtual;
 
-  // Lista que armazena os IDs dos menus que estão expandidos atualmente
   final List<String> _menusExpandidosIds = [];
 
   @override
@@ -56,7 +56,6 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
 
   Future<void> _carregarDadosUsuario() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
-    debugPrint("🔍 [DEBUG CHASSI] UID do usuário atual logado: $uid");
     if (uid != null) {
       try {
         final doc = await FirebaseFirestore.instance
@@ -67,26 +66,17 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
           setState(() {
             _nomeUsuarioLogado = doc.data()?['nome'] ?? "Usuário";
             _emailUsuarioLogado = doc.data()?['email'] ?? "Sem E-mail";
+            _vinculoId = doc.data()?['vinculoId'];
           });
 
           final perfilId = doc.data()?['perfilId'];
-          debugPrint(
-            "🔍 [DEBUG CHASSI] Documento encontrado! PerfilId vinculado no Firestore: $perfilId",
-          );
           if (perfilId != null) {
             await permissoesGlobais.inicializarParaUsuario(perfilId);
-            debugPrint(
-              "🔍 [DEBUG CHASSI] Menus permitidos carregados da lista: ${permissoesGlobais.menusPermitidos.map((m) => m.rota).toList()}",
-            );
           }
-        } else {
-          debugPrint(
-            "⚠️ [DEBUG CHASSI] Documento do usuário não existe na coleção 'usuarios' para o UID $uid",
-          );
         }
       } catch (e) {
         debugPrint(
-          "❌ [DEBUG CHASSI] Falha crítica ao ler dados do usuário ou carregar permissões: $e",
+          "❌ [DEBUG CHASSI] Falha crítica ao ler dados do usuário: $e",
         );
         if (mounted) {
           setState(() {
@@ -96,14 +86,9 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
           });
         }
       }
-    } else {
-      debugPrint(
-        "⚠️ [DEBUG CHASSI] Nenhum usuário retornado pelo FirebaseAuth.instance.currentUser",
-      );
     }
   }
 
-  // ROTEADOR DE ÍCONES NATIVOS DO FIRESTORE
   static const Map<String, IconData> _iconesMapeados = {
     'local_hospital': Icons.local_hospital,
     'science': Icons.science,
@@ -120,32 +105,227 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
     'inventory': Icons.inventory_2_outlined,
   };
 
-  // ROTEADOR DE TELAS ADMINISTRATIVAS WEB REAL
-  static final Map<String, Widget Function()> _telasMapeadas = {
-    'clinica_gestao': () {
-      debugPrint(
-        "🚀 [ROTEADOR CHASSI] Injetando instância real de ClinicasHub()",
-      );
-      return const ClinicasHub();
-    },
-    'lista_laboratorios': () {
-      debugPrint(
-        "🚀 [ROTEADOR CHASSI] Injetando instância real de LaboratoriosHub()",
-      );
-      return const LaboratoriosHub();
-    },
-    'entregador_gestao': () {
-      // 💡 CORRIGIDO AQUI PARA APONTAR PARA O NOVO HUB!
-      debugPrint(
-        "🚀 [ROTEADOR CHASSI] Injetando instância real de EntregadoresHub()",
-      );
-      return const EntregadoresHub();
-    },
-    'gestao_perfis': () => const GestaoPerfisHub(),
-    'gestao_menus': () => const GestaoMenusHub(),
-    'gestao_submenus': () => const GestaoSubmenusHub(),
-    'gestao_usuarios': () => const GestaoUsuarioHub(),
-  };
+  // 💡 COMBOBOX REAL (Busca os dados direto do Firestore)
+  Widget _telaSelecaoVinculoReal(String nomeColecao, String tipoLabel) {
+    String? selecionadoId;
+
+    return StatefulBuilder(
+      builder: (context, setLocalState) {
+        // Se o Admin já escolheu, mostramos o Board!
+        if (selecionadoId != null) {
+          return _telaAvisoVinculo(tipoLabel, selecionadoId!);
+        }
+
+        // Se ainda não escolheu, vamos buscar no Firebase
+        return FutureBuilder<QuerySnapshot>(
+          future: FirebaseFirestore.instance.collection(nomeColecao).get(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            if (snapshot.hasError) {
+              return Center(child: Text("Erro ao carregar $tipoLabel."));
+            }
+
+            final docs = snapshot.data?.docs ?? [];
+
+            if (docs.isEmpty) {
+              return Center(
+                child: Text(
+                  "Nenhum(a) $tipoLabel cadastrado(a) no banco de dados.",
+                  style: const TextStyle(fontSize: 16, color: Colors.grey),
+                ),
+              );
+            }
+
+            return Center(
+              child: Container(
+                width: 500,
+                padding: const EdgeInsets.all(32),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.shade200,
+                      blurRadius: 10,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.travel_explore,
+                          size: 32,
+                          color: Colors.blueAccent,
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          "Selecione um(a) $tipoLabel",
+                          style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      "Como Administrador, escolha de qual local você deseja ver o Dashboard:",
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    DropdownButtonFormField<String>(
+                      decoration: InputDecoration(
+                        labelText: "Lista de $tipoLabel",
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        filled: true,
+                        fillColor: Colors.grey.shade50,
+                      ),
+                      items: docs.map((doc) {
+                        final data = doc.data() as Map<String, dynamic>;
+                        final nome = data['nome'] ?? 'Sem nome definido';
+                        return DropdownMenuItem<String>(
+                          value: doc.id,
+                          child: Text(nome),
+                        );
+                      }).toList(),
+                      onChanged: (valor) {
+                        if (valor != null) {
+                          setLocalState(() {
+                            selecionadoId = valor;
+                          });
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // 💡 TELA PLACEHOLDER (Para não quebrar a compilação enquanto você não me der a tela real)
+  Widget _telaAvisoVinculo(String tipo, String id) {
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.all(32),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.shade200,
+              blurRadius: 10,
+              spreadRadius: 2,
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.dashboard, size: 64, color: Colors.green),
+            const SizedBox(height: 16),
+            Text(
+              "Dashboard: $tipo",
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              "Visualizando dados reais do ID:\n$id",
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 14, color: Colors.black87),
+            ),
+            const SizedBox(height: 24),
+            Container(
+              padding: const EdgeInsets.all(12),
+              color: Colors.yellow.shade100,
+              child: const Text(
+                "👨‍💻 A lógica está pronta e puxando do BD! Agora só precisamos substituir esta tela verde pela sua classe de Detalhes real.",
+                style: TextStyle(color: Colors.orange),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _obterTelaDestino(String chaveRota, String titulo) {
+    switch (chaveRota) {
+      case 'clinica_gestao':
+        return const ClinicasHub();
+
+      case 'lista_laboratorios':
+      case 'lista_laboratorios_aba':
+        return const LaboratoriosHub();
+
+      case 'entregador_gestao':
+        return const EntregadoresHub();
+
+      // === ROTEAMENTO INTELIGENTE COM COMBOBOX REAL DO FIREBASE ===
+      case 'clinica_dashboard':
+        if (_vinculoId != null && _vinculoId!.isNotEmpty) {
+          return _telaAvisoVinculo('Clínica', _vinculoId!);
+        }
+        return _telaSelecaoVinculoReal(
+          'clinicas',
+          'Clínica',
+        ); // ⬅️ Vai ler a coleção "clinicas"
+
+      case 'lab_dashboard':
+        if (_vinculoId != null && _vinculoId!.isNotEmpty) {
+          return _telaAvisoVinculo('Laboratório', _vinculoId!);
+        }
+        return _telaSelecaoVinculoReal(
+          'laboratorios',
+          'Laboratório',
+        ); // ⬅️ Vai ler a coleção "laboratorios"
+
+      case 'entregador_dashboard':
+        if (_vinculoId != null && _vinculoId!.isNotEmpty) {
+          return _telaAvisoVinculo('Entregador', _vinculoId!);
+        }
+        return _telaSelecaoVinculoReal(
+          'entregadores',
+          'Entregador',
+        ); // ⬅️ Vai ler a coleção "entregadores"
+      // ====================================================
+
+      case 'gestao_perfis':
+        return const GestaoPerfisHub();
+      case 'gestao_menus':
+        return const GestaoMenusHub();
+      case 'gestao_submenus':
+        return const GestaoSubmenusHub();
+      case 'gestao_usuarios':
+        return const GestaoUsuarioHub();
+
+      default:
+        return Center(
+          child: Text(
+            "Módulo '$titulo' ($chaveRota) em desenvolvimento.",
+            style: const TextStyle(fontSize: 18, color: Colors.grey),
+          ),
+        );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -434,30 +614,7 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
     String titulo,
     String chaveRota,
   ) {
-    debugPrint(
-      "🚨 [DEBUG NAVEGAÇÃO] Clique detectado! Título: '$titulo' | Chave da Rota vinda do menu: '$chaveRota'",
-    );
-
-    final construtoraTela = _telasMapeadas[chaveRota];
-
-    final Widget telaDestino = construtoraTela != null
-        ? construtoraTela()
-        : Center(
-            child: Text(
-              "Módulo '$titulo' ($chaveRota) em desenvolvimento.",
-              style: const TextStyle(fontSize: 18, color: Colors.grey),
-            ),
-          );
-
-    if (construtoraTela == null) {
-      debugPrint(
-        "⚠️ [DEBUG NAVEGAÇÃO] A chave '$chaveRota' NÃO foi mapeada no mapa _telasMapeadas do Chassi!",
-      );
-    } else {
-      debugPrint(
-        "🎯 [DEBUG NAVEGAÇÃO] Redirecionando com sucesso para a view de '$chaveRota'",
-      );
-    }
+    final Widget telaDestino = _obterTelaDestino(chaveRota, titulo);
 
     setState(() {
       _tituloAtual = titulo;

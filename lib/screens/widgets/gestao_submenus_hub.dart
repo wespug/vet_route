@@ -41,17 +41,13 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
   };
 
   final Map<String, String> _paginasMapeadas = {
-    'clinica_gestao': 'Gestão de Clínicas',
-    'lista_laboratorios': 'Gestão de Laboratórios',
-    'entregador_gestao': 'Gestão de Entregadores',
-    'gestao_perfis': 'Gestão de Perfis',
-    'gestao_menus': 'Gestão de Menus',
-    'gestao_submenus': 'Gestão de Submenus',
-    'gestao_usuarios': 'Gestão de Usuários',
-
-    'lab_dashboard': 'Painel / Dashboard do Laboratório',
+    'lab_dashboard': 'Dashboard do Laboratório',
+    'clinica_dashboard': 'Dashboard da Clínica', // 💡 Corrigido o português
+    'entregador_dashboard': 'Dashboard do Entregador',
     'lista_laboratorios_aba': 'Lista Geral de Laboratórios',
     'lab_adicionar_usuario': 'Adicionar Usuários do Laboratório',
+    'clinica_gestao':
+        'Gestão de Clínicas', // 💡 Adicionado para não quebrar o Dropdown!
   };
 
   @override

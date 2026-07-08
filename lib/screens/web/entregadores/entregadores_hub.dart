@@ -3,6 +3,7 @@ import 'package:vet_route/controllers/permissoes_controller.dart';
 import 'package:vet_route/screens/widgets/generic_tab_hub.dart';
 import 'package:vet_route/models/entregador_model.dart';
 import 'package:vet_route/screens/web/entregadores/lista_entregadores_view.dart';
+import 'package:vet_route/screens/web/entregadores/entregador_dashboard_view.dart';
 
 class EntregadoresHub extends StatefulWidget {
   const EntregadoresHub({super.key});
@@ -14,13 +15,16 @@ class EntregadoresHub extends StatefulWidget {
 class _EntregadoresHubState extends State<EntregadoresHub> {
   Entregador? _entregadorSelecionado;
 
+  // 🎯 O SEGUNDO LUGAR DE MAPEAMENTO ESTÁ EXATAMENTE AQUI!
+  // Quando cadastrar o submenu do Motoboy na sua tela de gestão, a String colocada no campo
+  // "Rota" precisa entrar em um dos cases abaixo para abrir o painel correto do entregador.
   Widget _resolverConteudoDaAba(String rotaSubmenu) {
     switch (rotaSubmenu) {
       case 'entregador_dashboard':
-        return _buildPlaceholder(
-          'Painel de Corridas em desenvolvimento 🚧',
-          Icons.route_rounded,
+        return EntregadorDashboardView(
+          entregadorContexto: _entregadorSelecionado!,
         );
+
       default:
         return _buildPlaceholder(
           'Funcionalidade ($rotaSubmenu) em desenvolvimento 🚧',
