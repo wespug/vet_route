@@ -7,7 +7,6 @@ import 'package:vet_route/screens/web/laboratorios/laboratorio_hub.dart';
 import 'package:vet_route/services/auth_service.dart';
 import 'package:vet_route/controllers/permissoes_controller.dart';
 
-// Telas do Sistema Administrativo Web
 import 'package:vet_route/screens/widgets/gestao_menus_hub.dart';
 import 'package:vet_route/screens/widgets/gestao_perfis_hub.dart';
 import 'package:vet_route/screens/widgets/gestao_submenus_hub.dart';
@@ -105,33 +104,25 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
     'inventory': Icons.inventory_2_outlined,
   };
 
-  // 💡 CENTRAL DE ROTEAMENTO (Agora limpa, focada nos Hubs Mestre e com DEEP LINK ativado!)
   Widget _obterTelaDestino(String chaveRota, String titulo) {
     switch (chaveRota) {
-      // 🏥 Roteamento Clínicas
       case 'clinica_gestao':
       case 'clinica_dashboard':
       case 'clinica_adicionar_usuario':
-        return ClinicasHub(rotaAbaAtiva: chaveRota); // 🚀 Injeta o Deep Link
+        return ClinicasHub(rotaAbaAtiva: chaveRota);
 
-      // 🔬 Roteamento Laboratórios
       case 'lista_laboratorios':
       case 'lista_laboratorios_aba':
       case 'lab_dashboard':
       case 'lab_adicionar_usuario':
       case 'lab_cadastro_exames':
-        return LaboratoriosHub(
-          rotaAbaAtiva: chaveRota,
-        ); // 🚀 Injeta o Deep Link
+      case 'lab_cadastro_insumos': // 🚀 NOVO INSUMO NO ROTEADOR MESTRE!
+        return LaboratoriosHub(rotaAbaAtiva: chaveRota);
 
-      // 🏍️ Roteamento Entregadores
       case 'entregador_gestao':
       case 'entregador_dashboard':
-        return EntregadoresHub(
-          rotaAbaAtiva: chaveRota,
-        ); // 🚀 Injeta o Deep Link
+        return EntregadoresHub(rotaAbaAtiva: chaveRota);
 
-      // ⚙️ Roteamento de Configurações Globais
       case 'gestao_perfis':
         return const GestaoPerfisHub();
       case 'gestao_menus':
@@ -188,8 +179,7 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.all(20.0),
-                  child:
-                      _conteudoAtual, // Aqui o conteúdo já recebe o Deep Link na hora do build!
+                  child: _conteudoAtual,
                 ),
               ),
             ],

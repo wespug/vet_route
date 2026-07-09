@@ -42,14 +42,15 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
   };
 
   final Map<String, String> _paginasMapeadas = {
-    'clinica_gestao':
-        'Gestão da Clínica', // SOLUÇÃO: Injetado aqui para o Dropdown reconhecer o valor padrão!
+    'clinica_gestao': 'Gestão da Clínica',
     'lab_dashboard': 'Dashboard do Laboratório',
     'clinica_dashboard': 'Dashboard da Clínica',
     'entregador_dashboard': 'Dashboard do Entregador',
     'lab_adicionar_usuario': 'Adicionar Usuários do Laboratório',
     'clinica_adicionar_usuario': 'Adicionar Usuários da Clínica',
     'lab_cadastro_exames': 'Cadastro de Exames',
+    'lab_cadastro_insumos':
+        'Cadastro de Insumos', // 🚀 NOVO INSUMO MAPEADO AQUI!
   };
 
   @override
@@ -162,7 +163,8 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
                           Expanded(
                             flex: 2,
                             child: DropdownButtonFormField<String>(
-                              initialValue: _menuPaiSelecionado,
+                              value:
+                                  _menuPaiSelecionado, // 💡 CORRIGIDO PARA UPDATE!
                               decoration: InputDecoration(
                                 labelText: "Menu Pai (Destino)",
                                 fillColor: Colors.white,
@@ -237,7 +239,8 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
                           Expanded(
                             flex: 2,
                             child: DropdownButtonFormField<String>(
-                              initialValue: _iconeSelecionado,
+                              value:
+                                  _iconeSelecionado, // 💡 CORRIGIDO PARA UPDATE!
                               decoration: InputDecoration(
                                 labelText: "Ícone Visual",
                                 fillColor: Colors.white,
@@ -268,8 +271,10 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
                           ),
                           const SizedBox(width: 12),
                           Expanded(
+                            flex: 3,
                             child: DropdownButtonFormField<String>(
-                              initialValue: _paginaSelecionada,
+                              value:
+                                  _paginaSelecionada, // 💡 CORRIGIDO PARA UPDATE!
                               decoration: InputDecoration(
                                 labelText: "Ecrã de Destino",
                                 fillColor: Colors.white,

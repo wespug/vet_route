@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:vet_route/controllers/permissoes_controller.dart';
+import 'package:vet_route/screens/web/laboratorios/cadastro_insumo.dart';
 import 'package:vet_route/screens/web/laboratorios/usuarios_lab_view.dart';
 import 'package:vet_route/screens/widgets/generic_tab_hub.dart';
 import 'package:vet_route/models/laboratorio_model.dart';
@@ -10,7 +11,6 @@ import 'package:vet_route/screens/web/laboratorios/lab_dashboard_view.dart';
 import 'cadastro_exame_hub.dart';
 
 class LaboratoriosHub extends StatefulWidget {
-  // 💡 AQUI ESTÁ O PARÂMETRO QUE FALTAVA SALVAR!
   final String? rotaAbaAtiva;
 
   const LaboratoriosHub({super.key, this.rotaAbaAtiva});
@@ -85,6 +85,9 @@ class _LaboratoriosHubState extends State<LaboratoriosHub> {
 
       case 'lab_cadastro_exames':
         return CadastroExameHub(labContexto: _labSelecionado!);
+
+      case 'lab_cadastro_insumos': // 🚀 AQUI PASSA O CONTEXTO PARA INSUMOS!
+        return CadastroInsumoHub(labContexto: _labSelecionado!);
 
       default:
         return _buildPlaceholder(
@@ -211,7 +214,6 @@ class _LaboratoriosHubState extends State<LaboratoriosHub> {
 
         submenusFiltrados.sort((a, b) => a.peso.compareTo(b.peso));
 
-        // 💡 CÁLCULO DE FOCO: Sincroniza a aba com o menu lateral
         int indiceFoco = 0;
         final abasDinamicas = <TabItemModel>[];
 
@@ -238,7 +240,7 @@ class _LaboratoriosHubState extends State<LaboratoriosHub> {
             Expanded(
               child: GenericTabHub(
                 abas: abasDinamicas,
-                indiceInicial: indiceFoco, // Injeta o foco na aba correta!
+                indiceInicial: indiceFoco,
               ),
             ),
           ],
