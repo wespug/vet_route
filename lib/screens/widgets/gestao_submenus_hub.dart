@@ -39,6 +39,7 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
     'science': Icons.science,
     'motorcycle': Icons.motorcycle,
     'people_alt': Icons.people_alt_rounded,
+    'route': Icons.route_rounded, // 🚀 NOVO ÍCONE DE ROTA
   };
 
   final Map<String, String> _paginasMapeadas = {
@@ -49,8 +50,8 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
     'lab_adicionar_usuario': 'Adicionar Usuários do Laboratório',
     'clinica_adicionar_usuario': 'Adicionar Usuários da Clínica',
     'lab_cadastro_exames': 'Cadastro de Exames',
-    'lab_cadastro_insumos':
-        'Cadastro de Insumos', // 🚀 NOVO INSUMO MAPEADO AQUI!
+    'lab_cadastro_insumos': 'Cadastro de Insumos',
+    'lab_gestao_rotas': 'Gestão de Rotas Fixas', // 🚀 NOVA PÁGINA MAPEADA
   };
 
   @override
@@ -145,7 +146,7 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   color: isEditando
-                      ? Colors.blue.shade50.withValues(alpha: 0.4)
+                      ? Colors.blue.shade50.withOpacity(0.4)
                       : Colors.grey.shade50,
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
@@ -163,8 +164,7 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
                           Expanded(
                             flex: 2,
                             child: DropdownButtonFormField<String>(
-                              value:
-                                  _menuPaiSelecionado, // 💡 CORRIGIDO PARA UPDATE!
+                              value: _menuPaiSelecionado,
                               decoration: InputDecoration(
                                 labelText: "Menu Pai (Destino)",
                                 fillColor: Colors.white,
@@ -239,8 +239,7 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
                           Expanded(
                             flex: 2,
                             child: DropdownButtonFormField<String>(
-                              value:
-                                  _iconeSelecionado, // 💡 CORRIGIDO PARA UPDATE!
+                              value: _iconeSelecionado,
                               decoration: InputDecoration(
                                 labelText: "Ícone Visual",
                                 fillColor: Colors.white,
@@ -273,8 +272,7 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
                           Expanded(
                             flex: 3,
                             child: DropdownButtonFormField<String>(
-                              value:
-                                  _paginaSelecionada, // 💡 CORRIGIDO PARA UPDATE!
+                              value: _paginaSelecionada,
                               decoration: InputDecoration(
                                 labelText: "Ecrã de Destino",
                                 fillColor: Colors.white,
@@ -400,7 +398,6 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
         );
         return;
       }
-
       final titulo = _tituloController.text.trim();
       final peso = int.tryParse(_pesoController.text.trim()) ?? 99;
 
@@ -426,7 +423,6 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
           peso,
         );
       }
-
       _limparFormulario();
     }
   }

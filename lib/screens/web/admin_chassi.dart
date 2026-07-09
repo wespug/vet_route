@@ -6,7 +6,6 @@ import 'package:vet_route/screens/web/clinicas/clinica_hub.dart';
 import 'package:vet_route/screens/web/laboratorios/laboratorio_hub.dart';
 import 'package:vet_route/services/auth_service.dart';
 import 'package:vet_route/controllers/permissoes_controller.dart';
-
 import 'package:vet_route/screens/widgets/gestao_menus_hub.dart';
 import 'package:vet_route/screens/widgets/gestao_perfis_hub.dart';
 import 'package:vet_route/screens/widgets/gestao_submenus_hub.dart';
@@ -16,9 +15,7 @@ import 'package:vet_route/screens/web/entregadores/entregadores_hub.dart';
 class AdminChassi extends StatelessWidget {
   final Widget conteudo;
   final String titulo;
-
   const AdminChassi({super.key, required this.conteudo, required this.titulo});
-
   @override
   Widget build(BuildContext context) {
     return _AdminChassiStateful(conteudo: conteudo, titulo: titulo);
@@ -28,9 +25,7 @@ class AdminChassi extends StatelessWidget {
 class _AdminChassiStateful extends StatefulWidget {
   final Widget conteudo;
   final String titulo;
-
   const _AdminChassiStateful({required this.conteudo, required this.titulo});
-
   @override
   State<_AdminChassiStateful> createState() => _AdminChassiStatefulState();
 }
@@ -38,11 +33,9 @@ class _AdminChassiStateful extends StatefulWidget {
 class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
   String _nomeUsuarioLogado = "A carregar...";
   String _emailUsuarioLogado = "A carregar...";
-  String? _vinculoId;
 
   late Widget _conteudoAtual;
   late String _tituloAtual;
-
   final List<String> _menusExpandidosIds = [];
 
   @override
@@ -65,25 +58,18 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
           setState(() {
             _nomeUsuarioLogado = doc.data()?['nome'] ?? "Usuário";
             _emailUsuarioLogado = doc.data()?['email'] ?? "Sem E-mail";
-            _vinculoId = doc.data()?['vinculoId'];
           });
-
           final perfilId = doc.data()?['perfilId'];
-          if (perfilId != null) {
+          if (perfilId != null)
             await permissoesGlobais.inicializarParaUsuario(perfilId);
-          }
         }
       } catch (e) {
-        debugPrint(
-          "❌ [DEBUG CHASSI] Falha crítica ao ler dados do usuário: $e",
-        );
-        if (mounted) {
+        if (mounted)
           setState(() {
             _nomeUsuarioLogado = "Administrador";
             _emailUsuarioLogado =
                 FirebaseAuth.instance.currentUser?.email ?? "";
           });
-        }
       }
     }
   }
@@ -102,6 +88,7 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
     'assignment': Icons.assignment_outlined,
     'payments': Icons.payments_outlined,
     'inventory': Icons.inventory_2_outlined,
+    'route': Icons.route_rounded, // 🚀 NOVO ÍCONE ADICIONADO AQUI TAMBÉM
   };
 
   Widget _obterTelaDestino(String chaveRota, String titulo) {
@@ -110,19 +97,17 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
       case 'clinica_dashboard':
       case 'clinica_adicionar_usuario':
         return ClinicasHub(rotaAbaAtiva: chaveRota);
-
       case 'lista_laboratorios':
       case 'lista_laboratorios_aba':
       case 'lab_dashboard':
       case 'lab_adicionar_usuario':
       case 'lab_cadastro_exames':
-      case 'lab_cadastro_insumos': // 🚀 NOVO INSUMO NO ROTEADOR MESTRE!
+      case 'lab_cadastro_insumos':
+      case 'lab_gestao_rotas': // 🚀 ROTEADOR DE ROTAS MESTRE!
         return LaboratoriosHub(rotaAbaAtiva: chaveRota);
-
       case 'entregador_gestao':
       case 'entregador_dashboard':
         return EntregadoresHub(rotaAbaAtiva: chaveRota);
-
       case 'gestao_perfis':
         return const GestaoPerfisHub();
       case 'gestao_menus':
@@ -131,7 +116,6 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
         return const GestaoSubmenusHub();
       case 'gestao_usuarios':
         return const GestaoUsuarioHub();
-
       default:
         return Center(
           child: Text(
@@ -146,11 +130,9 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
   Widget build(BuildContext context) {
     const corMenuLateral = Color(0xFF343A40);
     const corFundo = Color(0xFFF4F6F9);
-
     return LayoutBuilder(
       builder: (context, constraints) {
         final isDesktop = constraints.maxWidth > 800;
-
         return Scaffold(
           backgroundColor: corFundo,
           appBar: AppBar(
@@ -190,8 +172,6 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
   }
 
   Widget _construirMenuLateral(BuildContext context, Color corFundo) {
-    final i18n = AppLocalizations.of(context)!;
-
     return Column(
       children: [
         Container(
@@ -220,12 +200,11 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
                 ),
               ),
               const SizedBox(height: 20),
-
               Container(
                 padding: const EdgeInsets.all(12),
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  color: Colors.black.withAlpha(51),
+                  color: Colors.black.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: Colors.white10),
                 ),
@@ -270,20 +249,16 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
             ],
           ),
         ),
-
         const Divider(color: Colors.white24, height: 1),
-
         Expanded(
           child: ListenableBuilder(
             listenable: permissoesGlobais,
             builder: (context, child) {
-              if (permissoesGlobais.carregando) {
+              if (permissoesGlobais.carregando)
                 return const Center(
                   child: CircularProgressIndicator(color: Colors.greenAccent),
                 );
-              }
-
-              if (permissoesGlobais.menusPermitidos.isEmpty) {
+              if (permissoesGlobais.menusPermitidos.isEmpty)
                 return const Padding(
                   padding: EdgeInsets.all(20.0),
                   child: Text(
@@ -292,11 +267,8 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
                     textAlign: TextAlign.center,
                   ),
                 );
-              }
-
               final menusOrdenados = List.of(permissoesGlobais.menusPermitidos);
               menusOrdenados.sort((a, b) => a.peso.compareTo(b.peso));
-
               return ListView.builder(
                 padding: EdgeInsets.zero,
                 itemCount: menusOrdenados.length,
@@ -304,20 +276,19 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
                   final menu = menusOrdenados[index];
                   final submenus = permissoesGlobais.getSubmenusDoMenu(menu.id);
                   submenus.sort((a, b) => a.peso.compareTo(b.peso));
-
                   final iconData =
                       _iconesMapeados[menu.icone] ?? Icons.widgets_outlined;
-                  final bool estaExpandido = _idEstaExpandido(menu.id);
-
+                  final bool estaExpandido = _menusExpandidosIds.contains(
+                    menu.id,
+                  );
                   return Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       _itemMenuBlindado(
                         iconData,
                         menu.titulo,
-                        () {
-                          _executarNavegacao(context, menu.titulo, menu.rota);
-                        },
+                        () =>
+                            _executarNavegacao(context, menu.titulo, menu.rota),
                         trailing: submenus.isEmpty
                             ? null
                             : IconButton(
@@ -328,21 +299,29 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
                                   color: Colors.white70,
                                   size: 20,
                                 ),
-                                onPressed: () {
-                                  _alternarExpansaoMenu(menu.id);
-                                },
+                                onPressed: () => setState(
+                                  () => estaExpandido
+                                      ? _menusExpandidosIds.remove(menu.id)
+                                      : _menusExpandidosIds.add(menu.id),
+                                ),
                               ),
                       ),
-
-                      if (submenus.isNotEmpty && _idEstaExpandido(menu.id))
+                      if (submenus.isNotEmpty && estaExpandido)
                         ...submenus.map((sub) {
                           final subIcon =
                               _iconesMapeados[sub.icone] ??
                               Icons.subdirectory_arrow_right_rounded;
-                          return _itemMenuBlindado(subIcon, sub.titulo, () {
-                            _executarNavegacao(context, sub.titulo, sub.rota);
-                          }, isSubmenu: true);
-                        }).toList(),
+                          return _itemMenuBlindado(
+                            subIcon,
+                            sub.titulo,
+                            () => _executarNavegacao(
+                              context,
+                              sub.titulo,
+                              sub.rota,
+                            ),
+                            isSubmenu: true,
+                          );
+                        }),
                     ],
                   );
                 },
@@ -350,25 +329,16 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
             },
           ),
         ),
-
         const Divider(color: Colors.white24, height: 1),
-
-        _itemMenuBlindado(
-          Icons.exit_to_app,
-          i18n.logout ?? 'Sair do Sistema',
-          () async {
-            permissoesGlobais.menusPermitidos.clear();
-            permissoesGlobais.submenusPermitidos.clear();
-            await AuthService().logout();
-            if (context.mounted) {
-              Navigator.of(
-                context,
-              ).pushNamedAndRemoveUntil('/login', (route) => false);
-            }
-          },
-          corTexto: Colors.redAccent,
-        ),
-
+        _itemMenuBlindado(Icons.exit_to_app, 'Sair do Sistema', () async {
+          permissoesGlobais.menusPermitidos.clear();
+          permissoesGlobais.submenusPermitidos.clear();
+          await AuthService().logout();
+          if (context.mounted)
+            Navigator.of(
+              context,
+            ).pushNamedAndRemoveUntil('/login', (route) => false);
+        }, corTexto: Colors.redAccent),
         const SizedBox(height: 16),
       ],
     );
@@ -412,32 +382,15 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
     );
   }
 
-  bool _idEstaExpandido(String id) => _menusExpandidosIds.contains(id);
-
-  void _alternarExpansaoMenu(String id) {
-    setState(() {
-      if (_menusExpandidosIds.contains(id)) {
-        _menusExpandidosIds.remove(id);
-      } else {
-        _menusExpandidosIds.add(id);
-      }
-    });
-  }
-
   void _executarNavegacao(
     BuildContext context,
     String titulo,
     String chaveRota,
   ) {
-    final Widget telaDestino = _obterTelaDestino(chaveRota, titulo);
-
     setState(() {
       _tituloAtual = titulo;
-      _conteudoAtual = telaDestino;
+      _conteudoAtual = _obterTelaDestino(chaveRota, titulo);
     });
-
-    if (MediaQuery.of(context).size.width <= 800) {
-      Navigator.of(context).pop();
-    }
+    if (MediaQuery.of(context).size.width <= 800) Navigator.of(context).pop();
   }
 }

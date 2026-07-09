@@ -9,6 +9,7 @@ import 'package:vet_route/models/laboratorio_model.dart';
 import 'package:vet_route/screens/web/laboratorios/lista_laboratorio_view.dart';
 import 'package:vet_route/screens/web/laboratorios/lab_dashboard_view.dart';
 import 'cadastro_exame_hub.dart';
+import 'gestao_rotas_hub.dart'; // 🚀 NOVO IMPORT DAS ROTAS!
 
 class LaboratoriosHub extends StatefulWidget {
   final String? rotaAbaAtiva;
@@ -42,7 +43,6 @@ class _LaboratoriosHubState extends State<LaboratoriosHub> {
           .collection('usuarios')
           .doc(user.uid)
           .get();
-
       final userData = userDoc.data();
 
       if (userData != null &&
@@ -50,7 +50,6 @@ class _LaboratoriosHubState extends State<LaboratoriosHub> {
           userData['vinculoId'] != null &&
           userData['vinculoId'].toString().isNotEmpty) {
         final vinculoId = userData['vinculoId'];
-
         final laboratorioDoc = await FirebaseFirestore.instance
             .collection('laboratorios')
             .doc(vinculoId)
@@ -66,9 +65,7 @@ class _LaboratoriosHubState extends State<LaboratoriosHub> {
     } catch (e) {
       debugPrint("Erro Crítico de Segurança no Hub de Labs: $e");
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -76,19 +73,17 @@ class _LaboratoriosHubState extends State<LaboratoriosHub> {
     switch (rotaSubmenu) {
       case 'lab_dashboard':
         return const LabDashboardView();
-
       case 'lab_adicionar_usuario':
         return UsuariosLabView(
           labContexto: _labSelecionado!,
           chavePermissao: 'lista_laboratorios',
         );
-
       case 'lab_cadastro_exames':
         return CadastroExameHub(labContexto: _labSelecionado!);
-
-      case 'lab_cadastro_insumos': // 🚀 AQUI PASSA O CONTEXTO PARA INSUMOS!
+      case 'lab_cadastro_insumos':
         return CadastroInsumoHub(labContexto: _labSelecionado!);
-
+      case 'lab_gestao_rotas': // 🚀 AQUI PASSA O CONTEXTO PARA ROTAS!
+        return GestaoRotasHub(labContexto: _labSelecionado!);
       default:
         return _buildPlaceholder(
           'Funcionalidade ($rotaSubmenu) em desenvolvimento 🚧',
@@ -120,11 +115,10 @@ class _LaboratoriosHubState extends State<LaboratoriosHub> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
+    if (_isLoading)
       return const Center(
         child: CircularProgressIndicator(color: Colors.indigo),
       );
-    }
 
     if (_labSelecionado == null) {
       return Column(
@@ -149,7 +143,7 @@ class _LaboratoriosHubState extends State<LaboratoriosHub> {
                 const SizedBox(width: 12),
                 const Expanded(
                   child: Text(
-                    "Painel de Controle Corporativo: Selecione um Laboratório na lista abaixo para auditar sua operação e gerenciar contas de acesso.",
+                    "Painel de Controle Corporativo: Selecione um Laboratório na lista abaixo para auditar sua operação.",
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.black87,
@@ -162,11 +156,7 @@ class _LaboratoriosHubState extends State<LaboratoriosHub> {
           ),
           Expanded(
             child: ListaLaboratoriosView(
-              onLabSelected: (lab) {
-                setState(() {
-                  _labSelecionado = lab;
-                });
-              },
+              onLabSelected: (lab) => setState(() => _labSelecionado = lab),
             ),
           ),
         ],
@@ -179,16 +169,13 @@ class _LaboratoriosHubState extends State<LaboratoriosHub> {
         final menusFiltrados = permissoesGlobais.menusPermitidos.where(
           (m) => m.rota == 'lista_laboratorios',
         );
-
-        if (menusFiltrados.isEmpty) {
+        if (menusFiltrados.isEmpty)
           return const Center(
             child: CircularProgressIndicator(color: Colors.indigo),
           );
-        }
 
         final menuPai = menusFiltrados.first;
         final submenus = permissoesGlobais.getSubmenusDoMenu(menuPai.id);
-
         final submenusFiltrados = submenus
             .where((s) => s.rota != 'lista_laboratorios_aba')
             .toList();
@@ -203,7 +190,7 @@ class _LaboratoriosHubState extends State<LaboratoriosHub> {
                 const SizedBox(height: 40),
                 const Center(
                   child: Text(
-                    "Nenhum submenu ou aba complementar configurada para este módulo no Firestore.",
+                    "Nenhum submenu ou aba configurada para este módulo no Firestore.",
                     style: TextStyle(color: Colors.grey, fontSize: 14),
                   ),
                 ),
@@ -213,7 +200,6 @@ class _LaboratoriosHubState extends State<LaboratoriosHub> {
         }
 
         submenusFiltrados.sort((a, b) => a.peso.compareTo(b.peso));
-
         int indiceFoco = 0;
         final abasDinamicas = <TabItemModel>[];
 
@@ -225,11 +211,9 @@ class _LaboratoriosHubState extends State<LaboratoriosHub> {
               conteudo: _resolverConteudoDaAba(submenu.rota),
             ),
           );
-
           if (widget.rotaAbaAtiva != null &&
-              widget.rotaAbaAtiva == submenu.rota) {
+              widget.rotaAbaAtiva == submenu.rota)
             indiceFoco = i;
-          }
         }
 
         return Column(
@@ -293,11 +277,7 @@ class _LaboratoriosHubState extends State<LaboratoriosHub> {
           ),
           if (!_isUsuarioRestrito)
             TextButton.icon(
-              onPressed: () {
-                setState(() {
-                  _labSelecionado = null;
-                });
-              },
+              onPressed: () => setState(() => _labSelecionado = null),
               icon: const Icon(Icons.swap_horiz_rounded, size: 16),
               label: const Text(
                 "Alternar Laboratório",
