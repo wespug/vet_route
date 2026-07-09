@@ -38,16 +38,18 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
     'local_hospital': Icons.local_hospital,
     'science': Icons.science,
     'motorcycle': Icons.motorcycle,
-    'people_alt': Icons
-        .people_alt_rounded, // 💡 Adicionei um ícone extra bacana para usuários!
+    'people_alt': Icons.people_alt_rounded,
   };
 
   final Map<String, String> _paginasMapeadas = {
+    'clinica_gestao':
+        'Gestão da Clínica', // SOLUÇÃO: Injetado aqui para o Dropdown reconhecer o valor padrão!
     'lab_dashboard': 'Dashboard do Laboratório',
     'clinica_dashboard': 'Dashboard da Clínica',
     'entregador_dashboard': 'Dashboard do Entregador',
     'lab_adicionar_usuario': 'Adicionar Usuários do Laboratório',
     'clinica_adicionar_usuario': 'Adicionar Usuários da Clínica',
+    'lab_cadastro_exames': 'Cadastro de Exames',
   };
 
   @override
@@ -266,7 +268,6 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
                           ),
                           const SizedBox(width: 12),
                           Expanded(
-                            flex: 3,
                             child: DropdownButtonFormField<String>(
                               initialValue: _paginaSelecionada,
                               decoration: InputDecoration(

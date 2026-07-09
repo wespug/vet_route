@@ -9,7 +9,10 @@ import 'package:vet_route/screens/web/clinicas/clinica_dashboard_view.dart';
 import 'package:vet_route/screens/web/clinicas/clinica_usuario_view.dart';
 
 class ClinicasHub extends StatefulWidget {
-  const ClinicasHub({super.key});
+  // 💡 AQUI ESTÁ O PARÂMETRO QUE FALTAVA SALVAR NA CLÍNICA!
+  final String? rotaAbaAtiva;
+
+  const ClinicasHub({super.key, this.rotaAbaAtiva});
 
   @override
   State<ClinicasHub> createState() => _ClinicasHubState();
@@ -69,8 +72,6 @@ class _ClinicasHubState extends State<ClinicasHub> {
   }
 
   Widget _resolverConteudoDaAba(String rotaSubmenu) {
-    // Como garantimos no build que esta função só roda se houver clínica selecionada,
-    // o operador '!' é 100% seguro aqui e nunca causará crash.
     switch (rotaSubmenu) {
       case 'clinica_dashboard':
         return ClinicaDashboardView(clinicaContexto: _clinicaSelecionada!);
@@ -116,8 +117,6 @@ class _ClinicasHubState extends State<ClinicasHub> {
       return const Center(child: CircularProgressIndicator(color: Colors.teal));
     }
 
-    // 🌐 PASSO 1 DO ADMIN: NENHUMA EMPRESA SELECIONADA
-    // Exibe única e exclusivamente a lista de seleção, eliminando as abas vazias do topo!
     if (_clinicaSelecionada == null) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -165,8 +164,6 @@ class _ClinicasHubState extends State<ClinicasHub> {
       );
     }
 
-    // 🏥 PASSO 2: CLÍNICA SELECIONADA ATIVA
-    // Infla com maestria o chassi de abas dinâmicas baseado nas permissões do Firestore
     return ListenableBuilder(
       listenable: permissoesGlobais,
       builder: (context, child) {
@@ -208,19 +205,37 @@ class _ClinicasHubState extends State<ClinicasHub> {
 
         submenusFiltrados.sort((a, b) => a.peso.compareTo(b.peso));
 
-        final abasDinamicas = submenusFiltrados.map((submenu) {
-          return TabItemModel(
-            titulo: submenu.titulo,
-            conteudo: _resolverConteudoDaAba(submenu.rota),
+        // 💡 A MÁGICA ACONTECE AQUI: Calcula dinamicamente o índice da aba correta!
+        int indiceFoco = 0;
+        final abasDinamicas = <TabItemModel>[];
+
+        for (int i = 0; i < submenusFiltrados.length; i++) {
+          final submenu = submenusFiltrados[i];
+          abasDinamicas.add(
+            TabItemModel(
+              titulo: submenu.titulo,
+              conteudo: _resolverConteudoDaAba(submenu.rota),
+            ),
           );
-        }).toList();
+
+          // Se a rota da aba atual for igual à rota que o Chassi avisou que foi clicada:
+          if (widget.rotaAbaAtiva != null &&
+              widget.rotaAbaAtiva == submenu.rota) {
+            indiceFoco = i;
+          }
+        }
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildBarraTopoBreadcrumb(),
             const SizedBox(height: 16),
-            Expanded(child: GenericTabHub(abas: abasDinamicas)),
+            Expanded(
+              child: GenericTabHub(
+                abas: abasDinamicas,
+                indiceInicial: indiceFoco, // Injeta o foco perfeito na aba!
+              ),
+            ),
           ],
         );
       },
@@ -277,8 +292,7 @@ class _ClinicasHubState extends State<ClinicasHub> {
             TextButton.icon(
               onPressed: () {
                 setState(() {
-                  _clinicaSelecionada =
-                      null; // Reseta o estado e volta para a lista limpa
+                  _clinicaSelecionada = null;
                 });
               },
               icon: const Icon(Icons.swap_horiz_rounded, size: 16),

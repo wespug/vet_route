@@ -105,26 +105,31 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
     'inventory': Icons.inventory_2_outlined,
   };
 
-  // 💡 CENTRAL DE ROTEAMENTO (Agora limpa e focada nos Hubs Mestre!)
+  // 💡 CENTRAL DE ROTEAMENTO (Agora limpa, focada nos Hubs Mestre e com DEEP LINK ativado!)
   Widget _obterTelaDestino(String chaveRota, String titulo) {
     switch (chaveRota) {
-      // 🏥 Roteamento Clínicas: Qualquer clique em Clínica joga para o Hub, que decide o que mostrar
+      // 🏥 Roteamento Clínicas
       case 'clinica_gestao':
       case 'clinica_dashboard':
       case 'clinica_adicionar_usuario':
-        return const ClinicasHub();
+        return ClinicasHub(rotaAbaAtiva: chaveRota); // 🚀 Injeta o Deep Link
 
-      // 🔬 Roteamento Laboratórios: Qualquer clique em Laboratório joga para o Hub
+      // 🔬 Roteamento Laboratórios
       case 'lista_laboratorios':
       case 'lista_laboratorios_aba':
       case 'lab_dashboard':
       case 'lab_adicionar_usuario':
-        return const LaboratoriosHub();
+      case 'lab_cadastro_exames':
+        return LaboratoriosHub(
+          rotaAbaAtiva: chaveRota,
+        ); // 🚀 Injeta o Deep Link
 
       // 🏍️ Roteamento Entregadores
       case 'entregador_gestao':
       case 'entregador_dashboard':
-        return const EntregadoresHub();
+        return EntregadoresHub(
+          rotaAbaAtiva: chaveRota,
+        ); // 🚀 Injeta o Deep Link
 
       // ⚙️ Roteamento de Configurações Globais
       case 'gestao_perfis':
@@ -183,7 +188,8 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.all(20.0),
-                  child: _conteudoAtual,
+                  child:
+                      _conteudoAtual, // Aqui o conteúdo já recebe o Deep Link na hora do build!
                 ),
               ),
             ],

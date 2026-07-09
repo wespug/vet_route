@@ -6,7 +6,9 @@ import 'package:vet_route/screens/web/entregadores/lista_entregadores_view.dart'
 import 'package:vet_route/screens/web/entregadores/entregador_dashboard_view.dart';
 
 class EntregadoresHub extends StatefulWidget {
-  const EntregadoresHub({super.key});
+  final String? rotaAbaAtiva; // 💡 NOVO: Parâmetro Deep Link
+
+  const EntregadoresHub({super.key, this.rotaAbaAtiva});
 
   @override
   State<EntregadoresHub> createState() => _EntregadoresHubState();
@@ -15,9 +17,6 @@ class EntregadoresHub extends StatefulWidget {
 class _EntregadoresHubState extends State<EntregadoresHub> {
   Entregador? _entregadorSelecionado;
 
-  // 🎯 O SEGUNDO LUGAR DE MAPEAMENTO ESTÁ EXATAMENTE AQUI!
-  // Quando cadastrar o submenu do Motoboy na sua tela de gestão, a String colocada no campo
-  // "Rota" precisa entrar em um dos cases abaixo para abrir o painel correto do entregador.
   Widget _resolverConteudoDaAba(String rotaSubmenu) {
     switch (rotaSubmenu) {
       case 'entregador_dashboard':
@@ -104,19 +103,37 @@ class _EntregadoresHubState extends State<EntregadoresHub> {
         }
 
         submenusFiltrados.sort((a, b) => a.peso.compareTo(b.peso));
-        final abasDinamicas = submenusFiltrados.map((submenu) {
-          return TabItemModel(
-            titulo: submenu.titulo,
-            conteudo: _resolverConteudoDaAba(submenu.rota),
+
+        // 💡 CÁLCULO DE FOCO: Sincroniza a aba com o menu lateral
+        int indiceFoco = 0;
+        final abasDinamicas = <TabItemModel>[];
+
+        for (int i = 0; i < submenusFiltrados.length; i++) {
+          final submenu = submenusFiltrados[i];
+          abasDinamicas.add(
+            TabItemModel(
+              titulo: submenu.titulo,
+              conteudo: _resolverConteudoDaAba(submenu.rota),
+            ),
           );
-        }).toList();
+
+          if (widget.rotaAbaAtiva != null &&
+              widget.rotaAbaAtiva == submenu.rota) {
+            indiceFoco = i;
+          }
+        }
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildBarraTopoBreadcrumb(),
             const SizedBox(height: 16),
-            Expanded(child: GenericTabHub(abas: abasDinamicas)),
+            Expanded(
+              child: GenericTabHub(
+                abas: abasDinamicas,
+                indiceInicial: indiceFoco, // Injeta o foco na aba correta!
+              ),
+            ),
           ],
         );
       },

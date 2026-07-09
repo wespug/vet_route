@@ -8,23 +8,49 @@ class TabItemModel {
   TabItemModel({required this.titulo, required this.conteudo});
 }
 
-// 💡 O WIDGET MESTRE REUTILIZÁVEL
+// 💡 O WIDGET MESTRE REUTILIZÁVEL (Agora reativo a links externos!)
 class GenericTabHub extends StatefulWidget {
   final List<TabItemModel> abas;
+  final int indiceInicial; // NOVO: Aceita um índice para nascer focado!
 
-  const GenericTabHub({super.key, required this.abas});
+  const GenericTabHub({super.key, required this.abas, this.indiceInicial = 0});
 
   @override
   State<GenericTabHub> createState() => _GenericTabHubState();
 }
 
 class _GenericTabHubState extends State<GenericTabHub> {
-  int _indiceAbaAtual = 0;
+  late int _indiceAbaAtual;
+
+  @override
+  void initState() {
+    super.initState();
+    // Nasce com o índice solicitado pelo roteador
+    _indiceAbaAtual = widget.indiceInicial;
+  }
+
+  // NOVO: A MÁGICA DO DEEP LINK!
+  // Se a tela pai (LaboratoriosHub) mudar o índice, essa função força a aba a atualizar!
+  @override
+  void didUpdateWidget(covariant GenericTabHub oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.indiceInicial != oldWidget.indiceInicial &&
+        widget.indiceInicial < widget.abas.length) {
+      setState(() {
+        _indiceAbaAtual = widget.indiceInicial;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     if (widget.abas.isEmpty) {
       return const Center(child: Text("Nenhuma aba configurada."));
+    }
+
+    // Trava de segurança: se as abas diminuírem de tamanho e o índice ficar fora, volta pro zero.
+    if (_indiceAbaAtual >= widget.abas.length) {
+      _indiceAbaAtual = 0;
     }
 
     return Column(
@@ -63,7 +89,7 @@ class _GenericTabHubState extends State<GenericTabHub> {
                       ),
                       decoration: BoxDecoration(
                         color: isSelecionada
-                            ? const Color(0xFF007BFF)
+                            ? const Color(0xFF007BFF) // Azul ativo
                             : Colors.transparent,
                         borderRadius: BorderRadius.circular(6),
                       ),

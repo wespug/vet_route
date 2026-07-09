@@ -7,9 +7,13 @@ import 'package:vet_route/screens/widgets/generic_tab_hub.dart';
 import 'package:vet_route/models/laboratorio_model.dart';
 import 'package:vet_route/screens/web/laboratorios/lista_laboratorio_view.dart';
 import 'package:vet_route/screens/web/laboratorios/lab_dashboard_view.dart';
+import 'cadastro_exame_hub.dart';
 
 class LaboratoriosHub extends StatefulWidget {
-  const LaboratoriosHub({super.key});
+  // 💡 AQUI ESTÁ O PARÂMETRO QUE FALTAVA SALVAR!
+  final String? rotaAbaAtiva;
+
+  const LaboratoriosHub({super.key, this.rotaAbaAtiva});
 
   @override
   State<LaboratoriosHub> createState() => _LaboratoriosHubState();
@@ -79,9 +83,12 @@ class _LaboratoriosHubState extends State<LaboratoriosHub> {
           chavePermissao: 'lista_laboratorios',
         );
 
+      case 'lab_cadastro_exames':
+        return CadastroExameHub(labContexto: _labSelecionado!);
+
       default:
         return _buildPlaceholder(
-          'Funcionalidade ($rotaSubmenu) configurada na gestão, mas em development 🚧',
+          'Funcionalidade ($rotaSubmenu) em desenvolvimento 🚧',
           Icons.construction_rounded,
         );
     }
@@ -116,8 +123,6 @@ class _LaboratoriosHubState extends State<LaboratoriosHub> {
       );
     }
 
-    // 🌐 PASSO 1 DO ADMIN: NENHUM LABORATÓRIO SELECIONADO
-    // Esconde as abas e foca 100% na seleção do parceiro
     if (_labSelecionado == null) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -165,7 +170,6 @@ class _LaboratoriosHubState extends State<LaboratoriosHub> {
       );
     }
 
-    // 🔬 LABORATÓRIO SELECIONADO ATIVO
     return ListenableBuilder(
       listenable: permissoesGlobais,
       builder: (context, child) {
@@ -207,19 +211,36 @@ class _LaboratoriosHubState extends State<LaboratoriosHub> {
 
         submenusFiltrados.sort((a, b) => a.peso.compareTo(b.peso));
 
-        final abasDinamicas = submenusFiltrados.map((submenu) {
-          return TabItemModel(
-            titulo: submenu.titulo,
-            conteudo: _resolverConteudoDaAba(submenu.rota),
+        // 💡 CÁLCULO DE FOCO: Sincroniza a aba com o menu lateral
+        int indiceFoco = 0;
+        final abasDinamicas = <TabItemModel>[];
+
+        for (int i = 0; i < submenusFiltrados.length; i++) {
+          final submenu = submenusFiltrados[i];
+          abasDinamicas.add(
+            TabItemModel(
+              titulo: submenu.titulo,
+              conteudo: _resolverConteudoDaAba(submenu.rota),
+            ),
           );
-        }).toList();
+
+          if (widget.rotaAbaAtiva != null &&
+              widget.rotaAbaAtiva == submenu.rota) {
+            indiceFoco = i;
+          }
+        }
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildBarraTopoBreadcrumb(),
             const SizedBox(height: 16),
-            Expanded(child: GenericTabHub(abas: abasDinamicas)),
+            Expanded(
+              child: GenericTabHub(
+                abas: abasDinamicas,
+                indiceInicial: indiceFoco, // Injeta o foco na aba correta!
+              ),
+            ),
           ],
         );
       },
@@ -272,8 +293,7 @@ class _LaboratoriosHubState extends State<LaboratoriosHub> {
             TextButton.icon(
               onPressed: () {
                 setState(() {
-                  _labSelecionado =
-                      null; // Reseta o estado e volta à lista mestre
+                  _labSelecionado = null;
                 });
               },
               icon: const Icon(Icons.swap_horiz_rounded, size: 16),
