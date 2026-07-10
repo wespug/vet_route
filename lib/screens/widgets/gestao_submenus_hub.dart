@@ -39,7 +39,8 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
     'science': Icons.science,
     'motorcycle': Icons.motorcycle,
     'people_alt': Icons.people_alt_rounded,
-    'route': Icons.route_rounded, // 🚀 NOVO ÍCONE DE ROTA
+    'route': Icons.route_rounded,
+    'hail': Icons.hail_rounded, // 🚀 NOVO ÍCONE ADICIONADO PARA O CHAMADO!
   };
 
   final Map<String, String> _paginasMapeadas = {
@@ -51,7 +52,9 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
     'clinica_adicionar_usuario': 'Adicionar Usuários da Clínica',
     'lab_cadastro_exames': 'Cadastro de Exames',
     'lab_cadastro_insumos': 'Cadastro de Insumos',
-    'lab_gestao_rotas': 'Gestão de Rotas Fixas', // 🚀 NOVA PÁGINA MAPEADA
+    'lab_gestao_rotas': 'Gestão de Rotas Fixas',
+    'clinica_gestao_chamados':
+        'Gestão de Chamados de Motoboy', // 🚀 NOVA ROTA DE SOLICITAÇÃO MAPEADA!
   };
 
   @override
@@ -137,7 +140,7 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
               Text(
                 isEditando
                     ? "A editar as definições do submenu..."
-                    : "Crie subníveis de navegação dinâmicos.",
+                    : "Crie subníveis de navigation dinâmicos.",
                 style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
               ),
               const SizedBox(height: 32),

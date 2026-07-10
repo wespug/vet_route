@@ -88,7 +88,8 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
     'assignment': Icons.assignment_outlined,
     'payments': Icons.payments_outlined,
     'inventory': Icons.inventory_2_outlined,
-    'route': Icons.route_rounded, // 🚀 NOVO ÍCONE ADICIONADO AQUI TAMBÉM
+    'route': Icons.route_rounded,
+    'hail': Icons.hail_rounded,
   };
 
   Widget _obterTelaDestino(String chaveRota, String titulo) {
@@ -96,6 +97,7 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
       case 'clinica_gestao':
       case 'clinica_dashboard':
       case 'clinica_adicionar_usuario':
+      case 'clinica_gestao_chamados': // 🚀 NOVO MAPEAMENTO DE CHAMADOS PLUGADO NO CHASSI!
         return ClinicasHub(rotaAbaAtiva: chaveRota);
       case 'lista_laboratorios':
       case 'lista_laboratorios_aba':
@@ -103,7 +105,7 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
       case 'lab_adicionar_usuario':
       case 'lab_cadastro_exames':
       case 'lab_cadastro_insumos':
-      case 'lab_gestao_rotas': // 🚀 ROTEADOR DE ROTAS MESTRE!
+      case 'lab_gestao_rotas':
         return LaboratoriosHub(rotaAbaAtiva: chaveRota);
       case 'entregador_gestao':
       case 'entregador_dashboard':

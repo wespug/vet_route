@@ -8,8 +8,10 @@ import 'package:vet_route/screens/web/clinicas/lista_clinicas_view.dart';
 import 'package:vet_route/screens/web/clinicas/clinica_dashboard_view.dart';
 import 'package:vet_route/screens/web/clinicas/clinica_usuario_view.dart';
 
+// O NOVO IMPORT DA TELA LOGÍSTICA!
+import 'package:vet_route/screens/web/clinicas/gestao_chamados_view.dart';
+
 class ClinicasHub extends StatefulWidget {
-  // 💡 AQUI ESTÁ O PARÂMETRO QUE FALTAVA SALVAR NA CLÍNICA!
   final String? rotaAbaAtiva;
 
   const ClinicasHub({super.key, this.rotaAbaAtiva});
@@ -81,6 +83,9 @@ class _ClinicasHubState extends State<ClinicasHub> {
           clinicaContexto: _clinicaSelecionada!,
           chavePermissao: 'clinica_gestao',
         );
+
+      case 'clinica_gestao_chamados': // 🚀 AQUI CRIA A CONEXÃO COM A TELA DE CHAMADOS!
+        return GestaoChamadosView(clinicaContexto: _clinicaSelecionada!);
 
       default:
         return _buildPlaceholder(
@@ -205,7 +210,6 @@ class _ClinicasHubState extends State<ClinicasHub> {
 
         submenusFiltrados.sort((a, b) => a.peso.compareTo(b.peso));
 
-        // 💡 A MÁGICA ACONTECE AQUI: Calcula dinamicamente o índice da aba correta!
         int indiceFoco = 0;
         final abasDinamicas = <TabItemModel>[];
 
@@ -218,7 +222,6 @@ class _ClinicasHubState extends State<ClinicasHub> {
             ),
           );
 
-          // Se a rota da aba atual for igual à rota que o Chassi avisou que foi clicada:
           if (widget.rotaAbaAtiva != null &&
               widget.rotaAbaAtiva == submenu.rota) {
             indiceFoco = i;
@@ -233,7 +236,7 @@ class _ClinicasHubState extends State<ClinicasHub> {
             Expanded(
               child: GenericTabHub(
                 abas: abasDinamicas,
-                indiceInicial: indiceFoco, // Injeta o foco perfeito na aba!
+                indiceInicial: indiceFoco,
               ),
             ),
           ],
