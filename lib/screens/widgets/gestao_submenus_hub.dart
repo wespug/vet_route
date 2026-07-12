@@ -40,21 +40,21 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
     'motorcycle': Icons.motorcycle,
     'people_alt': Icons.people_alt_rounded,
     'route': Icons.route_rounded,
-    'hail': Icons.hail_rounded, // 🚀 NOVO ÍCONE ADICIONADO PARA O CHAMADO!
+    'hail': Icons.hail_rounded,
   };
 
+  // 🚀 MAPEAMENTO DE ROTAS OFICIAIS DO SAAS (SEM COISAS MOCKADAS)
   final Map<String, String> _paginasMapeadas = {
-    'clinica_gestao': 'Gestão da Clínica',
+    'clinica_gestao': 'Gestão da Clínica (Web)',
     'lab_dashboard': 'Dashboard do Laboratório',
-    'clinica_dashboard': 'Dashboard da Clínica',
     'entregador_dashboard': 'Dashboard do Entregador',
-    'lab_adicionar_usuario': 'Adicionar Usuários do Laboratório',
-    'clinica_adicionar_usuario': 'Adicionar Usuários da Clínica',
+    'lab_adicionar_usuario': 'Adicionar Usuários (Laboratório)',
+    'clinica_adicionar_usuario': 'Adicionar Usuários (Clínica)',
     'lab_cadastro_exames': 'Cadastro de Exames',
     'lab_cadastro_insumos': 'Cadastro de Insumos',
     'lab_gestao_rotas': 'Gestão de Rotas Fixas',
-    'clinica_gestao_chamados':
-        'Gestão de Chamados de Motoboy', // 🚀 NOVA ROTA DE SOLICITAÇÃO MAPEADA!
+    'clinica_chamar_motoboy':
+        'Chamar Motoboy (Mobile)', // 🟢 Injetado com sucesso!
   };
 
   @override
@@ -77,7 +77,7 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
     try {
       return _menuController.menus.firstWhere((m) => m.id == menuId).titulo;
     } catch (e) {
-      return 'Menu não encontrado';
+      return 'Menu Pai Externo';
     }
   }
 
@@ -136,27 +136,13 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
                   color: Colors.black87,
                 ),
               ),
-              const SizedBox(height: 4),
-              Text(
-                isEditando
-                    ? "A editar as definições do submenu..."
-                    : "Crie subníveis de navigation dinâmicos.",
-                style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
-              ),
               const SizedBox(height: 32),
-
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: isEditando
-                      ? Colors.blue.shade50.withOpacity(0.4)
-                      : Colors.grey.shade50,
+                  color: Colors.grey.shade50,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: isEditando
-                        ? Colors.blue.shade200
-                        : Colors.grey.shade200,
-                  ),
+                  border: Border.all(color: Colors.grey.shade200),
                 ),
                 child: Form(
                   key: _formKey,
@@ -169,7 +155,7 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
                             child: DropdownButtonFormField<String>(
                               value: _menuPaiSelecionado,
                               decoration: InputDecoration(
-                                labelText: "Menu Pai (Destino)",
+                                labelText: "Menu Pai",
                                 fillColor: Colors.white,
                                 filled: true,
                                 border: OutlineInputBorder(
@@ -219,10 +205,6 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
                               ],
                               decoration: InputDecoration(
                                 labelText: "Ordem",
-                                prefixIcon: const Icon(
-                                  Icons.sort_rounded,
-                                  size: 20,
-                                ),
                                 fillColor: Colors.white,
                                 filled: true,
                                 border: OutlineInputBorder(
@@ -244,7 +226,7 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
                             child: DropdownButtonFormField<String>(
                               value: _iconeSelecionado,
                               decoration: InputDecoration(
-                                labelText: "Ícone Visual",
+                                labelText: "Ícone",
                                 fillColor: Colors.white,
                                 filled: true,
                                 border: OutlineInputBorder(
@@ -352,9 +334,7 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
                           ElevatedButton.icon(
                             onPressed: _processarFormulario,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: isEditando
-                                  ? Colors.blue.shade700
-                                  : Theme.of(context).primaryColor,
+                              backgroundColor: Theme.of(context).primaryColor,
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 24,
                                 vertical: 16,
@@ -376,7 +356,6 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
                 ),
               ),
               const SizedBox(height: 32),
-
               Expanded(
                 child:
                     _submenuController.carregando || _menuController.carregando
@@ -449,30 +428,12 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
             return DataRow(
               cells: [
                 DataCell(
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.shade100,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      sub.peso.toString(),
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.orange.shade900,
-                      ),
-                    ),
-                  ),
-                ),
-                DataCell(
                   Text(
-                    _obterNomeMenuPai(sub.menuId),
-                    style: TextStyle(color: Colors.grey.shade700),
+                    sub.peso.toString(),
+                    style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
+                DataCell(Text(_obterNomeMenuPai(sub.menuId))),
                 DataCell(
                   Text(
                     sub.titulo,

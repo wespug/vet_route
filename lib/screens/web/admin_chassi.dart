@@ -16,6 +16,7 @@ class AdminChassi extends StatelessWidget {
   final Widget conteudo;
   final String titulo;
   const AdminChassi({super.key, required this.conteudo, required this.titulo});
+
   @override
   Widget build(BuildContext context) {
     return _AdminChassiStateful(conteudo: conteudo, titulo: titulo);
@@ -26,6 +27,7 @@ class _AdminChassiStateful extends StatefulWidget {
   final Widget conteudo;
   final String titulo;
   const _AdminChassiStateful({required this.conteudo, required this.titulo});
+
   @override
   State<_AdminChassiStateful> createState() => _AdminChassiStatefulState();
 }
@@ -60,16 +62,18 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
             _emailUsuarioLogado = doc.data()?['email'] ?? "Sem E-mail";
           });
           final perfilId = doc.data()?['perfilId'];
-          if (perfilId != null)
+          if (perfilId != null) {
             await permissoesGlobais.inicializarParaUsuario(perfilId);
+          }
         }
       } catch (e) {
-        if (mounted)
+        if (mounted) {
           setState(() {
             _nomeUsuarioLogado = "Administrador";
             _emailUsuarioLogado =
                 FirebaseAuth.instance.currentUser?.email ?? "";
           });
+        }
       }
     }
   }
@@ -97,7 +101,7 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
       case 'clinica_gestao':
       case 'clinica_dashboard':
       case 'clinica_adicionar_usuario':
-      case 'clinica_gestao_chamados': // 🚀 NOVO MAPEAMENTO DE CHAMADOS PLUGADO NO CHASSI!
+      case 'clinica_gestao_chamados':
         return ClinicasHub(rotaAbaAtiva: chaveRota);
       case 'lista_laboratorios':
       case 'lista_laboratorios_aba':
@@ -132,6 +136,7 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
   Widget build(BuildContext context) {
     const corMenuLateral = Color(0xFF343A40);
     const corFundo = Color(0xFFF4F6F9);
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final isDesktop = constraints.maxWidth > 800;
@@ -254,35 +259,50 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
         const Divider(color: Colors.white24, height: 1),
         Expanded(
           child: ListenableBuilder(
+            key: const ValueKey('web_menu_listener'),
             listenable: permissoesGlobais,
             builder: (context, child) {
               if (permissoesGlobais.carregando)
                 return const Center(
                   child: CircularProgressIndicator(color: Colors.greenAccent),
                 );
-              if (permissoesGlobais.menusPermitidos.isEmpty)
+
+              // 🛡️ FILTRAGEM ESTREITA WEB: Puxa apenas itens onde m.isWeb == true!
+              final menusWeb = permissoesGlobais.menusPermitidos
+                  .where((m) => m.isWeb == true)
+                  .toList();
+              menusWeb.sort((a, b) => a.peso.compareTo(b.peso));
+
+              if (menusWeb.isEmpty) {
                 return const Padding(
                   padding: EdgeInsets.all(20.0),
                   child: Text(
-                    "Nenhum menu liberado para o seu perfil no Firestore.",
+                    "Nenhum menu liberado para a plataforma Web.",
                     style: TextStyle(color: Colors.white54, fontSize: 12),
                     textAlign: TextAlign.center,
                   ),
                 );
-              final menusOrdenados = List.of(permissoesGlobais.menusPermitidos);
-              menusOrdenados.sort((a, b) => a.peso.compareTo(b.peso));
+              }
+
               return ListView.builder(
                 padding: EdgeInsets.zero,
-                itemCount: menusOrdenados.length,
+                itemCount: menusWeb.length,
                 itemBuilder: (context, index) {
-                  final menu = menusOrdenados[index];
-                  final submenus = permissoesGlobais.getSubmenusDoMenu(menu.id);
-                  submenus.sort((a, b) => a.peso.compareTo(b.peso));
+                  final menu = menusWeb[index];
+
+                  // 🛡️ Filtra também os submenus de PC para impedir vazamento
+                  final submenusWeb = permissoesGlobais
+                      .getSubmenusDoMenu(menu.id)
+                      .where((s) => s.isWeb == true)
+                      .toList();
+                  submenusWeb.sort((a, b) => a.peso.compareTo(b.peso));
+
                   final iconData =
                       _iconesMapeados[menu.icone] ?? Icons.widgets_outlined;
                   final bool estaExpandido = _menusExpandidosIds.contains(
                     menu.id,
                   );
+
                   return Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -291,7 +311,7 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
                         menu.titulo,
                         () =>
                             _executarNavegacao(context, menu.titulo, menu.rota),
-                        trailing: submenus.isEmpty
+                        trailing: submenusWeb.isEmpty
                             ? null
                             : IconButton(
                                 icon: Icon(
@@ -308,8 +328,8 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
                                 ),
                               ),
                       ),
-                      if (submenus.isNotEmpty && estaExpandido)
-                        ...submenus.map((sub) {
+                      if (submenusWeb.isNotEmpty && estaExpandido)
+                        ...submenusWeb.map((sub) {
                           final subIcon =
                               _iconesMapeados[sub.icone] ??
                               Icons.subdirectory_arrow_right_rounded;
