@@ -7,6 +7,7 @@ import '../models/coleta_model.dart';
 import '../models/clinica_model.dart';
 import '../models/laboratorio_model.dart';
 import '../repositories/coleta_repository.dart';
+import '../models/chamado_coleta_model.dart';
 
 class ClinicaController extends ChangeNotifier {
   final ColetaRepository _repository;
@@ -39,12 +40,46 @@ class ClinicaController extends ChangeNotifier {
   int qtdConcluidos = 0;
   bool carregandoDashboard = true;
 
+  // --- 🧪 DADOS PARA O MODAL DE AGENDAMENTO MOBILE ---
+  final ValueNotifier<List<Map<String, dynamic>>> laboratorios =
+      ValueNotifier<List<Map<String, dynamic>>>([]);
+
   // =========================================================================
-  // 🟢 ESCUTA EM TEMPO REAL (MÉTODO CENTRALIZADO NOVO)
+  // 🟢 MÉTODOS PARA O MODAL DE NOVO CHAMADO (MOBILE)
   // =========================================================================
-  void inicializarDashboardRealtime() {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) {
+  Future<void> carregarLaboratorios() async {
+    try {
+      final snap = await _db.collection('laboratorios').get();
+      laboratorios.value = snap.docs.map((doc) {
+        final data = doc.data();
+        data['id'] = doc.id;
+        return data;
+      }).toList();
+    } catch (e) {
+      debugPrint('Erro ao carregar laboratorios para o modal: $e');
+    }
+  }
+
+  Future<bool> criarChamado(ChamadoColetaModel chamado) async {
+    try {
+      isLoading.value = true;
+      notifyListeners();
+      await _db.collection('chamados_coleta').add(chamado.toMap());
+      return true;
+    } catch (e) {
+      debugPrint('Erro ao criar chamado: $e');
+      return false;
+    } finally {
+      isLoading.value = false;
+      notifyListeners();
+    }
+  }
+
+  // =========================================================================
+  // 🟢 ESCUTA EM TEMPO REAL (MÉTODO CENTRALIZADO)
+  // =========================================================================
+  void inicializarDashboardRealtime(String idRealDaClinica) {
+    if (idRealDaClinica.isEmpty) {
       carregandoDashboard = false;
       notifyListeners();
       return;
@@ -56,7 +91,7 @@ class ClinicaController extends ChangeNotifier {
     _chamadosSubscription?.cancel();
     _chamadosSubscription = _db
         .collection('chamados_coleta')
-        .where('clinicaId', isEqualTo: uid)
+        .where('clinicaId', isEqualTo: idRealDaClinica)
         .snapshots()
         .listen(
           (snapshot) {
@@ -68,10 +103,28 @@ class ClinicaController extends ChangeNotifier {
 
             final docs = snapshot.docs.toList();
 
+            // 💡 MÁGICA DE PROTEÇÃO: Tratamento robusto para ordenação de Datas
             docs.sort((a, b) {
-              final tA = a.data()['dataCriacao'] as Timestamp?;
-              final tB = b.data()['dataCriacao'] as Timestamp?;
+              final valA = a.data()['dataCriacao'];
+              final valB = b.data()['dataCriacao'];
+
+              DateTime? tA;
+              if (valA is Timestamp) {
+                tA = valA.toDate();
+              } else if (valA is String) {
+                tA = DateTime.tryParse(valA);
+              }
+
+              DateTime? tB;
+              if (valB is Timestamp) {
+                tB = valB.toDate();
+              } else if (valB is String) {
+                tB = DateTime.tryParse(valB);
+              }
+
               if (tA != null && tB != null) return tB.compareTo(tA);
+              if (tA != null) return -1;
+              if (tB != null) return 1;
               return 0;
             });
 
@@ -123,7 +176,6 @@ class ClinicaController extends ChangeNotifier {
     }
   }
 
-  // 🛠️ CORREÇÃO: Sem copyWith. Usando direto o .toMap() suportado pela model.
   Future<bool> salvarClinica(Clinica clinica) async {
     isLoading.value = true;
     try {
@@ -139,7 +191,6 @@ class ClinicaController extends ChangeNotifier {
     }
   }
 
-  // 🛠️ CORREÇÃO: Recebendo (String id, Clinica clinica) como a View envia.
   Future<bool> atualizarClinica(String id, Clinica clinica) async {
     if (id.isEmpty) return false;
     isLoading.value = true;
@@ -219,6 +270,7 @@ class ClinicaController extends ChangeNotifier {
     motoboysProximos.dispose();
     coletasEmTransito.dispose();
     todasClinicas.dispose();
+    laboratorios.dispose();
     super.dispose();
   }
 }

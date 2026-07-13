@@ -5,7 +5,11 @@ import 'package:vet_route/screens/mobile_home_screen.dart';
 import 'package:vet_route/services/auth_service.dart';
 import 'package:vet_route/controllers/permissoes_controller.dart';
 
-// 🛡️ IMPORTAÇÃO DA NOSSA NOVA TELA AMARELA SIMPLES
+// 💡 IMPORTAÇÃO DAS MODELS
+import 'package:vet_route/models/clinica_model.dart';
+import 'package:vet_route/models/endereco_model.dart';
+
+// 🛡️ IMPORTAÇÃO DA DASHBOARD
 import 'package:vet_route/screens/mobile/clinica_dashboard_mobile_screen.dart';
 
 class MobileChassi extends StatefulWidget {
@@ -16,8 +20,14 @@ class MobileChassi extends StatefulWidget {
 }
 
 class _MobileChassiState extends State<MobileChassi> {
-  String _nomeUsuarioLogado = "Carregando...";
-  String _emailUsuarioLogado = "Carregando...";
+  String _nomeUsuarioLogado = "A carregar...";
+  String _emailUsuarioLogado = "A carregar...";
+
+  // 💡 Variável para armazenar o contexto da clínica real
+  Clinica? _clinicaContexto;
+
+  // 🛡️ Flag de segurança para não deixar o loading infinito
+  bool _falhaDeVinculo = false;
 
   Widget? _conteudoAtual;
   String _tituloAtual = "Vet Route";
@@ -50,22 +60,84 @@ class _MobileChassiState extends State<MobileChassi> {
 
   Future<void> _carregarDadosUsuarioEPermissoes() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
+    debugPrint("🐾 [MobileChassi] A iniciar carga. UID Logado: $uid");
+
     if (uid != null) {
       try {
-        final doc = await FirebaseFirestore.instance
+        final docUsuario = await FirebaseFirestore.instance
             .collection('usuarios')
             .doc(uid)
             .get();
-        if (doc.exists && mounted) {
+
+        debugPrint(
+          "🐾 [MobileChassi] Encontrou documento do utilizador? ${docUsuario.exists}",
+        );
+
+        if (docUsuario.exists && mounted) {
+          final dataUser = docUsuario.data()!;
+
           setState(() {
-            _nomeUsuarioLogado = doc.data()?['nome'] ?? "Usuário";
+            _nomeUsuarioLogado = dataUser['nome'] ?? "Utilizador";
             _emailUsuarioLogado =
-                doc.data()?['email'] ??
+                dataUser['email'] ??
                 FirebaseAuth.instance.currentUser?.email ??
                 "";
           });
 
-          final perfilId = doc.data()?['perfilId'];
+          // 🚀 A MÁGICA ESTÁ AQUI: Procuramos por 'vinculoId' (padrão do painel web) primeiro!
+          final String? clinicaId =
+              dataUser['vinculoId'] ?? dataUser['clinicaId'];
+          debugPrint(
+            "🐾 [MobileChassi] ID de vínculo atrelado ao utilizador: $clinicaId",
+          );
+
+          // 🛡️ BLOCO ISOLADO PARA CARREGAR A CLÍNICA
+          try {
+            DocumentSnapshot docClinica;
+            if (clinicaId != null && clinicaId.isNotEmpty) {
+              debugPrint(
+                "🐾 [MobileChassi] A procurar clínica na coleção 'clinicas' com ID: $clinicaId",
+              );
+              docClinica = await FirebaseFirestore.instance
+                  .collection('clinicas')
+                  .doc(clinicaId)
+                  .get();
+            } else {
+              debugPrint(
+                "🐾 [MobileChassi] Sem vinculoId no perfil. A procurar clínica pelo UID: $uid",
+              );
+              docClinica = await FirebaseFirestore.instance
+                  .collection('clinicas')
+                  .doc(uid)
+                  .get();
+            }
+
+            if (docClinica.exists && mounted) {
+              debugPrint(
+                "🐾 [MobileChassi] Tentando invocar Clinica.fromFirestore...",
+              );
+              final clinicaObj = Clinica.fromFirestore(docClinica);
+
+              setState(() {
+                _clinicaContexto = clinicaObj;
+                _falhaDeVinculo = false; // Sucesso!
+              });
+              debugPrint(
+                "✅ [MobileChassi] SUCESSO! Contexto da Clínica carregado: ${_clinicaContexto?.nome}",
+              );
+            } else {
+              debugPrint(
+                "🚨 [MobileChassi] ERRO: Clínica não existe na base de dados!",
+              );
+              if (mounted) setState(() => _falhaDeVinculo = true);
+            }
+          } catch (e, stackTrace) {
+            debugPrint("🚨 [MobileChassi] ERRO FATAL AO CONVERTER CLINICA: $e");
+            debugPrint(stackTrace.toString());
+            if (mounted) setState(() => _falhaDeVinculo = true);
+          }
+
+          final perfilId = dataUser['perfilId'];
           if (perfilId != null) {
             await permissoesGlobais.inicializarParaUsuario(perfilId);
 
@@ -104,16 +176,72 @@ class _MobileChassiState extends State<MobileChassi> {
           }
         }
       } catch (e) {
-        debugPrint("Erro ao carregar permissões mobile: $e");
+        debugPrint(
+          "🚨 [MobileChassi] Erro geral ao procurar dados do utilizador: $e",
+        );
       }
     }
   }
 
   Widget _obterTelaDestinoMobile(String chaveRota, String titulo) {
     switch (chaveRota) {
-      // 🚀 ROTEAMENTO PLUGADO AQUI!
       case 'clinica_dashboard':
-        return ClinicaDashboardMobileScreen(rotaQueChamou: chaveRota);
+        // 🛡️ PROTEÇÃO: Se a clínica não existir ou der erro de vinculo, mostramos ecrã amigável
+        if (_falhaDeVinculo) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.link_off_rounded,
+                    size: 64,
+                    color: Colors.red.shade300,
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    "Utilizador sem Vínculo",
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1F2959),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    "A sua conta não tem uma clínica associada.\nPor favor, associe a clínica no painel Web através da 'Gestão de Utilizadores'.",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.grey, height: 1.4),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        // Se ainda está nulo mas não deu falha, é porque está a carregar
+        if (_clinicaContexto == null) {
+          return const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(color: Color(0xFF1F2959)),
+                SizedBox(height: 16),
+                Text(
+                  "A montar contexto logístico...",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey, fontSize: 12),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return ClinicaDashboardMobileScreen(
+          clinicaContexto: _clinicaContexto!,
+          rotaQueChamou: chaveRota,
+        );
       default:
         return Container(
           color: const Color(0xFFF8F9FA),
@@ -313,20 +441,21 @@ class _MobileChassiState extends State<MobileChassi> {
             child: ListenableBuilder(
               listenable: permissoesGlobais,
               builder: (context, child) {
-                if (permissoesGlobais.carregando)
+                if (permissoesGlobais.carregando) {
                   return Center(
                     child: CircularProgressIndicator(
                       color: corFoco,
                       strokeWidth: 2,
                     ),
                   );
+                }
 
                 final menusMobile = permissoesGlobais.menusPermitidos
                     .where((m) => m.isMobile == true)
                     .toList();
                 menusMobile.sort((a, b) => a.peso.compareTo(b.peso));
 
-                if (menusMobile.isEmpty)
+                if (menusMobile.isEmpty) {
                   return Center(
                     child: Text(
                       "Nenhum módulo móvel atribuído.",
@@ -337,6 +466,7 @@ class _MobileChassiState extends State<MobileChassi> {
                       ),
                     ),
                   );
+                }
 
                 return ListView.builder(
                   padding: const EdgeInsets.symmetric(
@@ -532,10 +662,11 @@ class _MobileChassiState extends State<MobileChassi> {
                   permissoesGlobais.menusPermitidos.clear();
                   permissoesGlobais.submenusPermitidos.clear();
                   await AuthService().logout();
-                  if (context.mounted)
+                  if (context.mounted) {
                     Navigator.of(
                       context,
                     ).pushNamedAndRemoveUntil('/login', (route) => false);
+                  }
                 },
               ),
             ),
