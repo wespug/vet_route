@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:vet_route/controllers/permissoes_controller.dart';
-import 'package:vet_route/screens/widgets/generic_tab_hub.dart';
 import 'package:vet_route/models/clinica_model.dart';
+import 'package:vet_route/models/submenu_item_model.dart';
 import 'package:vet_route/screens/web/clinicas/lista_clinicas_view.dart';
 import 'package:vet_route/screens/web/clinicas/clinica_dashboard_view.dart';
-import 'package:vet_route/screens/web/clinicas/clinica_usuario_view.dart';
-
-// O NOVO IMPORT DA TELA LOGÍSTICA!
 import 'package:vet_route/screens/web/clinicas/gestao_chamados_view.dart';
+
+// 🛠️ Importação EXATA do seu arquivo
+import 'package:vet_route/screens/web/clinicas/clinica_usuario_view.dart';
 
 class ClinicasHub extends StatefulWidget {
   final String? rotaAbaAtiva;
@@ -20,15 +20,32 @@ class ClinicasHub extends StatefulWidget {
   State<ClinicasHub> createState() => _ClinicasHubState();
 }
 
-class _ClinicasHubState extends State<ClinicasHub> {
+class _ClinicasHubState extends State<ClinicasHub>
+    with TickerProviderStateMixin {
   Clinica? _clinicaSelecionada;
   bool _isLoading = true;
   bool _isUsuarioRestrito = false;
+
+  TabController? _tabController;
+  List<SubmenuItemModel> _submenus = [];
 
   @override
   void initState() {
     super.initState();
     _verificarVinculoUsuario();
+  }
+
+  // 🚀 REATIVIDADE AO CLIQUE DO MENU LATERAL
+  @override
+  void didUpdateWidget(ClinicasHub oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.rotaAbaAtiva != oldWidget.rotaAbaAtiva &&
+        _tabController != null) {
+      int newIndex = _submenus.indexWhere((s) => s.rota == widget.rotaAbaAtiva);
+      if (newIndex != -1) {
+        _tabController!.animateTo(newIndex);
+      }
+    }
   }
 
   Future<void> _verificarVinculoUsuario() async {
@@ -39,81 +56,136 @@ class _ClinicasHubState extends State<ClinicasHub> {
         return;
       }
 
-      final userDoc = await FirebaseFirestore.instance
+      final doc = await FirebaseFirestore.instance
           .collection('usuarios')
           .doc(user.uid)
           .get();
+      if (!doc.exists) {
+        setState(() => _isLoading = false);
+        return;
+      }
 
-      final userData = userDoc.data();
+      final data = doc.data()!;
+      final perfilId = data['perfilId'] as String?;
+      final vinculoId = data['vinculoId'] as String?;
 
-      if (userData != null &&
-          userData.containsKey('vinculoId') &&
-          userData['vinculoId'] != null &&
-          userData['vinculoId'].toString().isNotEmpty) {
-        final vinculoId = userData['vinculoId'];
+      if (perfilId != null) {
+        final perfilDoc = await FirebaseFirestore.instance
+            .collection('perfis')
+            .doc(perfilId)
+            .get();
+        if (perfilDoc.exists && perfilDoc.data()?['nome'] == 'Super Admin') {
+          _isUsuarioRestrito = false;
+        } else {
+          _isUsuarioRestrito = true;
+        }
+      }
 
+      if (_isUsuarioRestrito && vinculoId != null && vinculoId.isNotEmpty) {
         final clinicaDoc = await FirebaseFirestore.instance
             .collection('clinicas')
             .doc(vinculoId)
             .get();
-
         if (clinicaDoc.exists) {
-          setState(() {
-            _clinicaSelecionada = Clinica.fromFirestore(clinicaDoc);
-            _isUsuarioRestrito = true;
-          });
+          _clinicaSelecionada = Clinica.fromFirestore(clinicaDoc);
         }
       }
+
+      _configurarAbasDinamicas();
     } catch (e) {
-      debugPrint("Erro ao verificar vínculo: $e");
+      debugPrint("Erro ao verificar vínculo da clínica: $e");
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  Widget _resolverConteudoDaAba(String rotaSubmenu) {
-    switch (rotaSubmenu) {
+  // 🧠 CONSTRUTOR DINÂMICO DE ABAS (LÊ DO FIRESTORE)
+  void _configurarAbasDinamicas() {
+    _submenus = permissoesGlobais.submenusPermitidos
+        .where((s) => s.isWeb && s.rota.startsWith('clinica_'))
+        .toList();
+
+    // Respeita a ordem de peso configurada no Admin
+    _submenus.sort((a, b) => a.peso.compareTo(b.peso));
+
+    if (_submenus.isNotEmpty) {
+      int initialIndex = 0;
+      if (widget.rotaAbaAtiva != null) {
+        initialIndex = _submenus.indexWhere(
+          (s) => s.rota == widget.rotaAbaAtiva,
+        );
+        if (initialIndex == -1) initialIndex = 0;
+      }
+      _tabController = TabController(
+        length: _submenus.length,
+        initialIndex: initialIndex,
+        vsync: this,
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _tabController?.dispose();
+    super.dispose();
+  }
+
+  // 🔀 ROTEADOR INTERNO DAS ABAS DA CLÍNICA
+  Widget _obterTelaParaRota(String rota) {
+    if (_clinicaSelecionada == null &&
+        rota != 'clinica_gestao' &&
+        rota != 'clinicas_lista') {
+      return const Center(
+        child: Text(
+          "Selecione uma clínica no topo para gerir.",
+          style: TextStyle(fontSize: 16, color: Colors.grey),
+        ),
+      );
+    }
+
+    // 🛠️ CORREÇÃO: Passando clinicaContexto E chavePermissao e chamando a classe exata!
+    switch (rota) {
       case 'clinica_dashboard':
         return ClinicaDashboardView(clinicaContexto: _clinicaSelecionada!);
-
+      case 'clinica_gestao':
+        return GestaoChamadosView(clinicaContexto: _clinicaSelecionada!);
       case 'clinica_adicionar_usuario':
+      case 'clinica_usuarios':
         return UsuariosClinicaView(
           clinicaContexto: _clinicaSelecionada!,
-          chavePermissao: 'clinica_gestao',
+          chavePermissao: rota, // 💡 O novo parâmetro que a classe exigia
         );
-
-      case 'clinica_gestao_chamados': // 🚀 AQUI CRIA A CONEXÃO COM A TELA DE CHAMADOS!
-        return GestaoChamadosView(clinicaContexto: _clinicaSelecionada!);
-
+      case 'clinicas_lista':
+        return ListaClinicasView(
+          onClinicaSelected: (clinica) {
+            setState(() {
+              _clinicaSelecionada = clinica;
+            });
+          },
+        );
       default:
-        return _buildPlaceholder(
-          'Funcionalidade ($rotaSubmenu) configurada na gestão, mas em desenvolvimento 🚧',
-          Icons.construction_rounded,
+        // Fallback Seguro Inteligente
+        if (rota.contains('usuario')) {
+          return UsuariosClinicaView(
+            clinicaContexto: _clinicaSelecionada!,
+            chavePermissao: rota,
+          );
+        }
+        if (rota.contains('dashboard'))
+          return ClinicaDashboardView(clinicaContexto: _clinicaSelecionada!);
+        if (rota.contains('gestao') || rota.contains('chamado'))
+          return GestaoChamadosView(clinicaContexto: _clinicaSelecionada!);
+
+        return Center(
+          child: Text(
+            "Tela para a rota '$rota' não foi conectada no Hub da Clínica.",
+            style: const TextStyle(
+              color: Colors.grey,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         );
     }
-  }
-
-  Widget _buildPlaceholder(String texto, IconData icone) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icone, size: 56, color: Colors.grey.shade400),
-          const SizedBox(height: 16),
-          Text(
-            texto,
-            style: TextStyle(
-              fontSize: 15,
-              color: Colors.grey.shade600,
-              fontWeight: FontWeight.w500,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
   }
 
   @override
@@ -122,38 +194,25 @@ class _ClinicasHubState extends State<ClinicasHub> {
       return const Center(child: CircularProgressIndicator(color: Colors.teal));
     }
 
+    // 1. MODO SUPER ADMIN (SELEÇÃO DE EMPRESA)
     if (_clinicaSelecionada == null) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(24),
-            margin: const EdgeInsets.only(left: 24, right: 24, top: 24),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
             decoration: BoxDecoration(
-              color: Colors.teal.shade50.withOpacity(0.3),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.teal.shade100),
+              color: Colors.white,
+              border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
             ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.add_business_rounded,
-                  color: Colors.teal.shade700,
-                  size: 24,
-                ),
-                const SizedBox(width: 12),
-                const Expanded(
-                  child: Text(
-                    "Painel de Controle Corporativo: Selecione uma Clínica na lista abaixo para gerenciar seus operadores e visualizar o dashboard de coletas.",
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.black87,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ],
+            child: const Text(
+              "Gestão de Clínicas",
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF1F2959),
+              ),
             ),
           ),
           Expanded(
@@ -169,90 +228,62 @@ class _ClinicasHubState extends State<ClinicasHub> {
       );
     }
 
-    return ListenableBuilder(
-      listenable: permissoesGlobais,
-      builder: (context, child) {
-        final menusFiltrados = permissoesGlobais.menusPermitidos.where(
-          (m) => m.rota == 'clinica_gestao',
-        );
+    // 2. MODO HUB BLOQUEADO (SEM PERMISSÕES)
+    if (_submenus.isEmpty) {
+      return const Center(
+        child: Text(
+          "Nenhum módulo da clínica configurado para o seu perfil.",
+          style: TextStyle(color: Colors.grey),
+        ),
+      );
+    }
 
-        if (menusFiltrados.isEmpty) {
-          return const Center(
-            child: CircularProgressIndicator(color: Colors.teal),
-          );
-        }
-
-        final menuPai = menusFiltrados.first;
-        final submenus = permissoesGlobais.getSubmenusDoMenu(menuPai.id);
-
-        final submenusFiltrados = submenus
-            .where((s) => s.rota != 'lista_clinicas_aba')
-            .toList();
-
-        if (submenusFiltrados.isEmpty) {
-          return Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildBarraTopoBreadcrumb(),
-                const SizedBox(height: 40),
-                const Center(
-                  child: Text(
-                    "Nenhum submenu configurado para este módulo no Firestore.",
-                    style: TextStyle(color: Colors.grey, fontSize: 14),
-                  ),
-                ),
-              ],
+    // 3. MODO HUB DINÂMICO (ABAS FUNCIONANDO)
+    return Column(
+      children: [
+        _buildHeaderContexto(),
+        Container(
+          width: double.infinity,
+          color: Colors.white,
+          child: TabBar(
+            controller: _tabController,
+            isScrollable: true,
+            labelColor: Colors.teal,
+            unselectedLabelColor: Colors.grey.shade500,
+            indicatorColor: Colors.teal,
+            indicatorWeight: 3,
+            labelStyle: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 13.5,
             ),
-          );
-        }
-
-        submenusFiltrados.sort((a, b) => a.peso.compareTo(b.peso));
-
-        int indiceFoco = 0;
-        final abasDinamicas = <TabItemModel>[];
-
-        for (int i = 0; i < submenusFiltrados.length; i++) {
-          final submenu = submenusFiltrados[i];
-          abasDinamicas.add(
-            TabItemModel(
-              titulo: submenu.titulo,
-              conteudo: _resolverConteudoDaAba(submenu.rota),
+            unselectedLabelStyle: const TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 13.5,
             ),
-          );
-
-          if (widget.rotaAbaAtiva != null &&
-              widget.rotaAbaAtiva == submenu.rota) {
-            indiceFoco = i;
-          }
-        }
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildBarraTopoBreadcrumb(),
-            const SizedBox(height: 16),
-            Expanded(
-              child: GenericTabHub(
-                abas: abasDinamicas,
-                indiceInicial: indiceFoco,
-              ),
+            tabs: _submenus.map((s) => Tab(text: s.titulo)).toList(),
+          ),
+        ),
+        Expanded(
+          child: Container(
+            color: const Color(0xFFF5F7FA), // Fundo clean
+            child: TabBarView(
+              controller: _tabController,
+              children: _submenus
+                  .map((s) => _obterTelaParaRota(s.rota))
+                  .toList(),
             ),
-          ],
-        );
-      },
+          ),
+        ),
+      ],
     );
   }
 
-  Widget _buildBarraTopoBreadcrumb() {
+  Widget _buildHeaderContexto() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      margin: const EdgeInsets.only(left: 24, right: 24, top: 24),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade200),
+        color: Colors.white,
+        border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -270,11 +301,11 @@ class _ClinicasHubState extends State<ClinicasHub> {
                 style: TextStyle(
                   color: Colors.grey,
                   fontSize: 14,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
               const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 8.0),
+                padding: EdgeInsets.symmetric(horizontal: 10.0),
                 child: Icon(
                   Icons.arrow_forward_ios_rounded,
                   size: 12,
@@ -286,7 +317,7 @@ class _ClinicasHubState extends State<ClinicasHub> {
                 style: const TextStyle(
                   color: Colors.teal,
                   fontSize: 14,
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ],
@@ -298,7 +329,7 @@ class _ClinicasHubState extends State<ClinicasHub> {
                   _clinicaSelecionada = null;
                 });
               },
-              icon: const Icon(Icons.swap_horiz_rounded, size: 16),
+              icon: const Icon(Icons.swap_horiz_rounded, size: 18),
               label: const Text(
                 "Alternar Clínica",
                 style: TextStyle(fontWeight: FontWeight.bold),

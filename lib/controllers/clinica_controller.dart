@@ -1,19 +1,21 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/coleta_model.dart';
 import '../models/clinica_model.dart';
 import '../models/laboratorio_model.dart';
-import '../models/endereco_model.dart';
 import '../repositories/coleta_repository.dart';
 
-class ClinicaController {
+class ClinicaController extends ChangeNotifier {
   final ColetaRepository _repository;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
+  StreamSubscription? _chamadosSubscription;
 
   ClinicaController(this._repository);
 
-  // --- ESTADOS REATIVOS (USO DO CLIENTE) ---
+  // --- 📊 ESTADOS REATIVOS UNIFICADOS (ValueNotifiers Originais) ---
   final ValueNotifier<bool> isLoading = ValueNotifier<bool>(false);
   final ValueNotifier<Clinica?> clinicaAtual = ValueNotifier<Clinica?>(null);
   final ValueNotifier<Laboratorio?> labDestino = ValueNotifier<Laboratorio?>(
@@ -24,94 +26,151 @@ class ClinicaController {
   final ValueNotifier<List<Coleta>> coletasEmTransito =
       ValueNotifier<List<Coleta>>([]);
 
-  // --- ESTADOS REATIVOS (USO DO ADMIN) ---
+  // --- 📊 ESTADOS REATIVOS PARA O ADMIN WEB ---
   final ValueNotifier<List<Clinica>> todasClinicas =
       ValueNotifier<List<Clinica>>([]);
 
-  // =========================================================================
-  // 🟢 MÉTODOS DE ADMINISTRAÇÃO WEB (CRUD NO FIRESTORE)
-  // =========================================================================
+  // --- 💎 NOVOS FLUXOS UNIFICADOS DO DASHBOARD REALTIME ---
+  List<Map<String, dynamic>> chamadosAtivos = [];
+  List<Map<String, dynamic>> chamadosHistorico = [];
 
+  int qtdEmRota = 0;
+  int qtdAguardando = 0;
+  int qtdConcluidos = 0;
+  bool carregandoDashboard = true;
+
+  // =========================================================================
+  // 🟢 ESCUTA EM TEMPO REAL (MÉTODO CENTRALIZADO NOVO)
+  // =========================================================================
+  void inicializarDashboardRealtime() {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) {
+      carregandoDashboard = false;
+      notifyListeners();
+      return;
+    }
+
+    carregandoDashboard = true;
+    notifyListeners();
+
+    _chamadosSubscription?.cancel();
+    _chamadosSubscription = _db
+        .collection('chamados_coleta')
+        .where('clinicaId', isEqualTo: uid)
+        .snapshots()
+        .listen(
+          (snapshot) {
+            chamadosAtivos.clear();
+            chamadosHistorico.clear();
+            qtdEmRota = 0;
+            qtdAguardando = 0;
+            qtdConcluidos = 0;
+
+            final docs = snapshot.docs.toList();
+
+            docs.sort((a, b) {
+              final tA = a.data()['dataCriacao'] as Timestamp?;
+              final tB = b.data()['dataCriacao'] as Timestamp?;
+              if (tA != null && tB != null) return tB.compareTo(tA);
+              return 0;
+            });
+
+            for (var doc in docs) {
+              final data = doc.data();
+              data['id'] = doc.id;
+              final status = data['status'] ?? 'Aguardando';
+
+              if (status == 'Aguardando' || status == 'Aguardando Entregador') {
+                qtdAguardando++;
+                chamadosAtivos.add(data);
+              } else if (status == 'Em Rota' ||
+                  status == 'A Caminho' ||
+                  status == 'Coletado') {
+                qtdEmRota++;
+                chamadosAtivos.add(data);
+              } else {
+                qtdConcluidos++;
+                chamadosHistorico.add(data);
+              }
+            }
+
+            carregandoDashboard = false;
+            notifyListeners();
+          },
+          onError: (err) {
+            debugPrint("Erro Firestore Realtime na ClinicaController: $err");
+            carregandoDashboard = false;
+            notifyListeners();
+          },
+        );
+  }
+
+  // =========================================================================
+  // 🟢 MÉTODOS DE ADMINISTRAÇÃO WEB
+  // =========================================================================
   Future<void> carregarClinicas() async {
     isLoading.value = true;
     try {
       final snapshot = await _db.collection('clinicas').get();
-      // 💡 OLHA A MÁGICA: O seu modelo faz todo o trabalho sujo!
-      todasClinicas.value = snapshot.docs
-          .map((doc) => Clinica.fromFirestore(doc))
-          .toList();
+      final List<Clinica> lista = snapshot.docs.map((doc) {
+        return Clinica.fromFirestore(doc);
+      }).toList();
+      todasClinicas.value = lista;
     } catch (e) {
-      debugPrint('Erro ao carregar clínicas: $e');
+      debugPrint('Erro ao carregar clinicas: $e');
     } finally {
       isLoading.value = false;
     }
   }
 
+  // 🛠️ CORREÇÃO: Sem copyWith. Usando direto o .toMap() suportado pela model.
   Future<bool> salvarClinica(Clinica clinica) async {
     isLoading.value = true;
     try {
-      // 💡 Delegação perfeita: a Controller só chama o toMap() do seu Modelo
-      await _db.collection('clinicas').add(clinica.toMap());
+      final docRef = _db.collection('clinicas').doc();
+      await docRef.set(clinica.toMap());
       await carregarClinicas();
       return true;
     } catch (e) {
-      debugPrint('Erro ao adicionar clínica: $e');
+      debugPrint('Erro ao salvar clinica: $e');
       return false;
     } finally {
       isLoading.value = false;
     }
   }
 
+  // 🛠️ CORREÇÃO: Recebendo (String id, Clinica clinica) como a View envia.
   Future<bool> atualizarClinica(String id, Clinica clinica) async {
+    if (id.isEmpty) return false;
     isLoading.value = true;
     try {
       await _db.collection('clinicas').doc(id).update(clinica.toMap());
       await carregarClinicas();
       return true;
     } catch (e) {
-      debugPrint('Erro ao editar clínica: $e');
+      debugPrint('Erro ao atualizar clinica: $e');
       return false;
     } finally {
       isLoading.value = false;
     }
   }
 
-  Future<bool> deletarClinica(String id) async {
+  Future<void> deletarClinica(String id) async {
     isLoading.value = true;
     try {
       await _db.collection('clinicas').doc(id).delete();
       await carregarClinicas();
-      return true;
     } catch (e) {
-      debugPrint('Erro ao excluir clínica: $e');
-      return false;
+      debugPrint('Erro ao deletar clinica: $e');
     } finally {
       isLoading.value = false;
     }
   }
 
   // =========================================================================
-  // 🔵 MÉTODOS ORIGINAIS DE USO DO CLIENTE
+  // 🟢 OPERAÇÕES LOGÍSTICAS DA CLÍNICA
   // =========================================================================
-
-  Future<void> inicializarPainel() async {
-    isLoading.value = true;
-    try {
-      clinicaAtual.value = await _repository.obterClinicaLogada();
-      labDestino.value = await _repository.obterLaboratorioPadrao();
-
-      if (clinicaAtual.value != null &&
-          clinicaAtual.value!.endereco.coordenada != null) {
-        _carregarMotoboysProximos(clinicaAtual.value!.endereco.coordenada!);
-      }
-    } catch (e) {
-      debugPrint('Erro ao inicializar painel: $e');
-    } finally {
-      isLoading.value = false;
-    }
-  }
-
-  void _carregarMotoboysProximos(LatLng local) {
+  void carregarMotoboysProximos(LatLng local) {
     motoboysProximos.value = [
       Marker(
         markerId: const MarkerId('m1'),
@@ -151,16 +210,15 @@ class ClinicaController {
     }
   }
 
-  // =========================================================================
-  // 🧹 LIMPEZA DE MEMÓRIA (DISPOSE)
-  // =========================================================================
-
+  @override
   void dispose() {
+    _chamadosSubscription?.cancel();
     isLoading.dispose();
     clinicaAtual.dispose();
     labDestino.dispose();
     motoboysProximos.dispose();
     coletasEmTransito.dispose();
     todasClinicas.dispose();
+    super.dispose();
   }
 }

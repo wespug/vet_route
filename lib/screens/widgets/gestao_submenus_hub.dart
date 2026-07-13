@@ -29,6 +29,13 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
   bool _isWeb = true;
   bool _isMobile = false;
 
+  // 🔎 VARIÁVEIS DE BUSCA, ORDENAÇÃO E PAGINAÇÃO
+  String _searchQuery = '';
+  int _currentPage = 0;
+  final int _itemsPerPage = 20; // 👈 Limite de 20 registros por página
+  int _sortColumnIndex = 0;
+  bool _isAscending = true;
+
   final Map<String, IconData> _iconesMapeados = {
     'subdirectory_arrow_right': Icons.subdirectory_arrow_right_rounded,
     'analytics': Icons.analytics_outlined,
@@ -54,7 +61,6 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
     'lab_cadastro_exames': 'Cadastro de Exames',
     'lab_cadastro_insumos': 'Cadastro de Insumos',
     'lab_gestao_rotas': 'Gestão de Rotas Fixas',
-    // 🟢 ROTA MÓVEL DA CLÍNICA LIBERADA AQUI!
     'clinica_dashboard': 'Dashboard da Clínica (Mobile)',
   };
 
@@ -138,6 +144,8 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
                 ),
               ),
               const SizedBox(height: 32),
+
+              // === FORMULÁRIO DE CADASTRO ===
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
@@ -357,11 +365,13 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
                 ),
               ),
               const SizedBox(height: 32),
+
+              // === LISTA COM BUSCA, ORDENAÇÃO E PAGINAÇÃO ===
               Expanded(
                 child:
                     _submenuController.carregando || _menuController.carregando
                     ? const Center(child: CircularProgressIndicator())
-                    : _buildTabelaSubmenus(),
+                    : _buildTabelaAvancada(),
               ),
             ],
           ),
@@ -410,96 +420,323 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
     }
   }
 
-  Widget _buildTabelaSubmenus() {
-    return SizedBox(
-      width: double.infinity,
-      child: SingleChildScrollView(
-        child: DataTable(
-          headingRowColor: WidgetStateProperty.all(Colors.grey.shade50),
-          columns: const [
-            DataColumn(label: Text('Ordem')),
-            DataColumn(label: Text('Menu Pai')),
-            DataColumn(label: Text('Submenu')),
-            DataColumn(label: Text('Ícone')),
-            DataColumn(label: Text('Plataforma')),
-            DataColumn(label: Text('Destino')),
-            DataColumn(label: Text('Ações')),
-          ],
-          rows: _submenuController.submenus.map((sub) {
-            return DataRow(
-              cells: [
-                DataCell(
-                  Text(
-                    sub.peso.toString(),
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ),
-                DataCell(Text(_obterNomeMenuPai(sub.menuId))),
-                DataCell(
-                  Text(
-                    sub.titulo,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ),
-                DataCell(
-                  Icon(
-                    _iconesMapeados[sub.icone] ??
-                        Icons.subdirectory_arrow_right,
+  // 🛠️ NOVO WIDGET: TABELA TOTALMENTE DINÂMICA
+  Widget _buildTabelaAvancada() {
+    // 1. APLICAR BUSCA (FILTRO)
+    List<SubmenuItemModel> filtrados = _submenuController.submenus.where((sub) {
+      if (_searchQuery.isEmpty) return true;
+      final q = _searchQuery.toLowerCase();
+      final tituloMatch = sub.titulo.toLowerCase().contains(q);
+      final rotaMatch = (_paginasMapeadas[sub.rota] ?? sub.rota)
+          .toLowerCase()
+          .contains(q);
+      final paiMatch = _obterNomeMenuPai(sub.menuId).toLowerCase().contains(q);
+      return tituloMatch || rotaMatch || paiMatch;
+    }).toList();
+
+    // 2. APLICAR ORDENAÇÃO (SORT)
+    filtrados.sort((a, b) {
+      int result = 0;
+      switch (_sortColumnIndex) {
+        case 0:
+          result = a.peso.compareTo(b.peso);
+          break;
+        case 1:
+          result = _obterNomeMenuPai(
+            a.menuId,
+          ).compareTo(_obterNomeMenuPai(b.menuId));
+          break;
+        case 2:
+          result = a.titulo.toLowerCase().compareTo(b.titulo.toLowerCase());
+          break;
+        case 5:
+          String destA = _paginasMapeadas[a.rota] ?? a.rota;
+          String destB = _paginasMapeadas[b.rota] ?? b.rota;
+          result = destA.toLowerCase().compareTo(destB.toLowerCase());
+          break;
+        default:
+          result = a.peso.compareTo(b.peso);
+      }
+      return _isAscending ? result : -result;
+    });
+
+    // 3. APLICAR PAGINAÇÃO DE 20 EM 20
+    int totalItems = filtrados.length;
+    int totalPages = (totalItems / _itemsPerPage).ceil();
+    if (_currentPage >= totalPages && totalPages > 0) {
+      _currentPage = totalPages - 1;
+    }
+
+    int startIndex = _currentPage * _itemsPerPage;
+    int endIndex = startIndex + _itemsPerPage;
+    if (endIndex > totalItems) endIndex = totalItems;
+
+    List<SubmenuItemModel> paginados = filtrados.isNotEmpty
+        ? filtrados.sublist(startIndex, endIndex)
+        : [];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // CABEÇALHO (TÍTULO E CAIXA DE BUSCA)
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              "Registros Encontrados: $totalItems",
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 15,
+                color: Colors.black87,
+              ),
+            ),
+            SizedBox(
+              width: 350,
+              child: TextField(
+                decoration: InputDecoration(
+                  hintText: 'Buscar Submenu, Rota ou Menu Pai...',
+                  prefixIcon: const Icon(
+                    Icons.search,
                     size: 20,
+                    color: Colors.grey,
+                  ),
+                  filled: true,
+                  fillColor: Colors.grey.shade50,
+                  contentPadding: const EdgeInsets.symmetric(
+                    vertical: 0,
+                    horizontal: 16,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
                   ),
                 ),
-                DataCell(
-                  Row(
-                    children: [
-                      if (sub.isWeb)
-                        const Icon(
-                          Icons.laptop_mac,
-                          size: 16,
-                          color: Colors.blue,
-                        ),
-                      if (sub.isMobile)
-                        const Icon(
-                          Icons.smartphone,
-                          size: 16,
-                          color: Colors.green,
-                        ),
-                    ],
-                  ),
-                ),
-                DataCell(
-                  Text(
-                    _paginasMapeadas[sub.rota] ?? sub.rota,
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                ),
-                DataCell(
-                  Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(
-                          Icons.edit,
-                          color: Colors.blue,
-                          size: 20,
-                        ),
-                        onPressed: () => _entrarModoEdicao(sub),
-                      ),
-                      IconButton(
-                        icon: const Icon(
-                          Icons.delete,
-                          color: Colors.red,
-                          size: 20,
-                        ),
-                        onPressed: () =>
-                            _submenuController.excluirSubmenu(sub.id),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            );
-          }).toList(),
+                onChanged: (val) {
+                  setState(() {
+                    _searchQuery = val;
+                    _currentPage = 0; // Se buscou algo novo, volta pra página 1
+                  });
+                },
+              ),
+            ),
+          ],
         ),
-      ),
+        const SizedBox(height: 16),
+
+        // CORPO DA TABELA
+        Expanded(
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey.shade200),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: SingleChildScrollView(
+                child: DataTable(
+                  sortColumnIndex: _sortColumnIndex,
+                  sortAscending: _isAscending,
+                  headingRowColor: WidgetStateProperty.all(Colors.grey.shade50),
+                  columns: [
+                    DataColumn(
+                      label: const Text(
+                        'Ordem',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      onSort: (col, asc) => setState(() {
+                        _sortColumnIndex = col;
+                        _isAscending = asc;
+                      }),
+                    ),
+                    DataColumn(
+                      label: const Text(
+                        'Menu Pai',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      onSort: (col, asc) => setState(() {
+                        _sortColumnIndex = col;
+                        _isAscending = asc;
+                      }),
+                    ),
+                    DataColumn(
+                      label: const Text(
+                        'Submenu',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      onSort: (col, asc) => setState(() {
+                        _sortColumnIndex = col;
+                        _isAscending = asc;
+                      }),
+                    ),
+                    const DataColumn(
+                      label: Text(
+                        'Ícone',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                    const DataColumn(
+                      label: Text(
+                        'Plataforma',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                    DataColumn(
+                      label: const Text(
+                        'Destino',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      onSort: (col, asc) => setState(() {
+                        _sortColumnIndex = col;
+                        _isAscending = asc;
+                      }),
+                    ),
+                    const DataColumn(
+                      label: Text(
+                        'Ações',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ],
+                  rows: paginados.map((sub) {
+                    return DataRow(
+                      cells: [
+                        DataCell(
+                          Text(
+                            sub.peso.toString(),
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        DataCell(Text(_obterNomeMenuPai(sub.menuId))),
+                        DataCell(
+                          Text(
+                            sub.titulo,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF1F2959),
+                            ),
+                          ),
+                        ),
+                        DataCell(
+                          Icon(
+                            _iconesMapeados[sub.icone] ??
+                                Icons.subdirectory_arrow_right,
+                            size: 20,
+                          ),
+                        ),
+                        DataCell(
+                          Row(
+                            children: [
+                              if (sub.isWeb)
+                                const Icon(
+                                  Icons.laptop_mac,
+                                  size: 16,
+                                  color: Colors.blue,
+                                ),
+                              if (sub.isWeb && sub.isMobile)
+                                const SizedBox(width: 8),
+                              if (sub.isMobile)
+                                const Icon(
+                                  Icons.smartphone,
+                                  size: 16,
+                                  color: Colors.green,
+                                ),
+                            ],
+                          ),
+                        ),
+                        DataCell(
+                          Text(
+                            _paginasMapeadas[sub.rota] ?? sub.rota,
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                        ),
+                        DataCell(
+                          Row(
+                            children: [
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.edit,
+                                  color: Colors.blue,
+                                  size: 20,
+                                ),
+                                onPressed: () => _entrarModoEdicao(sub),
+                              ),
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.delete,
+                                  color: Colors.red,
+                                  size: 20,
+                                ),
+                                onPressed: () =>
+                                    _submenuController.excluirSubmenu(sub.id),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
+          ),
+        ),
+
+        // CONTROLES DE PAGINAÇÃO (RODAPÉ)
+        if (totalPages > 1) ...[
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Text(
+                "Página ${_currentPage + 1} de $totalPages",
+                style: TextStyle(
+                  color: Colors.grey.shade700,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Container(
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey.shade300),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.chevron_left_rounded),
+                      color: _currentPage > 0
+                          ? const Color(0xFF1F2959)
+                          : Colors.grey.shade300,
+                      onPressed: _currentPage > 0
+                          ? () => setState(() => _currentPage--)
+                          : null,
+                    ),
+                    Container(
+                      width: 1,
+                      height: 24,
+                      color: Colors.grey.shade300,
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.chevron_right_rounded),
+                      color: _currentPage < totalPages - 1
+                          ? const Color(0xFF1F2959)
+                          : Colors.grey.shade300,
+                      onPressed: _currentPage < totalPages - 1
+                          ? () => setState(() => _currentPage++)
+                          : null,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ],
     );
   }
 }
