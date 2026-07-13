@@ -41,9 +41,10 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
     'people_alt': Icons.people_alt_rounded,
     'route': Icons.route_rounded,
     'hail': Icons.hail_rounded,
+    'dashboard': Icons.dashboard_rounded,
   };
 
-  // 🚀 MAPEAMENTO DE ROTAS OFICIAIS DO SAAS (SEM COISAS MOCKADAS)
+  // 🚀 MAPEAMENTO DE ROTAS OFICIAIS DO SAAS
   final Map<String, String> _paginasMapeadas = {
     'clinica_gestao': 'Gestão da Clínica (Web)',
     'lab_dashboard': 'Dashboard do Laboratório',
@@ -53,8 +54,8 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
     'lab_cadastro_exames': 'Cadastro de Exames',
     'lab_cadastro_insumos': 'Cadastro de Insumos',
     'lab_gestao_rotas': 'Gestão de Rotas Fixas',
-    'clinica_chamar_motoboy':
-        'Chamar Motoboy (Mobile)', // 🟢 Injetado com sucesso!
+    // 🟢 ROTA MÓVEL DA CLÍNICA LIBERADA AQUI!
+    'clinica_dashboard': 'Dashboard da Clínica (Mobile)',
   };
 
   @override

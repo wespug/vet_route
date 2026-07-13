@@ -8,10 +8,12 @@ class ChamadoMotoboyMobileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Definimos cores do tema premium Vet Route
-    final ThemeData theme = Theme.of(context);
     const Color indigoPremium = Color(0xFF1F2959); // Indigo shade 900
     const Color greenAccentBrand = Color(0xFF7FFFD4); // GreenAccent (Pata)
     const Color whiteBackground = Colors.white;
+    const Color colorSuccess = Color(
+      0xFF10B981,
+    ); // 🛠️ CORREÇÃO: Verde esmeralda válido
 
     return Scaffold(
       backgroundColor: whiteBackground,
@@ -73,11 +75,11 @@ class ChamadoMotoboyMobileScreen extends StatelessWidget {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(20),
-                boxShadow: [
+                boxShadow: const [
                   BoxShadow(
                     color: Colors.black12,
                     blurRadius: 15,
-                    offset: const Offset(0, 6),
+                    offset: Offset(0, 6),
                   ),
                 ],
               ),
@@ -95,7 +97,7 @@ class ChamadoMotoboyMobileScreen extends StatelessWidget {
                         ),
                         child: const Icon(
                           Icons.check_circle_rounded,
-                          color: emerald,
+                          color: colorSuccess,
                           size: 22,
                         ),
                       ),
@@ -105,7 +107,7 @@ class ChamadoMotoboyMobileScreen extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: Colors.emerald,
+                          color: colorSuccess,
                         ),
                       ),
                     ],

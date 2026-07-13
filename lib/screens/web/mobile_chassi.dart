@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:vet_route/screens/chamado_motoboy_mobile_scr.dart';
 import 'package:vet_route/screens/mobile_home_screen.dart';
 import 'package:vet_route/services/auth_service.dart';
 import 'package:vet_route/controllers/permissoes_controller.dart';
+
+// 🛡️ IMPORTAÇÃO DA NOSSA NOVA TELA AMARELA SIMPLES
+import 'package:vet_route/screens/mobile/clinica_dashboard_mobile_screen.dart';
 
 class MobileChassi extends StatefulWidget {
   const MobileChassi({super.key});
@@ -19,11 +21,9 @@ class _MobileChassiState extends State<MobileChassi> {
 
   Widget? _conteudoAtual;
   String _tituloAtual = "Vet Route";
-  String _rotaAtivaId =
-      ""; // Guarda qual item do menu/submenu está ativo para o destaque moderno
+  String _rotaAtivaId = "";
   final List<String> _menusExpandidosIds = [];
 
-  // Mapeamento de ícones limpos e modernos (Material 3/2026 Style)
   static const Map<String, IconData> _iconesMapeados = {
     'local_hospital': Icons.local_hospital_rounded,
     'science': Icons.science_rounded,
@@ -68,6 +68,39 @@ class _MobileChassiState extends State<MobileChassi> {
           final perfilId = doc.data()?['perfilId'];
           if (perfilId != null) {
             await permissoesGlobais.inicializarParaUsuario(perfilId);
+
+            if (mounted && permissoesGlobais.menusPermitidos.isNotEmpty) {
+              final menusMobile = permissoesGlobais.menusPermitidos
+                  .where((m) => m.isMobile == true)
+                  .toList();
+              if (menusMobile.isNotEmpty) {
+                menusMobile.sort((a, b) => a.peso.compareTo(b.peso));
+                final menuPai = menusMobile.first;
+                final subs = permissoesGlobais
+                    .getSubmenusDoMenu(menuPai.id)
+                    .where((s) => s.isMobile == true)
+                    .toList();
+
+                setState(() {
+                  if (subs.isNotEmpty) {
+                    subs.sort((a, b) => a.peso.compareTo(b.peso));
+                    _tituloAtual = subs.first.titulo;
+                    _rotaAtivaId = subs.first.id;
+                    _conteudoAtual = _obterTelaDestinoMobile(
+                      subs.first.rota,
+                      subs.first.titulo,
+                    );
+                  } else {
+                    _tituloAtual = menuPai.titulo;
+                    _rotaAtivaId = menuPai.id;
+                    _conteudoAtual = _obterTelaDestinoMobile(
+                      menuPai.rota,
+                      menuPai.titulo,
+                    );
+                  }
+                });
+              }
+            }
           }
         }
       } catch (e) {
@@ -78,8 +111,9 @@ class _MobileChassiState extends State<MobileChassi> {
 
   Widget _obterTelaDestinoMobile(String chaveRota, String titulo) {
     switch (chaveRota) {
-      case 'clinica_chamar_motoboy':
-        return ChamadoMotoboyMobileScreen(rotaQueChamou: chaveRota);
+      // 🚀 ROTEAMENTO PLUGADO AQUI!
+      case 'clinica_dashboard':
+        return ClinicaDashboardMobileScreen(rotaQueChamou: chaveRota);
       default:
         return Container(
           color: const Color(0xFFF8F9FA),
@@ -114,7 +148,7 @@ class _MobileChassiState extends State<MobileChassi> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    "O layout sofisticado para a rota '$chaveRota' está a ser lapidado na nossa infraestrutura 2026.",
+                    "O layout para a rota '$chaveRota' está a ser lapidado.",
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 13,
@@ -136,7 +170,7 @@ class _MobileChassiState extends State<MobileChassi> {
       _rotaAtivaId = idAtivo;
       _conteudoAtual = _obterTelaDestinoMobile(chaveRota, titulo);
     });
-    Navigator.of(context).pop(); // Fecha o drawer graciosamente
+    Navigator.of(context).pop();
   }
 
   @override
@@ -144,17 +178,15 @@ class _MobileChassiState extends State<MobileChassi> {
     const corPrimariaDark = Color(0xFF1F2959);
 
     return Scaffold(
-      backgroundColor: const Color(
-        0xFFFAF9F6,
-      ), // Fundo Off-White minimalista europeu
+      backgroundColor: const Color(0xFFFAF9F6),
       appBar: AppBar(
         title: Text(
           _tituloAtual.toUpperCase(),
           style: const TextStyle(
-            fontSize: 14,
+            fontSize: 13,
             fontWeight: FontWeight.w800,
             color: corPrimariaDark,
-            letterSpacing: 2.0,
+            letterSpacing: 1.8,
           ),
         ),
         backgroundColor: Colors.white,
@@ -179,7 +211,6 @@ class _MobileChassiState extends State<MobileChassi> {
       shadowColor: Colors.black26,
       child: Column(
         children: [
-          // 💎 CABEÇALHO CLEAN STYLE
           Container(
             padding: const EdgeInsets.fromLTRB(24, 64, 24, 28),
             width: double.infinity,
@@ -278,27 +309,24 @@ class _MobileChassiState extends State<MobileChassi> {
               ],
             ),
           ),
-
-          // 💎 ITENS DE MENU FLUTUANTES (DESIGN 2026)
           Expanded(
             child: ListenableBuilder(
               listenable: permissoesGlobais,
               builder: (context, child) {
-                if (permissoesGlobais.carregando) {
+                if (permissoesGlobais.carregando)
                   return Center(
                     child: CircularProgressIndicator(
                       color: corFoco,
                       strokeWidth: 2,
                     ),
                   );
-                }
 
                 final menusMobile = permissoesGlobais.menusPermitidos
                     .where((m) => m.isMobile == true)
                     .toList();
                 menusMobile.sort((a, b) => a.peso.compareTo(b.peso));
 
-                if (menusMobile.isEmpty) {
+                if (menusMobile.isEmpty)
                   return Center(
                     child: Text(
                       "Nenhum módulo móvel atribuído.",
@@ -309,7 +337,6 @@ class _MobileChassiState extends State<MobileChassi> {
                       ),
                     ),
                   );
-                }
 
                 return ListView.builder(
                   padding: const EdgeInsets.symmetric(
@@ -462,8 +489,6 @@ class _MobileChassiState extends State<MobileChassi> {
               },
             ),
           ),
-
-          // 💎 RODAPÉ ISOLADO HIGH-TECH
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
@@ -507,11 +532,10 @@ class _MobileChassiState extends State<MobileChassi> {
                   permissoesGlobais.menusPermitidos.clear();
                   permissoesGlobais.submenusPermitidos.clear();
                   await AuthService().logout();
-                  if (context.mounted) {
+                  if (context.mounted)
                     Navigator.of(
                       context,
                     ).pushNamedAndRemoveUntil('/login', (route) => false);
-                  }
                 },
               ),
             ),

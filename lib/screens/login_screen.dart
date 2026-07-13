@@ -199,7 +199,7 @@ class _LoginScreenState extends State<LoginScreen> with LoggerMixin {
                       ),
                       backgroundColor: Colors.teal.shade100,
                       onPressed: () =>
-                          _preencherTeste('adm@admin.com', '12345678'),
+                          _preencherTeste('super@admin.com', '12345678'),
                     ),
                     ActionChip(
                       label: const Text(
