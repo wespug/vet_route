@@ -7,7 +7,12 @@ class ChamadoColetaModel {
   final String status;
   final bool isEmergencia;
   final DateTime dataCriacao;
-  final DateTime dataAgendamento; // 💡 Novo campo adicionado
+  final DateTime dataAgendamento;
+  // 💡 CAMPOS PARA SUPORTAR PEDIDO DE INSUMOS
+  final String tipoChamado;
+  final List<Map<String, dynamic>> insumosSolicitados;
+  // 💡 NOVO CAMPO: Observação do material a ser coletado
+  final String observacao;
 
   ChamadoColetaModel({
     required this.id,
@@ -19,6 +24,9 @@ class ChamadoColetaModel {
     required this.isEmergencia,
     required this.dataCriacao,
     required this.dataAgendamento,
+    this.tipoChamado = 'Coleta', // Mantém o padrão antigo intacto
+    this.insumosSolicitados = const [],
+    this.observacao = '', // 💡 Proteção contra dados antigos nulos
   });
 
   Map<String, dynamic> toMap() {
@@ -31,6 +39,9 @@ class ChamadoColetaModel {
       'isEmergencia': isEmergencia,
       'dataCriacao': dataCriacao.toIso8601String(),
       'dataAgendamento': dataAgendamento.toIso8601String(),
+      'tipoChamado': tipoChamado,
+      'insumosSolicitados': insumosSolicitados,
+      'observacao': observacao, // 💡 Adicionado para ir para o Firebase
     };
   }
 
@@ -43,15 +54,17 @@ class ChamadoColetaModel {
       laboratorioNome: map['laboratorioNome'] ?? '',
       status: map['status'] ?? 'Aguardando Entregador',
       isEmergencia: map['isEmergencia'] ?? false,
+      tipoChamado: map['tipoChamado'] ?? 'Coleta',
+      insumosSolicitados: List<Map<String, dynamic>>.from(
+        map['insumosSolicitados'] ?? [],
+      ),
       dataCriacao: map['dataCriacao'] != null
           ? DateTime.parse(map['dataCriacao'])
           : DateTime.now(),
-      // Se for um chamado antigo sem agendamento, ele usa a data de criação para não quebrar a tela
       dataAgendamento: map['dataAgendamento'] != null
           ? DateTime.parse(map['dataAgendamento'])
-          : (map['dataCriacao'] != null
-                ? DateTime.parse(map['dataCriacao'])
-                : DateTime.now()),
+          : DateTime.now(),
+      observacao: map['observacao'] ?? '', // 💡 Adicionado para ler do Firebase
     );
   }
 }

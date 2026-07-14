@@ -103,7 +103,7 @@ class ClinicaController extends ChangeNotifier {
 
             final docs = snapshot.docs.toList();
 
-            // 💡 MÁGICA DE PROTEÇÃO: Tratamento robusto para ordenação de Datas
+            // Ordenação segura (Timestamp vs String)
             docs.sort((a, b) {
               final valA = a.data()['dataCriacao'];
               final valB = b.data()['dataCriacao'];
@@ -131,17 +131,22 @@ class ClinicaController extends ChangeNotifier {
             for (var doc in docs) {
               final data = doc.data();
               data['id'] = doc.id;
-              final status = data['status'] ?? 'Aguardando';
 
-              if (status == 'Aguardando' || status == 'Aguardando Entregador') {
+              // 💡 MÁGICA: Convertendo para minúsculo para a regra ser elástica
+              final statusRaw = (data['status'] as String?) ?? 'Aguardando';
+              final statusNormalizado = statusRaw.toLowerCase();
+
+              // 💡 Agora o "Aguardando Aprovação" ou qualquer "Aguardando" cai aqui com perfeição!
+              if (statusNormalizado.contains('aguardando')) {
                 qtdAguardando++;
                 chamadosAtivos.add(data);
-              } else if (status == 'Em Rota' ||
-                  status == 'A Caminho' ||
-                  status == 'Coletado') {
+              } else if (statusNormalizado.contains('em rota') ||
+                  statusNormalizado.contains('a caminho') ||
+                  statusNormalizado.contains('coletado')) {
                 qtdEmRota++;
                 chamadosAtivos.add(data);
               } else {
+                // Se não está aguardando, nem em rota, assume concluído/histórico
                 qtdConcluidos++;
                 chamadosHistorico.add(data);
               }

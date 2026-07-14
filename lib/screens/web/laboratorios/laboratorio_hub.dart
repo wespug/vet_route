@@ -2,14 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:vet_route/controllers/permissoes_controller.dart';
-import 'package:vet_route/screens/web/laboratorios/cadastro_insumo.dart';
-import 'package:vet_route/screens/web/laboratorios/usuarios_lab_view.dart';
-import 'package:vet_route/screens/widgets/generic_tab_hub.dart';
 import 'package:vet_route/models/laboratorio_model.dart';
+import 'package:vet_route/models/submenu_item_model.dart';
+
 import 'package:vet_route/screens/web/laboratorios/lista_laboratorio_view.dart';
 import 'package:vet_route/screens/web/laboratorios/lab_dashboard_view.dart';
+import 'package:vet_route/screens/web/laboratorios/cadastro_insumo.dart';
+import 'package:vet_route/screens/web/laboratorios/usuarios_lab_view.dart';
 import 'cadastro_exame_hub.dart';
-import 'gestao_rotas_hub.dart'; // 🚀 NOVO IMPORT DAS ROTAS!
+import 'gestao_rotas_hub.dart';
 
 class LaboratoriosHub extends StatefulWidget {
   final String? rotaAbaAtiva;
@@ -20,15 +21,32 @@ class LaboratoriosHub extends StatefulWidget {
   State<LaboratoriosHub> createState() => _LaboratoriosHubState();
 }
 
-class _LaboratoriosHubState extends State<LaboratoriosHub> {
+class _LaboratoriosHubState extends State<LaboratoriosHub>
+    with TickerProviderStateMixin {
   Laboratorio? _labSelecionado;
   bool _isLoading = true;
   bool _isUsuarioRestrito = false;
+
+  TabController? _tabController;
+  List<SubmenuItemModel> _submenus = [];
 
   @override
   void initState() {
     super.initState();
     _verificarVinculoUsuario();
+  }
+
+  // 🚀 REATIVIDADE AO CLIQUE DO MENU LATERAL (Idêntico à Clínica)
+  @override
+  void didUpdateWidget(LaboratoriosHub oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.rotaAbaAtiva != oldWidget.rotaAbaAtiva &&
+        _tabController != null) {
+      int newIndex = _submenus.indexWhere((s) => s.rota == widget.rotaAbaAtiva);
+      if (newIndex != -1) {
+        _tabController!.animateTo(newIndex);
+      }
+    }
   }
 
   Future<void> _verificarVinculoUsuario() async {
@@ -39,74 +57,129 @@ class _LaboratoriosHubState extends State<LaboratoriosHub> {
         return;
       }
 
-      final userDoc = await FirebaseFirestore.instance
+      final doc = await FirebaseFirestore.instance
           .collection('usuarios')
           .doc(user.uid)
           .get();
-      final userData = userDoc.data();
+      if (!doc.exists) {
+        setState(() => _isLoading = false);
+        return;
+      }
 
-      if (userData != null &&
-          userData.containsKey('vinculoId') &&
-          userData['vinculoId'] != null &&
-          userData['vinculoId'].toString().isNotEmpty) {
-        final vinculoId = userData['vinculoId'];
-        final laboratorioDoc = await FirebaseFirestore.instance
+      final data = doc.data()!;
+      final perfilId = data['perfilId'] as String?;
+      final vinculoId = data['vinculoId'] as String?;
+
+      if (perfilId != null) {
+        final perfilDoc = await FirebaseFirestore.instance
+            .collection('perfis')
+            .doc(perfilId)
+            .get();
+        if (perfilDoc.exists && perfilDoc.data()?['nome'] == 'Super Admin') {
+          _isUsuarioRestrito = false;
+        } else {
+          _isUsuarioRestrito = true;
+        }
+      }
+
+      if (_isUsuarioRestrito && vinculoId != null && vinculoId.isNotEmpty) {
+        final labDoc = await FirebaseFirestore.instance
             .collection('laboratorios')
             .doc(vinculoId)
             .get();
-
-        if (laboratorioDoc.exists) {
-          setState(() {
-            _labSelecionado = Laboratorio.fromFirestore(laboratorioDoc);
-            _isUsuarioRestrito = true;
-          });
+        if (labDoc.exists) {
+          _labSelecionado = Laboratorio.fromFirestore(labDoc);
         }
       }
+
+      _configurarAbasDinamicas();
     } catch (e) {
-      debugPrint("Erro Crítico de Segurança no Hub de Labs: $e");
+      debugPrint("Erro ao verificar vínculo do laboratório: $e");
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  Widget _resolverConteudoDaAba(String rotaSubmenu) {
-    switch (rotaSubmenu) {
+  // 🧠 CONSTRUTOR DINÂMICO DE ABAS (LÊ DO FIRESTORE - Prefixo 'lab_')
+  void _configurarAbasDinamicas() {
+    _submenus = permissoesGlobais.submenusPermitidos
+        .where((s) => s.isWeb && s.rota.startsWith('lab_'))
+        .toList();
+
+    // Respeita a ordem de peso configurada no Admin
+    _submenus.sort((a, b) => a.peso.compareTo(b.peso));
+
+    if (_submenus.isNotEmpty) {
+      int initialIndex = 0;
+      if (widget.rotaAbaAtiva != null) {
+        initialIndex = _submenus.indexWhere(
+          (s) => s.rota == widget.rotaAbaAtiva,
+        );
+        if (initialIndex == -1) initialIndex = 0;
+      }
+      _tabController = TabController(
+        length: _submenus.length,
+        initialIndex: initialIndex,
+        vsync: this,
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _tabController?.dispose();
+    super.dispose();
+  }
+
+  // 🔀 ROTEADOR INTERNO DAS ABAS DO LABORATÓRIO
+  Widget _obterTelaParaRota(String rota) {
+    if (_labSelecionado == null && rota != 'lista_laboratorios') {
+      return const Center(
+        child: Text(
+          "Selecione um laboratório no topo para gerir.",
+          style: TextStyle(fontSize: 16, color: Colors.grey),
+        ),
+      );
+    }
+
+    switch (rota) {
       case 'lab_dashboard':
-        return const LabDashboardView();
+        return const LabDashboardView(); // 💡 Dashboard atual
       case 'lab_adicionar_usuario':
+      case 'lab_usuarios':
         return UsuariosLabView(
           labContexto: _labSelecionado!,
-          chavePermissao: 'lista_laboratorios',
+          chavePermissao: rota,
         );
       case 'lab_cadastro_exames':
         return CadastroExameHub(labContexto: _labSelecionado!);
       case 'lab_cadastro_insumos':
         return CadastroInsumoHub(labContexto: _labSelecionado!);
-      case 'lab_gestao_rotas': // 🚀 AQUI PASSA O CONTEXTO PARA ROTAS!
+      case 'lab_gestao_rotas':
         return GestaoRotasHub(labContexto: _labSelecionado!);
       default:
-        return _buildPlaceholder(
-          'Funcionalidade ($rotaSubmenu) em desenvolvimento 🚧',
-          Icons.construction_rounded,
-        );
+        return _buildPlaceholder(rota);
     }
   }
 
-  Widget _buildPlaceholder(String texto, IconData icone) {
+  Widget _buildPlaceholder(String rota) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icone, size: 56, color: Colors.grey.shade400),
+          Icon(
+            Icons.construction_rounded,
+            size: 56,
+            color: Colors.grey.shade300,
+          ),
           const SizedBox(height: 16),
           Text(
-            texto,
+            "Funcionalidade ($rota) em desenvolvimento 🚧",
             style: TextStyle(
               fontSize: 15,
-              color: Colors.grey.shade600,
+              color: Colors.grey.shade500,
               fontWeight: FontWeight.w500,
             ),
-            textAlign: TextAlign.center,
           ),
         ],
       ),
@@ -115,132 +188,104 @@ class _LaboratoriosHubState extends State<LaboratoriosHub> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading)
+    if (_isLoading) {
       return const Center(
         child: CircularProgressIndicator(color: Colors.indigo),
       );
+    }
 
+    // 1. MODO SUPER ADMIN (SELEÇÃO DE EMPRESA)
     if (_labSelecionado == null) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(24),
-            margin: const EdgeInsets.only(left: 24, right: 24, top: 24),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
             decoration: BoxDecoration(
-              color: Colors.indigo.shade50.withOpacity(0.3),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.indigo.shade100),
+              color: Colors.white,
+              border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
             ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.biotech_rounded,
-                  color: Colors.indigo.shade700,
-                  size: 24,
-                ),
-                const SizedBox(width: 12),
-                const Expanded(
-                  child: Text(
-                    "Painel de Controle Corporativo: Selecione um Laboratório na lista abaixo para auditar sua operação.",
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.black87,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ],
+            child: const Text(
+              "Gestão de Laboratórios",
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF1F2959),
+              ),
             ),
           ),
           Expanded(
             child: ListaLaboratoriosView(
-              onLabSelected: (lab) => setState(() => _labSelecionado = lab),
+              onLabSelected: (lab) {
+                setState(() {
+                  _labSelecionado = lab;
+                });
+              },
             ),
           ),
         ],
       );
     }
 
-    return ListenableBuilder(
-      listenable: permissoesGlobais,
-      builder: (context, child) {
-        final menusFiltrados = permissoesGlobais.menusPermitidos.where(
-          (m) => m.rota == 'lista_laboratorios',
-        );
-        if (menusFiltrados.isEmpty)
-          return const Center(
-            child: CircularProgressIndicator(color: Colors.indigo),
-          );
+    // 2. MODO HUB BLOQUEADO (SEM PERMISSÕES)
+    if (_submenus.isEmpty) {
+      return const Center(
+        child: Text(
+          "Nenhum módulo de laboratório configurado para o seu perfil.",
+          style: TextStyle(color: Colors.grey),
+        ),
+      );
+    }
 
-        final menuPai = menusFiltrados.first;
-        final submenus = permissoesGlobais.getSubmenusDoMenu(menuPai.id);
-        final submenusFiltrados = submenus
-            .where((s) => s.rota != 'lista_laboratorios_aba')
-            .toList();
-
-        if (submenusFiltrados.isEmpty) {
-          return Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildBarraTopoBreadcrumb(),
-                const SizedBox(height: 40),
-                const Center(
-                  child: Text(
-                    "Nenhum submenu ou aba configurada para este módulo no Firestore.",
-                    style: TextStyle(color: Colors.grey, fontSize: 14),
-                  ),
-                ),
-              ],
+    // 3. MODO HUB DINÂMICO (ABAS FUNCIONANDO IDÊNTICO À CLÍNICA)
+    return Column(
+      children: [
+        _buildHeaderContexto(),
+        Container(
+          width: double.infinity,
+          color: Colors.white,
+          child: TabBar(
+            controller: _tabController,
+            isScrollable: true,
+            labelColor: Colors.indigo,
+            unselectedLabelColor: Colors.grey.shade500,
+            indicatorColor: Colors.indigo,
+            indicatorWeight: 3,
+            labelStyle: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 13.5,
             ),
-          );
-        }
-
-        submenusFiltrados.sort((a, b) => a.peso.compareTo(b.peso));
-        int indiceFoco = 0;
-        final abasDinamicas = <TabItemModel>[];
-
-        for (int i = 0; i < submenusFiltrados.length; i++) {
-          final submenu = submenusFiltrados[i];
-          abasDinamicas.add(
-            TabItemModel(
-              titulo: submenu.titulo,
-              conteudo: _resolverConteudoDaAba(submenu.rota),
+            unselectedLabelStyle: const TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 13.5,
             ),
-          );
-          if (widget.rotaAbaAtiva != null &&
-              widget.rotaAbaAtiva == submenu.rota)
-            indiceFoco = i;
-        }
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildBarraTopoBreadcrumb(),
-            const SizedBox(height: 16),
-            Expanded(
-              child: GenericTabHub(
-                abas: abasDinamicas,
-                indiceInicial: indiceFoco,
-              ),
+            tabs: _submenus.map((s) => Tab(text: s.titulo)).toList(),
+          ),
+        ),
+        Expanded(
+          child: Container(
+            color: const Color(
+              0xFFF5F7FA,
+            ), // Fundo clean idêntico ao da clínica
+            child: TabBarView(
+              controller: _tabController,
+              children: _submenus
+                  .map((s) => _obterTelaParaRota(s.rota))
+                  .toList(),
             ),
-          ],
-        );
-      },
+          ),
+        ),
+      ],
     );
   }
 
-  Widget _buildBarraTopoBreadcrumb() {
+  Widget _buildHeaderContexto() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      margin: const EdgeInsets.only(left: 24, right: 24, top: 24),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade200),
+        color: Colors.white,
+        border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -254,11 +299,11 @@ class _LaboratoriosHubState extends State<LaboratoriosHub> {
                 style: TextStyle(
                   color: Colors.grey,
                   fontSize: 14,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
               const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 8.0),
+                padding: EdgeInsets.symmetric(horizontal: 10.0),
                 child: Icon(
                   Icons.arrow_forward_ios_rounded,
                   size: 12,
@@ -270,15 +315,19 @@ class _LaboratoriosHubState extends State<LaboratoriosHub> {
                 style: const TextStyle(
                   color: Colors.indigo,
                   fontSize: 14,
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ],
           ),
           if (!_isUsuarioRestrito)
             TextButton.icon(
-              onPressed: () => setState(() => _labSelecionado = null),
-              icon: const Icon(Icons.swap_horiz_rounded, size: 16),
+              onPressed: () {
+                setState(() {
+                  _labSelecionado = null;
+                });
+              },
+              icon: const Icon(Icons.swap_horiz_rounded, size: 18),
               label: const Text(
                 "Alternar Laboratório",
                 style: TextStyle(fontWeight: FontWeight.bold),
