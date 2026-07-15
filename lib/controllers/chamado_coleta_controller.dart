@@ -1,9 +1,12 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:rxdart/rxdart.dart';
 import 'package:vet_route/models/chamado_coleta_model.dart';
 
 class ChamadoColetaController {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
+  StreamSubscription? _subscriptionCombinada;
 
   // --- ESTADOS REATIVOS ---
   final ValueNotifier<bool> isLoading = ValueNotifier(false);
@@ -23,49 +26,99 @@ class ChamadoColetaController {
   void carregarChamados(String clinicaId) {
     isLoading.value = true;
 
-    _db
+    final coletasStream = _db
         .collection('chamados_coleta')
         .where('clinicaId', isEqualTo: clinicaId)
-        .snapshots()
-        .listen((snapshot) {
-          final chamados = snapshot.docs
-              .map((doc) => ChamadoColetaModel.fromMap(doc.id, doc.data()))
-              .toList();
+        .snapshots();
 
+    final insumosStream = _db
+        .collection('pedidos_insumos')
+        .where('clinicaId', isEqualTo: clinicaId)
+        .snapshots();
+
+    _subscriptionCombinada?.cancel();
+    _subscriptionCombinada =
+        Rx.combineLatest2(coletasStream, insumosStream, (
+          QuerySnapshot coletasSnapshot,
+          QuerySnapshot insumosSnapshot,
+        ) {
+          final List<ChamadoColetaModel> listaUnificada = [];
+
+          // 3.1 Convertendo Coletas Normais
+          for (var doc in coletasSnapshot.docs) {
+            try {
+              listaUnificada.add(
+                ChamadoColetaModel.fromMap(
+                  doc.id,
+                  doc.data() as Map<String, dynamic>,
+                ),
+              );
+            } catch (e) {
+              debugPrint("Erro ao ler coleta ${doc.id}:$e");
+            }
+          }
+
+          // 3.2 Convertendo Pedidos de Insumo para parecerem Chamados na UI
+          for (var doc in insumosSnapshot.docs) {
+            try {
+              final data = doc.data() as Map<String, dynamic>;
+
+              DateTime dataSolicitacao = DateTime.now();
+              if (data['dataSolicitacao'] != null) {
+                dataSolicitacao = (data['dataSolicitacao'] as Timestamp)
+                    .toDate();
+              }
+
+              listaUnificada.add(
+                ChamadoColetaModel(
+                  id: doc.id,
+                  clinicaId: data['clinicaId'] ?? '',
+                  clinicaNome: data['clinicaNome'] ?? '',
+                  // 💡 MÁGICA 1: Inserimos 'INSUMO_' no ID para o sistema saber abrir o modal certo!
+                  laboratorioId: 'INSUMO_${data['laboratorioId'] ?? ''}',
+                  // 💡 MÁGICA 2: Agora mostramos o NOME REAL do laboratório (Sua regra nº 1 atendida)
+                  laboratorioNome:
+                      data['laboratorioNome'] ?? 'Laboratório Parceiro',
+                  status: data['status'] ?? 'Pendente',
+                  isEmergencia: false,
+                  dataCriacao: dataSolicitacao,
+                  dataAgendamento: dataSolicitacao,
+                ),
+              );
+            } catch (e) {
+              debugPrint("Erro ao ler insumo ${doc.id}:$e");
+            }
+          }
+
+          return listaUnificada;
+        }).listen((todosOsChamados) {
           final dataAtual = DateTime.now();
           final List<ChamadoColetaModel> listaHoje = [];
           final List<ChamadoColetaModel> listaPassados = [];
 
-          // Triagem Inteligente baseada no Agendamento
-          for (var c in chamados) {
-            DateTime dataReferencia = c.dataAgendamento;
+          for (var c in todosOsChamados) {
+            final statusLower = c.status.toLowerCase();
 
-            bool isHoje =
-                dataReferencia.year == dataAtual.year &&
-                dataReferencia.month == dataAtual.month &&
-                dataReferencia.day == dataAtual.day;
+            final isHistorico =
+                statusLower == 'entregue' ||
+                statusLower == 'concluído' ||
+                statusLower ==
+                    'cancelado' || // 💡 Se for cancelado também sai da visão ativa
+                statusLower == 'finalizada';
 
-            bool isAtivo =
-                c.status == 'Aguardando Entregador' ||
-                c.status == 'Em Trânsito';
-            bool isFuturo = dataReferencia.isAfter(dataAtual) && !isHoje;
-
-            // Vai para a Aba Principal se for para hoje, se for no futuro, ou se estiver ativo pendente.
-            if (isHoje || isAtivo || isFuturo) {
-              listaHoje.add(c);
-            } else {
+            if (isHistorico) {
               listaPassados.add(c);
+            } else {
+              listaHoje.add(c);
             }
           }
 
-          // Ordenação Principal: Emergências primeiro, depois ordem de agendamento (o mais cedo primeiro)
           listaHoje.sort((a, b) {
             if (a.isEmergencia && !b.isEmergencia) return -1;
             if (!a.isEmergencia && b.isEmergencia) return 1;
             return a.dataAgendamento.compareTo(b.dataAgendamento);
           });
 
-          // Histórico: Do mais recente para o mais antigo
           listaPassados.sort(
             (a, b) => b.dataAgendamento.compareTo(a.dataAgendamento),
           );
@@ -101,6 +154,7 @@ class ChamadoColetaController {
   }
 
   void dispose() {
+    _subscriptionCombinada?.cancel();
     isLoading.dispose();
     chamadosHoje.dispose();
     chamadosPassados.dispose();

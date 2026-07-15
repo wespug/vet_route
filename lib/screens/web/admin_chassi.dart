@@ -328,13 +328,14 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
                     data: Theme.of(
                       context,
                     ).copyWith(hoverColor: Colors.white.withOpacity(0.04)),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: menuSelecionado
-                            ? const Color(0xFF1F2959)
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
+                    // 💡 SUBSTITUÍDO CONTAINER POR MATERIAL AQUI
+                    child: Material(
+                      color: menuSelecionado
+                          ? const Color(0xFF1F2959)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(10),
+                      clipBehavior: Clip
+                          .antiAlias, // Mantém o ripple dentro do botão arredondado
                       child: ListTile(
                         dense: true,
                         horizontalTitleGap: 12,
@@ -391,13 +392,13 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
                           final bool subSelecionado = _rotaAtivaId == sub.id;
                           return Padding(
                             padding: const EdgeInsets.only(left: 14, bottom: 2),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: subSelecionado
-                                    ? Colors.white.withOpacity(0.06)
-                                    : Colors.transparent,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
+                            // 💡 SUBSTITUÍDO CONTAINER POR MATERIAL AQUI TAMBÉM
+                            child: Material(
+                              color: subSelecionado
+                                  ? Colors.white.withOpacity(0.06)
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(8),
+                              clipBehavior: Clip.antiAlias,
                               child: ListTile(
                                 dense: true,
                                 horizontalTitleGap: 10,
@@ -451,30 +452,38 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
           top: BorderSide(color: Colors.white.withOpacity(0.04), width: 1),
         ),
       ),
-      child: ListTile(
-        dense: true,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        hoverColor: Colors.red.shade900.withOpacity(0.15),
-        leading: const Icon(
-          Icons.power_settings_new_rounded,
-          color: Colors.redAccent,
-          size: 20,
-        ),
-        title: const Text(
-          'Desligar Painel',
-          style: TextStyle(
-            color: Colors.redAccent,
-            fontWeight: FontWeight.bold,
-            fontSize: 13.5,
+      // 💡 ADICIONADO O SHIELD MATERIAL AQUI NO FOOTER
+      child: Material(
+        color: Colors.transparent,
+        clipBehavior: Clip.antiAlias,
+        borderRadius: BorderRadius.circular(10),
+        child: ListTile(
+          dense: true,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
           ),
+          hoverColor: Colors.red.shade900.withOpacity(0.15),
+          leading: const Icon(
+            Icons.power_settings_new_rounded,
+            color: Colors.redAccent,
+            size: 20,
+          ),
+          title: const Text(
+            'Desligar Painel',
+            style: TextStyle(
+              color: Colors.redAccent,
+              fontWeight: FontWeight.bold,
+              fontSize: 13.5,
+            ),
+          ),
+          onTap: () async {
+            await AuthService().logout();
+            if (mounted)
+              Navigator.of(
+                context,
+              ).pushNamedAndRemoveUntil('/login', (route) => false);
+          },
         ),
-        onTap: () async {
-          await AuthService().logout();
-          if (mounted)
-            Navigator.of(
-              context,
-            ).pushNamedAndRemoveUntil('/login', (route) => false);
-        },
       ),
     );
   }

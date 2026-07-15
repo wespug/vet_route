@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:vet_route/controllers/chamado_coleta_controller.dart';
 import 'package:vet_route/models/clinica_model.dart';
 import 'package:vet_route/models/chamado_coleta_model.dart';
+import 'package:vet_route/screens/web/clinicas/modal/modal_detalhes_coleta.dart';
 
-import 'package:vet_route/controllers/insumo_controller.dart';
-import 'package:vet_route/models/insumo_model.dart';
+import 'package:vet_route/screens/web/clinicas/modalR/modal_detalhes_insumo.dart';
+import 'package:vet_route/screens/web/clinicas/modal/modal_pedir_insumos.dart';
+import 'package:vet_route/screens/web/clinicas/modal/modal_novo_chamado.dart';
+// 💡 MÁGICA: Importando o novo modal de Coleta
+import 'package:vet_route/screens/web/clinicas/modal/modal_detalhes_coleta.dart';
 
 class GestaoChamadosView extends StatefulWidget {
   final Clinica clinicaContexto;
@@ -19,9 +23,6 @@ class GestaoChamadosView extends StatefulWidget {
 class _GestaoChamadosViewState extends State<GestaoChamadosView>
     with TickerProviderStateMixin {
   final ChamadoColetaController _controller = ChamadoColetaController();
-
-  String? _labIdSelecionado;
-  String? _labNomeSelecionado;
 
   String _termoBusca = '';
   int _linhasPorPagina = PaginatedDataTable.defaultRowsPerPage;
@@ -39,6 +40,16 @@ class _GestaoChamadosViewState extends State<GestaoChamadosView>
     super.dispose();
   }
 
+  String _obterUsuarioLogado() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      return user.displayName?.isNotEmpty == true
+          ? user.displayName!
+          : (user.email ?? 'Usuário');
+    }
+    return 'Usuário Desconhecido';
+  }
+
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
@@ -52,7 +63,6 @@ class _GestaoChamadosViewState extends State<GestaoChamadosView>
             children: [
               _buildBarraSuperior(),
               const SizedBox(height: 24),
-
               TextField(
                 decoration: InputDecoration(
                   hintText: 'Buscar por laboratório ou status da coleta...',
@@ -76,14 +86,9 @@ class _GestaoChamadosViewState extends State<GestaoChamadosView>
                     ),
                   ),
                 ),
-                onChanged: (value) {
-                  setState(() {
-                    _termoBusca = value;
-                  });
-                },
+                onChanged: (value) => setState(() => _termoBusca = value),
               ),
               const SizedBox(height: 24),
-
               const TabBar(
                 labelColor: Colors.indigo,
                 unselectedLabelColor: Colors.grey,
@@ -91,7 +96,7 @@ class _GestaoChamadosViewState extends State<GestaoChamadosView>
                 indicatorSize: TabBarIndicatorSize.tab,
                 tabs: [
                   Tab(text: "Coletas Ativas & Agendadas"),
-                  Tab(text: "Coletas Finalizadas"),
+                  Tab(text: "Coletas Entregues / Histórico"),
                 ],
               ),
               const SizedBox(height: 16),
@@ -141,7 +146,15 @@ class _GestaoChamadosViewState extends State<GestaoChamadosView>
           runSpacing: 12,
           children: [
             ElevatedButton.icon(
-              onPressed: () => _abrirModalPedirInsumos(),
+              onPressed: () => showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (_) => ModalPedirInsumos(
+                  controller: _controller,
+                  clinicaContexto: widget.clinicaContexto,
+                  usuarioLogado: _obterUsuarioLogado(),
+                ),
+              ),
               icon: const Icon(Icons.inventory_2_outlined, size: 18),
               label: const Text(
                 "Pedir Insumos",
@@ -161,7 +174,14 @@ class _GestaoChamadosViewState extends State<GestaoChamadosView>
               ),
             ),
             ElevatedButton.icon(
-              onPressed: () => _abrirModalNovoChamado(isEmergencia: false),
+              onPressed: () => showDialog(
+                context: context,
+                builder: (_) => ModalNovoChamado(
+                  isEmergencia: false,
+                  controller: _controller,
+                  clinicaContexto: widget.clinicaContexto,
+                ),
+              ),
               icon: const Icon(Icons.calendar_today_rounded, size: 18),
               label: const Text(
                 "Coleta Agendada",
@@ -181,7 +201,14 @@ class _GestaoChamadosViewState extends State<GestaoChamadosView>
               ),
             ),
             ElevatedButton.icon(
-              onPressed: () => _abrirModalNovoChamado(isEmergencia: true),
+              onPressed: () => showDialog(
+                context: context,
+                builder: (_) => ModalNovoChamado(
+                  isEmergencia: true,
+                  controller: _controller,
+                  clinicaContexto: widget.clinicaContexto,
+                ),
+              ),
               icon: const Icon(Icons.flash_on_rounded, size: 18),
               label: const Text(
                 "Coleta de Urgência",
@@ -214,25 +241,19 @@ class _GestaoChamadosViewState extends State<GestaoChamadosView>
     return ValueListenableBuilder<bool>(
       valueListenable: _controller.isLoading,
       builder: (context, isLoading, child) {
-        if (isLoading) {
+        if (isLoading)
           return const Center(
             child: CircularProgressIndicator(color: Colors.indigo),
           );
-        }
 
         return ValueListenableBuilder<List<ChamadoColetaModel>>(
           valueListenable: listenableTarget,
           builder: (context, chamados, child) {
             List<ChamadoColetaModel> chamadosFiltrados = chamados.where((c) {
               final termo = _termoBusca.toLowerCase();
-              final lab = c.laboratorioNome.toLowerCase();
-              final status = c.status.toLowerCase();
-              return lab.contains(termo) || status.contains(termo);
+              return c.laboratorioNome.toLowerCase().contains(termo) ||
+                  c.status.toLowerCase().contains(termo);
             }).toList();
-
-            chamadosFiltrados.sort(
-              (a, b) => b.dataAgendamento.compareTo(a.dataAgendamento),
-            );
 
             if (chamadosFiltrados.isEmpty) {
               return Center(
@@ -251,7 +272,7 @@ class _GestaoChamadosViewState extends State<GestaoChamadosView>
                       _termoBusca.isNotEmpty
                           ? "Nenhuma coleta encontrada para '$_termoBusca'."
                           : (isHistorico
-                                ? "Nenhum histórico de coletas finalizadas."
+                                ? "Nenhum histórico de coletas e pedidos."
                                 : "Nenhuma coleta ativa ou agendada."),
                       style: TextStyle(
                         fontSize: 15,
@@ -264,9 +285,11 @@ class _GestaoChamadosViewState extends State<GestaoChamadosView>
               );
             }
 
-            final dataSource = _ChamadosDataSource(
+            final dataSource = ChamadosDataSource(
               context: context,
               chamados: chamadosFiltrados,
+              clinicaContexto: widget.clinicaContexto,
+              usuarioLogado: _obterUsuarioLogado(),
             );
 
             return Container(
@@ -280,7 +303,7 @@ class _GestaoChamadosViewState extends State<GestaoChamadosView>
                 child: PaginatedDataTable(
                   header: Text(
                     isHistorico
-                        ? "Histórico de Coletas Finalizadas"
+                        ? "Histórico Operacional"
                         : "Painel de Coletas Ativas",
                     style: const TextStyle(
                       fontSize: 16,
@@ -289,12 +312,10 @@ class _GestaoChamadosViewState extends State<GestaoChamadosView>
                   ),
                   rowsPerPage: _linhasPorPagina,
                   availableRowsPerPage: const [5, 10, 20, 50],
-                  onRowsPerPageChanged: (value) {
-                    setState(() {
-                      _linhasPorPagina =
-                          value ?? PaginatedDataTable.defaultRowsPerPage;
-                    });
-                  },
+                  onRowsPerPageChanged: (value) => setState(
+                    () => _linhasPorPagina =
+                        value ?? PaginatedDataTable.defaultRowsPerPage,
+                  ),
                   columns: const [
                     DataColumn(
                       label: Text(
@@ -313,7 +334,7 @@ class _GestaoChamadosViewState extends State<GestaoChamadosView>
                         'Data',
                         style: TextStyle(fontWeight: FontWeight.bold),
                       ),
-                    ), // Removida a Hora da Tabela
+                    ),
                     DataColumn(
                       label: Text(
                         'Status',
@@ -336,595 +357,34 @@ class _GestaoChamadosViewState extends State<GestaoChamadosView>
       },
     );
   }
-
-  // 💡 MÁGICA REFATORADA: O modal Web agora também salva na coleção pedidos_insumos corretamente
-  void _abrirModalPedirInsumos() {
-    final InsumoController insumoController = InsumoController();
-    bool enviando = false;
-    final Map<String, int> quantidadesSelecionadas = {};
-    String? localLabIdSelecionado;
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            return AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              title: const Row(
-                children: [
-                  Icon(Icons.inventory_2_rounded, color: Colors.teal),
-                  SizedBox(width: 10),
-                  Text(
-                    "Solicitar Insumos ao Laboratório",
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-              content: SizedBox(
-                width: 500,
-                height: 500,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.teal.shade50,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: const Text(
-                        "Escolha o laboratório parceiro e os materiais desejados.",
-                        style: TextStyle(
-                          color: Colors.teal,
-                          fontSize: 13,
-                          height: 1.3,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    ValueListenableBuilder<List<Map<String, dynamic>>>(
-                      valueListenable: _controller.laboratorios,
-                      builder: (context, laboratorios, child) {
-                        return DropdownButtonFormField<String>(
-                          decoration: InputDecoration(
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            filled: true,
-                            fillColor: Colors.grey.shade50,
-                          ),
-                          items: laboratorios.map((item) {
-                            return DropdownMenuItem<String>(
-                              value: item['id'] as String,
-                              child: Text(item['nome'] as String),
-                            );
-                          }).toList(),
-                          value: localLabIdSelecionado,
-                          hint: const Text("Selecione um laboratório"),
-                          onChanged: (val) {
-                            setModalState(() {
-                              localLabIdSelecionado = val;
-                              if (val != null) {
-                                quantidadesSelecionadas.clear();
-                                insumoController.carregarInsumos(val);
-                              }
-                            });
-                          },
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    Expanded(
-                      child: localLabIdSelecionado == null
-                          ? const Center(
-                              child: Text(
-                                "Selecione um laboratório para ver os insumos disponíveis.",
-                                style: TextStyle(color: Colors.grey),
-                              ),
-                            )
-                          : ValueListenableBuilder<bool>(
-                              valueListenable: insumoController.isLoading,
-                              builder: (context, isLoading, child) {
-                                if (isLoading) {
-                                  return const Center(
-                                    child: CircularProgressIndicator(
-                                      color: Colors.teal,
-                                    ),
-                                  );
-                                }
-                                return ValueListenableBuilder<
-                                  List<InsumoModel>
-                                >(
-                                  valueListenable: insumoController.insumos,
-                                  builder: (context, insumos, child) {
-                                    if (insumos.isEmpty) {
-                                      return const Center(
-                                        child: Text(
-                                          "Nenhum insumo cadastrado neste laboratório.",
-                                        ),
-                                      );
-                                    }
-
-                                    return ListView.separated(
-                                      itemCount: insumos.length,
-                                      separatorBuilder: (_, __) =>
-                                          const Divider(),
-                                      itemBuilder: (context, index) {
-                                        final insumo = insumos[index];
-                                        final qtd =
-                                            quantidadesSelecionadas[insumo
-                                                .id] ??
-                                            0;
-
-                                        return ListTile(
-                                          title: Text(
-                                            insumo.descricao,
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                          subtitle: Text(
-                                            '${insumo.tipo} • ${insumo.tamanho} • ${insumo.volume}',
-                                            style: TextStyle(
-                                              color: Colors.grey.shade600,
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                          trailing: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              IconButton(
-                                                icon: const Icon(
-                                                  Icons.remove_circle_outline,
-                                                  color: Colors.redAccent,
-                                                ),
-                                                onPressed: qtd > 0
-                                                    ? () => setModalState(
-                                                        () =>
-                                                            quantidadesSelecionadas[insumo
-                                                                    .id!] =
-                                                                qtd - 1,
-                                                      )
-                                                    : null,
-                                              ),
-                                              Text(
-                                                '$qtd',
-                                                style: const TextStyle(
-                                                  fontSize: 16,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                              IconButton(
-                                                icon: const Icon(
-                                                  Icons.add_circle_outline,
-                                                  color: Colors.teal,
-                                                ),
-                                                onPressed: () => setModalState(
-                                                  () =>
-                                                      quantidadesSelecionadas[insumo
-                                                              .id!] =
-                                                          qtd + 1,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        );
-                                      },
-                                    );
-                                  },
-                                );
-                              },
-                            ),
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: enviando ? null : () => Navigator.pop(context),
-                  child: const Text(
-                    "Cancelar",
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.teal,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  onPressed: enviando
-                      ? null
-                      : () async {
-                          if (localLabIdSelecionado == null) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text("Selecione o Laboratório!"),
-                              ),
-                            );
-                            return;
-                          }
-
-                          final insumosSelecionados = insumoController
-                              .insumos
-                              .value
-                              .where(
-                                (i) =>
-                                    (quantidadesSelecionadas[i.id!] ?? 0) > 0,
-                              )
-                              .map(
-                                (i) => {
-                                  'insumoId': i.id,
-                                  'descricao': i.descricao,
-                                  'tipo': i.tipo,
-                                  'quantidade': quantidadesSelecionadas[i.id!],
-                                },
-                              )
-                              .toList();
-
-                          if (insumosSelecionados.isEmpty) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text("Selecione ao menos 1 item!"),
-                              ),
-                            );
-                            return;
-                          }
-
-                          setModalState(() => enviando = true);
-
-                          try {
-                            // 💡 AGORA SALVA COMO UM PEDIDO ESTRUTURADO NO MUNDO REAL!
-                            await FirebaseFirestore.instance
-                                .collection('pedidos_insumos')
-                                .add({
-                                  'clinicaId': widget.clinicaContexto.id,
-                                  'clinicaNome': widget.clinicaContexto.nome,
-                                  'laboratorioId': localLabIdSelecionado,
-                                  'status': 'Pendente',
-                                  'dataSolicitacao':
-                                      FieldValue.serverTimestamp(),
-                                  'itens': insumosSelecionados,
-                                });
-
-                            if (context.mounted) {
-                              Navigator.pop(context);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    "Pedido de materiais enviado com sucesso!",
-                                  ),
-                                  backgroundColor: Colors.green,
-                                ),
-                              );
-                            }
-                          } catch (e) {
-                            debugPrint("Erro ao salvar pedido WEB: $e");
-                            setModalState(() => enviando = false);
-                          }
-                        },
-                  child: enviando
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : const Text(
-                          "Confirmar Pedido",
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    ).then((_) => insumoController.dispose());
-  }
-
-  // 💡 MUDANÇA PRINCIPAL: Nova Estrutura de Modal (Sem Horário e Com Observação)
-  void _abrirModalNovoChamado({required bool isEmergencia}) {
-    _labIdSelecionado = null;
-    _labNomeSelecionado = null;
-    DateTime dataSelecionada = DateTime.now();
-    final TextEditingController observacaoController =
-        TextEditingController(); // 💡 Novo Controller
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            final strData =
-                "${dataSelecionada.day.toString().padLeft(2, '0')}/${dataSelecionada.month.toString().padLeft(2, '0')}/${dataSelecionada.year}";
-
-            return AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              title: Row(
-                children: [
-                  Icon(
-                    isEmergencia
-                        ? Icons.flash_on_rounded
-                        : Icons.calendar_today_rounded,
-                    color: isEmergencia ? Colors.redAccent : Colors.indigo,
-                  ),
-                  const SizedBox(width: 10),
-                  Text(
-                    isEmergencia
-                        ? "Solicitar Coleta de Urgência"
-                        : "Agendar Nova Coleta",
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-              content: SizedBox(
-                width: 450,
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        "1. Selecione o Laboratório Destino",
-                        style: TextStyle(
-                          color: Colors.black87,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      ValueListenableBuilder<List<Map<String, dynamic>>>(
-                        valueListenable: _controller.laboratorios,
-                        builder: (context, laboratorios, child) {
-                          if (laboratorios.isEmpty) {
-                            return const Text(
-                              "⚠️ Nenhum laboratório cadastrado.",
-                              style: TextStyle(color: Colors.redAccent),
-                            );
-                          }
-
-                          return DropdownButtonFormField<String>(
-                            decoration: InputDecoration(
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              filled: true,
-                              fillColor: Colors.grey.shade50,
-                            ),
-                            items: laboratorios.map((item) {
-                              return DropdownMenuItem<String>(
-                                value: item['id'] as String,
-                                child: Text(item['nome'] as String),
-                              );
-                            }).toList(),
-                            value: _labIdSelecionado,
-                            hint: const Text("Selecione um laboratório"),
-                            onChanged: (val) {
-                              setModalState(() {
-                                _labIdSelecionado = val;
-                                if (val != null) {
-                                  final labSelecionado = laboratorios
-                                      .firstWhere((l) => l['id'] == val);
-                                  _labNomeSelecionado =
-                                      labSelecionado['nome'] as String;
-                                }
-                              });
-                            },
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 24),
-
-                      // 💡 NOVO: Campo de Observação/Material
-                      const Text(
-                        "2. Descreva o material a ser coletado",
-                        style: TextStyle(
-                          color: Colors.black87,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      TextFormField(
-                        controller: observacaoController,
-                        maxLines: 2,
-                        decoration: InputDecoration(
-                          hintText:
-                              "Ex: 2 tubos de sangue (hemograma), 1 frasco de urina...",
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          filled: true,
-                          fillColor: Colors.grey.shade50,
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-
-                      // 💡 NOVO: Seleção apenas de Data (Sem horário)
-                      const Text(
-                        "3. Data Desejada para Coleta",
-                        style: TextStyle(
-                          color: Colors.black87,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-
-                      InkWell(
-                        onTap: () async {
-                          final pickedDate = await showDatePicker(
-                            context: context,
-                            initialDate: dataSelecionada,
-                            firstDate: DateTime.now(),
-                            lastDate: DateTime(2100),
-                          );
-                          if (pickedDate != null)
-                            setModalState(() => dataSelecionada = pickedDate);
-                        },
-                        child: Container(
-                          width: double.infinity, // Ocupar o espaço inteiro
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 16,
-                            horizontal: 12,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            border: Border.all(color: Colors.grey.shade300),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.calendar_month_rounded,
-                                color: Colors.indigo.shade400,
-                                size: 20,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                strData,
-                                style: const TextStyle(fontSize: 15),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      // 💡 NOVO: Mensagem de aviso do laboratório
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.amber.shade50,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.amber.shade200),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.info_outline_rounded,
-                              color: Colors.amber.shade800,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                "Após o agendamento, o laboratório irá confirmar o horário disponível na data solicitada.",
-                                style: TextStyle(
-                                  color: Colors.amber.shade900,
-                                  fontSize: 13,
-                                  height: 1.3,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text(
-                    "Cancelar",
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: isEmergencia
-                        ? Colors.redAccent.shade700
-                        : Colors.indigo,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  onPressed: () async {
-                    if (_labIdSelecionado == null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text("Selecione o Laboratório destino!"),
-                        ),
-                      );
-                      return;
-                    }
-
-                    // A hora zerada não fará diferença na listagem visual que acabamos de ajustar
-                    final momentoAgendado = DateTime(
-                      dataSelecionada.year,
-                      dataSelecionada.month,
-                      dataSelecionada.day,
-                      0,
-                      0,
-                    );
-
-                    final chamado = ChamadoColetaModel(
-                      id: '',
-                      clinicaId: widget.clinicaContexto.id!,
-                      clinicaNome: widget.clinicaContexto.nome,
-                      laboratorioId: _labIdSelecionado!,
-                      laboratorioNome: _labNomeSelecionado!,
-                      status: 'Aguardando Entregador',
-                      isEmergencia: isEmergencia,
-                      dataCriacao: DateTime.now(),
-                      dataAgendamento: momentoAgendado,
-                      // observacao: observacaoController.text, // 💡 DESCOMENTE essa linha assim que você adicionar a variável "observacao" no seu arquivo chamado_coleta_model.dart
-                    );
-
-                    final sucesso = await _controller.criarChamado(chamado);
-
-                    if (sucesso && context.mounted) {
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text("Coleta solicitada com sucesso!"),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
-                    }
-                  },
-                  child: const Text(
-                    "Confirmar Coleta",
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
 }
 
-class _ChamadosDataSource extends DataTableSource {
+class ChamadosDataSource extends DataTableSource {
   final BuildContext context;
   final List<ChamadoColetaModel> chamados;
+  final Clinica clinicaContexto;
+  final String usuarioLogado;
 
-  _ChamadosDataSource({required this.context, required this.chamados});
+  ChamadosDataSource({
+    required this.context,
+    required this.chamados,
+    required this.clinicaContexto,
+    required this.usuarioLogado,
+  });
 
-  Color _obterCorStatus(String status) {
+  static Color obterCorStatus(String status) {
     switch (status.toLowerCase()) {
       case 'aguardando entregador':
+      case 'pendente':
         return Colors.orange;
       case 'a caminho':
         return Colors.blue;
       case 'aguardando insumos':
+      case 'aprovado':
         return Colors.teal;
       case 'concluído':
       case 'finalizada':
+      case 'entregue':
         return Colors.green;
       case 'cancelado':
         return Colors.red;
@@ -940,13 +400,8 @@ class _ChamadosDataSource extends DataTableSource {
 
     final String dataFormatada =
         "${chamado.dataAgendamento.day.toString().padLeft(2, '0')}/${chamado.dataAgendamento.month.toString().padLeft(2, '0')}/${chamado.dataAgendamento.year}";
-    // Hora formatada foi removida da UI!
-
-    final corStatus = _obterCorStatus(chamado.status);
-
-    final bool isInsumo =
-        chamado.laboratorioId == 'INSUMOS' ||
-        chamado.laboratorioNome.toLowerCase().contains('insumo');
+    final corStatus = obterCorStatus(chamado.status);
+    final bool isInsumo = chamado.laboratorioId.startsWith('INSUMO_');
 
     IconData iconeTipo;
     Color corTipo;
@@ -987,7 +442,7 @@ class _ChamadosDataSource extends DataTableSource {
             ),
           ),
         ),
-        DataCell(Text(dataFormatada)), // 💡 Somente a Data aparece aqui agora!
+        DataCell(Text(dataFormatada)),
         DataCell(
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -997,11 +452,12 @@ class _ChamadosDataSource extends DataTableSource {
               border: Border.all(color: corStatus.withOpacity(0.5)),
             ),
             child: Text(
-              chamado.status,
+              chamado.status.toUpperCase(),
               style: TextStyle(
                 color: corStatus,
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: FontWeight.bold,
+                letterSpacing: 0.5,
               ),
             ),
           ),
@@ -1014,9 +470,28 @@ class _ChamadosDataSource extends DataTableSource {
               color: Colors.grey,
             ),
             onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Detalhes em desenvolvimento!')),
-              );
+              if (isInsumo) {
+                showDialog(
+                  context: context,
+                  builder: (_) => ModalDetalhesInsumo(
+                    chamado: chamado,
+                    clinicaContexto: clinicaContexto,
+                    usuarioLogado: usuarioLogado,
+                    obterCorStatus: obterCorStatus,
+                  ),
+                );
+              } else {
+                // 💡 MÁGICA: Agora as coletas normais também chamam seu próprio Modal de Elite!
+                showDialog(
+                  context: context,
+                  builder: (_) => ModalDetalhesColeta(
+                    chamado: chamado,
+                    clinicaContexto: clinicaContexto,
+                    usuarioLogado: usuarioLogado,
+                    obterCorStatus: obterCorStatus,
+                  ),
+                );
+              }
             },
           ),
         ),

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // 💡 NOVO: Importação para usar o Clipboard
+import 'package:flutter/services.dart'; // 💡 Importação para usar o Clipboard
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -77,7 +77,7 @@ class _UsuariosClinicaViewState extends State<UsuariosClinicaView> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    "Operadores da Clínica 👥",
+                    "Operadores 👥",
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
@@ -167,7 +167,7 @@ class _UsuariosClinicaViewState extends State<UsuariosClinicaView> {
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          "Nenhum operador vinculado a esta clínica.",
+                          "Nenhum operador vinculado a esta unidade.",
                           style: TextStyle(
                             color: Colors.grey.shade500,
                             fontSize: 15,
@@ -450,12 +450,70 @@ class _UsuariosClinicaViewState extends State<UsuariosClinicaView> {
                         ListenableBuilder(
                           listenable: _perfilController,
                           builder: (context, child) {
+                            // 💡 O FILTRO DE TOKENIZADOR SEMÂNTICO (O mais inteligente e dinâmico)
+                            // Remove espaços, converte pra minúscula e quebra a string em pedaços usando _ ou espaços.
+                            final chaveNormalizada = widget.chavePermissao
+                                .toLowerCase()
+                                .trim();
+                            // Guarda apenas palavras relevantes (ex: "clinica", "dashboard")
+                            final palavrasChave = chaveNormalizada
+                                .split(RegExp(r'[^a-z0-9]'))
+                                .where((p) => p.length >= 3)
+                                .toList();
+
                             final perfisPermitidosParaClinica =
                                 _perfilController.perfis.where((perfil) {
-                                  return perfil.exibirEm.contains(
-                                    widget.chavePermissao,
-                                  );
+                                  return perfil.exibirEm.any((permissao) {
+                                    final permNorm = permissao
+                                        .toString()
+                                        .toLowerCase()
+                                        .trim();
+
+                                    // 1ª Tentativa: Match direto ou contido um no outro
+                                    if (permNorm.contains(chaveNormalizada) ||
+                                        chaveNormalizada.contains(permNorm)) {
+                                      return true;
+                                    }
+
+                                    // 2ª Tentativa: Análise Semântica Dinâmica (Procura raiz comum)
+                                    // Com isso, 'clinicas' dá match automático com 'clinica_detalhe' sem precisar hardcode!
+                                    for (String palavra in palavrasChave) {
+                                      if (permNorm.contains(palavra) ||
+                                          palavra.contains(permNorm)) {
+                                        return true;
+                                      }
+                                    }
+
+                                    return false;
+                                  });
                                 }).toList();
+
+                            // LOG TÁTICO: Caso continue zerado, imprime no painel para investigarmos.
+                            if (perfisPermitidosParaClinica.isEmpty &&
+                                _perfilController.perfis.isNotEmpty) {
+                              debugPrint(
+                                "====== 🔎 LOG TECH LEAD VET ROUTE ======",
+                              );
+                              debugPrint(
+                                "A View recebeu chavePermissao: '$chaveNormalizada'",
+                              );
+                              debugPrint("Tokens extraídos: $palavrasChave");
+                              for (var p in _perfilController.perfis) {
+                                debugPrint(
+                                  "Perfil: '${p.nome}' | exibirEm: ${p.exibirEm}",
+                                );
+                              }
+                              debugPrint(
+                                "=========================================",
+                              );
+                            }
+
+                            if (idPerfilSelecionado != null &&
+                                !perfisPermitidosParaClinica.any(
+                                  (p) => p.id == idPerfilSelecionado,
+                                )) {
+                              idPerfilSelecionado = null;
+                            }
 
                             return DropdownButtonFormField<String>(
                               value: idPerfilSelecionado,
@@ -673,8 +731,7 @@ class _UsuarioDataSource extends DataTableSource {
     final data = doc.data() as Map<String, dynamic>;
     final bool ativo = data['ativo'] ?? false;
     final String? perfilId = data['perfilId'];
-    final String email =
-        data['email'] ?? 'Sem e-mail'; // 💡 Email extraído aqui
+    final String email = data['email'] ?? 'Sem e-mail';
 
     return DataRow(
       cells: [
@@ -687,7 +744,6 @@ class _UsuarioDataSource extends DataTableSource {
             ),
           ),
         ),
-        // 💡 NOVO: Célula de E-mail com botão de cópia
         DataCell(
           Row(
             mainAxisSize: MainAxisSize.min,

@@ -682,14 +682,53 @@ class _UsuariosLabViewState extends State<UsuariosLabView> {
                         ListenableBuilder(
                           listenable: _perfilController,
                           builder: (context, child) {
+                            // 💡 100% DINÂMICO E ABSTRATO (Refatoração Definitiva):
+                            final chaveNormalizada = widget.chavePermissao
+                                .toLowerCase()
+                                .trim();
+
                             final perfisPermitidosParaLab = _perfilController
                                 .perfis
                                 .where((perfil) {
-                                  return perfil.exibirEm.contains(
-                                    widget.chavePermissao,
-                                  );
+                                  return perfil.exibirEm.any((permissao) {
+                                    final permNorm = permissao
+                                        .toString()
+                                        .toLowerCase()
+                                        .trim();
+                                    return permNorm.contains(
+                                          chaveNormalizada,
+                                        ) ||
+                                        chaveNormalizada.contains(permNorm);
+                                  });
                                 })
                                 .toList();
+
+                            // 🛠️ DIAGNÓSTICO TÁTICO DE CONSOLE:
+                            if (perfisPermitidosParaLab.isEmpty &&
+                                _perfilController.perfis.isNotEmpty) {
+                              debugPrint(
+                                "====== 🔎 LOG TECH LEAD VET ROUTE ======",
+                              );
+                              debugPrint(
+                                "A View recebeu chavePermissao mestre: '$chaveNormalizada'",
+                              );
+                              for (var p in _perfilController.perfis) {
+                                debugPrint(
+                                  "Perfil cadastrado no Firebase: '${p.nome}' | Array exibirEm dele contém: ${p.exibirEm}",
+                                );
+                              }
+                              debugPrint(
+                                "=========================================",
+                              );
+                            }
+
+                            // 💡 Prevenção de Crise: Se o perfil sumir do mapa, limpa a seleção para evitar tela vermelha.
+                            if (idPerfilSelecionado != null &&
+                                !perfisPermitidosParaLab.any(
+                                  (p) => p.id == idPerfilSelecionado,
+                                )) {
+                              idPerfilSelecionado = null;
+                            }
 
                             return DropdownButtonFormField<String>(
                               value: idPerfilSelecionado,

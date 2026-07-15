@@ -9,6 +9,7 @@ import 'package:vet_route/screens/web/laboratorios/lista_laboratorio_view.dart';
 import 'package:vet_route/screens/web/laboratorios/lab_dashboard_view.dart';
 import 'package:vet_route/screens/web/laboratorios/cadastro_insumo.dart';
 import 'package:vet_route/screens/web/laboratorios/usuarios_lab_view.dart';
+import 'package:vet_route/screens/web/laboratorios/usuarios_lab_view.dart';
 import 'cadastro_exame_hub.dart';
 import 'gestao_rotas_hub.dart';
 
@@ -158,7 +159,7 @@ class _LaboratoriosHubState extends State<LaboratoriosHub>
       case 'lab_gestao_rotas':
         return GestaoRotasHub(labContexto: _labSelecionado!);
       case 'lab_pedidos_insumos':
-        return GestaoPedidosInsumosLabView(labContexto: _labSelecionado!);
+        return GestaoPedidosInsumosHub(labContexto: _labSelecionado!);
       default:
         return _buildPlaceholder(rota);
     }
