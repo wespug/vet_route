@@ -113,12 +113,6 @@ class ModalDetalhesColeta extends StatelessWidget {
               });
             }
 
-            // Regra de Negócio: Só pode cancelar se não tiver saído para coleta
-            final statusLower = statusAtual.toLowerCase();
-            final bool podeCancelar =
-                statusLower == 'aguardando entregador' ||
-                statusLower == 'pendente';
-
             return SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -541,23 +535,29 @@ class ModalDetalhesColeta extends StatelessWidget {
       ),
       actionsPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       actions: [
-        // 💡 Botão Inteligente: Desaparece se não puder cancelar
+        // 💡 Botão Inteligente: Trava Blindada com contains()
         StreamBuilder<DocumentSnapshot>(
           stream: FirebaseFirestore.instance
               .collection('chamados_coleta')
               .doc(chamado.id)
               .snapshots(),
           builder: (context, snapshot) {
-            if (!snapshot.hasData) return const SizedBox.shrink();
-            final statusLower =
-                (snapshot.data!.data() as Map<String, dynamic>)['status']
-                    .toString()
-                    .toLowerCase();
-            final podeCancelar =
-                statusLower == 'aguardando entregador' ||
-                statusLower == 'pendente';
+            if (!snapshot.hasData || !snapshot.data!.exists) {
+              return const SizedBox.shrink();
+            }
+            final data = snapshot.data!.data() as Map<String, dynamic>;
+            final statusLower = (data['status'] ?? chamado.status)
+                .toString()
+                .toLowerCase();
 
-            if (!podeCancelar) return const SizedBox.shrink();
+            // Usando contains para driblar acentos, maiúsculas e "o/a"
+            final bool isFinalizado =
+                statusLower.contains('entregue') ||
+                statusLower.contains('finalizad') ||
+                statusLower.contains('conclu') ||
+                statusLower.contains('cancelad');
+
+            if (isFinalizado) return const SizedBox.shrink();
 
             return TextButton(
               onPressed: () async {

@@ -5,11 +5,9 @@ import 'package:vet_route/models/clinica_model.dart';
 import 'package:vet_route/models/chamado_coleta_model.dart';
 import 'package:vet_route/screens/web/clinicas/modal/modal_detalhes_coleta.dart';
 
-import 'package:vet_route/screens/web/clinicas/modalR/modal_detalhes_insumo.dart';
+import 'package:vet_route/screens/web/clinicas/modal/modal_detalhes_insumo.dart';
 import 'package:vet_route/screens/web/clinicas/modal/modal_pedir_insumos.dart';
 import 'package:vet_route/screens/web/clinicas/modal/modal_novo_chamado.dart';
-// 💡 MÁGICA: Importando o novo modal de Coleta
-import 'package:vet_route/screens/web/clinicas/modal/modal_detalhes_coleta.dart';
 
 class GestaoChamadosView extends StatefulWidget {
   final Clinica clinicaContexto;
@@ -26,6 +24,10 @@ class _GestaoChamadosViewState extends State<GestaoChamadosView>
 
   String _termoBusca = '';
   int _linhasPorPagina = PaginatedDataTable.defaultRowsPerPage;
+
+  // 💡 Controle de Ordenação
+  int? _sortColumnIndex;
+  bool _sortAscending = true;
 
   @override
   void initState() {
@@ -48,6 +50,14 @@ class _GestaoChamadosViewState extends State<GestaoChamadosView>
           : (user.email ?? 'Usuário');
     }
     return 'Usuário Desconhecido';
+  }
+
+  // 💡 Função chamada quando o usuário clica no título da coluna
+  void _onSort(int columnIndex, bool ascending) {
+    setState(() {
+      _sortColumnIndex = columnIndex;
+      _sortAscending = ascending;
+    });
   }
 
   @override
@@ -241,19 +251,40 @@ class _GestaoChamadosViewState extends State<GestaoChamadosView>
     return ValueListenableBuilder<bool>(
       valueListenable: _controller.isLoading,
       builder: (context, isLoading, child) {
-        if (isLoading)
+        if (isLoading) {
           return const Center(
             child: CircularProgressIndicator(color: Colors.indigo),
           );
+        }
 
         return ValueListenableBuilder<List<ChamadoColetaModel>>(
           valueListenable: listenableTarget,
           builder: (context, chamados, child) {
+            // 1. Filtragem pela busca
             List<ChamadoColetaModel> chamadosFiltrados = chamados.where((c) {
               final termo = _termoBusca.toLowerCase();
               return c.laboratorioNome.toLowerCase().contains(termo) ||
                   c.status.toLowerCase().contains(termo);
             }).toList();
+
+            // 2. 💡 Lógica de Ordenação em Memória
+            if (_sortColumnIndex != null) {
+              chamadosFiltrados.sort((a, b) {
+                int comp = 0;
+                switch (_sortColumnIndex) {
+                  case 1: // Laboratório
+                    comp = a.laboratorioNome.compareTo(b.laboratorioNome);
+                    break;
+                  case 2: // Data
+                    comp = a.dataAgendamento.compareTo(b.dataAgendamento);
+                    break;
+                  case 3: // Status
+                    comp = a.status.compareTo(b.status);
+                    break;
+                }
+                return _sortAscending ? comp : -comp;
+              });
+            }
 
             if (chamadosFiltrados.isEmpty) {
               return Center(
@@ -316,32 +347,38 @@ class _GestaoChamadosViewState extends State<GestaoChamadosView>
                     () => _linhasPorPagina =
                         value ?? PaginatedDataTable.defaultRowsPerPage,
                   ),
-                  columns: const [
-                    DataColumn(
+                  // 💡 Indicadores de Ordenação da Tabela
+                  sortColumnIndex: _sortColumnIndex,
+                  sortAscending: _sortAscending,
+                  columns: [
+                    const DataColumn(
                       label: Text(
                         'Tipo',
                         style: TextStyle(fontWeight: FontWeight.bold),
                       ),
                     ),
                     DataColumn(
-                      label: Text(
+                      label: const Text(
                         'Laboratório Destino',
                         style: TextStyle(fontWeight: FontWeight.bold),
                       ),
+                      onSort: _onSort, // 💡 Permite Clicar para Ordenar
                     ),
                     DataColumn(
-                      label: Text(
+                      label: const Text(
                         'Data',
                         style: TextStyle(fontWeight: FontWeight.bold),
                       ),
+                      onSort: _onSort, // 💡 Permite Clicar para Ordenar
                     ),
                     DataColumn(
-                      label: Text(
+                      label: const Text(
                         'Status',
                         style: TextStyle(fontWeight: FontWeight.bold),
                       ),
+                      onSort: _onSort, // 💡 Permite Clicar para Ordenar
                     ),
-                    DataColumn(
+                    const DataColumn(
                       label: Text(
                         'Ações',
                         style: TextStyle(fontWeight: FontWeight.bold),
@@ -481,7 +518,6 @@ class ChamadosDataSource extends DataTableSource {
                   ),
                 );
               } else {
-                // 💡 MÁGICA: Agora as coletas normais também chamam seu próprio Modal de Elite!
                 showDialog(
                   context: context,
                   builder: (_) => ModalDetalhesColeta(

@@ -421,83 +421,92 @@ class ModalDetalhesInsumo extends StatelessWidget {
       ),
       actionsPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       actions: [
-        TextButton(
-          onPressed: () async {
-            final doc = await FirebaseFirestore.instance
-                .collection('pedidos_insumos')
-                .doc(chamado.id)
-                .get();
-            final statusAtual = doc.data()?['status'] ?? '';
-
-            if (statusAtual == 'Entregue' || statusAtual == 'Cancelado') {
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text("Este pedido não pode mais ser cancelado."),
-                  ),
-                );
-              }
-              return;
+        // 💡 Botão Inteligente: Trava Blindada com contains()
+        StreamBuilder<DocumentSnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('pedidos_insumos')
+              .doc(chamado.id)
+              .snapshots(),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData || !snapshot.data!.exists) {
+              return const SizedBox.shrink();
             }
+            final data = snapshot.data!.data() as Map<String, dynamic>;
+            final statusLower = (data['status'] ?? chamado.status)
+                .toString()
+                .toLowerCase();
 
-            if (context.mounted) {
-              bool confirm = await showDialog(
-                context: context,
-                builder: (c) => AlertDialog(
-                  title: const Text("Cancelar Pedido?"),
-                  content: const Text(
-                    "Tem certeza que deseja cancelar a solicitação destes insumos?",
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(c, false),
-                      child: const Text("Não, Voltar"),
-                    ),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.redAccent,
-                      ),
-                      onPressed: () => Navigator.pop(c, true),
-                      child: const Text(
-                        "Sim, Cancelar",
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    ),
-                  ],
-                ),
-              );
+            // Usando contains para driblar acentos, maiúsculas e "o/a"
+            final bool isFinalizado =
+                statusLower.contains('entregue') ||
+                statusLower.contains('finalizad') ||
+                statusLower.contains('conclu') ||
+                statusLower.contains('cancelad');
 
-              if (confirm == true) {
-                await FirebaseFirestore.instance
-                    .collection('pedidos_insumos')
-                    .doc(chamado.id)
-                    .update({
-                      'status': 'Cancelado',
-                      'historico': FieldValue.arrayUnion([
-                        {
-                          'status': 'Cancelado',
-                          'data': DateTime.now().toIso8601String(),
-                          'observacao': 'Cancelado por: $usuarioLogado',
-                        },
-                      ]),
-                    });
+            if (isFinalizado) return const SizedBox.shrink();
+
+            return TextButton(
+              onPressed: () async {
                 if (context.mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text("Pedido cancelado com sucesso."),
-                      backgroundColor: Colors.red,
+                  bool confirm = await showDialog(
+                    context: context,
+                    builder: (c) => AlertDialog(
+                      title: const Text("Cancelar Pedido?"),
+                      content: const Text(
+                        "Tem certeza que deseja cancelar a solicitação destes insumos?",
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(c, false),
+                          child: const Text("Não, Voltar"),
+                        ),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.redAccent,
+                          ),
+                          onPressed: () => Navigator.pop(c, true),
+                          child: const Text(
+                            "Sim, Cancelar",
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        ),
+                      ],
                     ),
                   );
+
+                  if (confirm == true) {
+                    await FirebaseFirestore.instance
+                        .collection('pedidos_insumos')
+                        .doc(chamado.id)
+                        .update({
+                          'status': 'Cancelado',
+                          'historico': FieldValue.arrayUnion([
+                            {
+                              'status': 'Cancelado',
+                              'data': DateTime.now().toIso8601String(),
+                              'observacao': 'Cancelado por: $usuarioLogado',
+                            },
+                          ]),
+                        });
+                    if (context.mounted) {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text("Pedido cancelado com sucesso."),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  }
                 }
-              }
-            }
+              },
+              style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
+              child: const Text(
+                "Cancelar Pedido",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            );
           },
-          style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
-          child: const Text(
-            "Cancelar Pedido",
-            style: TextStyle(fontWeight: FontWeight.bold),
-          ),
         ),
         ElevatedButton(
           onPressed: () => Navigator.pop(context),
