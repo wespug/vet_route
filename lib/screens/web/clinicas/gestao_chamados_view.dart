@@ -337,19 +337,12 @@ class _GestaoChamadosViewState extends State<GestaoChamadosView>
     );
   }
 
+  // 💡 MÁGICA REFATORADA: O modal Web agora também salva na coleção pedidos_insumos corretamente
   void _abrirModalPedirInsumos() {
     final InsumoController insumoController = InsumoController();
     bool enviando = false;
     final Map<String, int> quantidadesSelecionadas = {};
-
-    final streamInsumos = FirebaseFirestore.instance
-        .collection('insumos')
-        .snapshots()
-        .map(
-          (snapshot) => snapshot.docs
-              .map((doc) => InsumoModel.fromFirestore(doc))
-              .toList(),
-        );
+    String? localLabIdSelecionado;
 
     showDialog(
       context: context,
@@ -373,8 +366,9 @@ class _GestaoChamadosViewState extends State<GestaoChamadosView>
               ),
               content: SizedBox(
                 width: 500,
-                height: 400,
+                height: 500,
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
                       padding: const EdgeInsets.all(12),
@@ -383,7 +377,7 @@ class _GestaoChamadosViewState extends State<GestaoChamadosView>
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: const Text(
-                        "Escolha os materiais abaixo. O laboratório parceiro enviará os insumos na próxima rota disponível do motoboy.",
+                        "Escolha o laboratório parceiro e os materiais desejados.",
                         style: TextStyle(
                           color: Colors.teal,
                           fontSize: 13,
@@ -392,92 +386,139 @@ class _GestaoChamadosViewState extends State<GestaoChamadosView>
                       ),
                     ),
                     const SizedBox(height: 16),
+                    ValueListenableBuilder<List<Map<String, dynamic>>>(
+                      valueListenable: _controller.laboratorios,
+                      builder: (context, laboratorios, child) {
+                        return DropdownButtonFormField<String>(
+                          decoration: InputDecoration(
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            filled: true,
+                            fillColor: Colors.grey.shade50,
+                          ),
+                          items: laboratorios.map((item) {
+                            return DropdownMenuItem<String>(
+                              value: item['id'] as String,
+                              child: Text(item['nome'] as String),
+                            );
+                          }).toList(),
+                          value: localLabIdSelecionado,
+                          hint: const Text("Selecione um laboratório"),
+                          onChanged: (val) {
+                            setModalState(() {
+                              localLabIdSelecionado = val;
+                              if (val != null) {
+                                quantidadesSelecionadas.clear();
+                                insumoController.carregarInsumos(val);
+                              }
+                            });
+                          },
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 16),
                     Expanded(
-                      child: StreamBuilder<List<InsumoModel>>(
-                        stream: streamInsumos,
-                        builder: (context, snapshot) {
-                          if (snapshot.connectionState ==
-                              ConnectionState.waiting) {
-                            return const Center(
-                              child: CircularProgressIndicator(
-                                color: Colors.teal,
-                              ),
-                            );
-                          }
-                          if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                            return const Center(
+                      child: localLabIdSelecionado == null
+                          ? const Center(
                               child: Text(
-                                "Nenhum insumo disponível para solicitação.",
+                                "Selecione um laboratório para ver os insumos disponíveis.",
+                                style: TextStyle(color: Colors.grey),
                               ),
-                            );
-                          }
-
-                          final insumos = snapshot.data!;
-                          return ListView.separated(
-                            itemCount: insumos.length,
-                            separatorBuilder: (_, __) => const Divider(),
-                            itemBuilder: (context, index) {
-                              final insumo = insumos[index];
-                              final qtd =
-                                  quantidadesSelecionadas[insumo.id] ?? 0;
-
-                              return ListTile(
-                                title: Text(
-                                  insumo.descricao,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                subtitle: Text(
-                                  '${insumo.tipo} • ${insumo.tamanho} • ${insumo.volume}',
-                                  style: TextStyle(
-                                    color: Colors.grey.shade600,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                                trailing: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    IconButton(
-                                      icon: const Icon(
-                                        Icons.remove_circle_outline,
-                                        color: Colors.redAccent,
-                                      ),
-                                      onPressed: qtd > 0
-                                          ? () => setModalState(
-                                              () =>
-                                                  quantidadesSelecionadas[insumo
-                                                          .id!] =
-                                                      qtd - 1,
-                                            )
-                                          : null,
+                            )
+                          : ValueListenableBuilder<bool>(
+                              valueListenable: insumoController.isLoading,
+                              builder: (context, isLoading, child) {
+                                if (isLoading) {
+                                  return const Center(
+                                    child: CircularProgressIndicator(
+                                      color: Colors.teal,
                                     ),
-                                    Text(
-                                      '$qtd',
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(
-                                        Icons.add_circle_outline,
-                                        color: Colors.teal,
-                                      ),
-                                      onPressed: () => setModalState(
-                                        () =>
+                                  );
+                                }
+                                return ValueListenableBuilder<
+                                  List<InsumoModel>
+                                >(
+                                  valueListenable: insumoController.insumos,
+                                  builder: (context, insumos, child) {
+                                    if (insumos.isEmpty) {
+                                      return const Center(
+                                        child: Text(
+                                          "Nenhum insumo cadastrado neste laboratório.",
+                                        ),
+                                      );
+                                    }
+
+                                    return ListView.separated(
+                                      itemCount: insumos.length,
+                                      separatorBuilder: (_, __) =>
+                                          const Divider(),
+                                      itemBuilder: (context, index) {
+                                        final insumo = insumos[index];
+                                        final qtd =
                                             quantidadesSelecionadas[insumo
-                                                    .id!] =
-                                                qtd + 1,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            },
-                          );
-                        },
-                      ),
+                                                .id] ??
+                                            0;
+
+                                        return ListTile(
+                                          title: Text(
+                                            insumo.descricao,
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          subtitle: Text(
+                                            '${insumo.tipo} • ${insumo.tamanho} • ${insumo.volume}',
+                                            style: TextStyle(
+                                              color: Colors.grey.shade600,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                          trailing: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              IconButton(
+                                                icon: const Icon(
+                                                  Icons.remove_circle_outline,
+                                                  color: Colors.redAccent,
+                                                ),
+                                                onPressed: qtd > 0
+                                                    ? () => setModalState(
+                                                        () =>
+                                                            quantidadesSelecionadas[insumo
+                                                                    .id!] =
+                                                                qtd - 1,
+                                                      )
+                                                    : null,
+                                              ),
+                                              Text(
+                                                '$qtd',
+                                                style: const TextStyle(
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                              IconButton(
+                                                icon: const Icon(
+                                                  Icons.add_circle_outline,
+                                                  color: Colors.teal,
+                                                ),
+                                                onPressed: () => setModalState(
+                                                  () =>
+                                                      quantidadesSelecionadas[insumo
+                                                              .id!] =
+                                                          qtd + 1,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      },
+                                    );
+                                  },
+                                );
+                              },
+                            ),
                     ),
                   ],
                 ),
@@ -501,10 +542,33 @@ class _GestaoChamadosViewState extends State<GestaoChamadosView>
                   onPressed: enviando
                       ? null
                       : () async {
-                          final itensFinais = quantidadesSelecionadas.entries
-                              .where((e) => e.value > 0)
+                          if (localLabIdSelecionado == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text("Selecione o Laboratório!"),
+                              ),
+                            );
+                            return;
+                          }
+
+                          final insumosSelecionados = insumoController
+                              .insumos
+                              .value
+                              .where(
+                                (i) =>
+                                    (quantidadesSelecionadas[i.id!] ?? 0) > 0,
+                              )
+                              .map(
+                                (i) => {
+                                  'insumoId': i.id,
+                                  'descricao': i.descricao,
+                                  'tipo': i.tipo,
+                                  'quantidade': quantidadesSelecionadas[i.id!],
+                                },
+                              )
                               .toList();
-                          if (itensFinais.isEmpty) {
+
+                          if (insumosSelecionados.isEmpty) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text("Selecione ao menos 1 item!"),
@@ -516,28 +580,18 @@ class _GestaoChamadosViewState extends State<GestaoChamadosView>
                           setModalState(() => enviando = true);
 
                           try {
+                            // 💡 AGORA SALVA COMO UM PEDIDO ESTRUTURADO NO MUNDO REAL!
                             await FirebaseFirestore.instance
                                 .collection('pedidos_insumos')
                                 .add({
                                   'clinicaId': widget.clinicaContexto.id,
                                   'clinicaNome': widget.clinicaContexto.nome,
-                                  'status': 'Aguardando Insumos',
-                                  'dataPedido': FieldValue.serverTimestamp(),
-                                  'itens': quantidadesSelecionadas,
+                                  'laboratorioId': localLabIdSelecionado,
+                                  'status': 'Pendente',
+                                  'dataSolicitacao':
+                                      FieldValue.serverTimestamp(),
+                                  'itens': insumosSelecionados,
                                 });
-
-                            final chamadoInsumo = ChamadoColetaModel(
-                              id: '',
-                              clinicaId: widget.clinicaContexto.id!,
-                              clinicaNome: widget.clinicaContexto.nome,
-                              laboratorioId: 'INSUMOS',
-                              laboratorioNome: 'Pedido de Insumos',
-                              status: 'Aguardando Insumos',
-                              isEmergencia: false,
-                              dataCriacao: DateTime.now(),
-                              dataAgendamento: DateTime.now(),
-                            );
-                            await _controller.criarChamado(chamadoInsumo);
 
                             if (context.mounted) {
                               Navigator.pop(context);
@@ -551,6 +605,7 @@ class _GestaoChamadosViewState extends State<GestaoChamadosView>
                               );
                             }
                           } catch (e) {
+                            debugPrint("Erro ao salvar pedido WEB: $e");
                             setModalState(() => enviando = false);
                           }
                         },

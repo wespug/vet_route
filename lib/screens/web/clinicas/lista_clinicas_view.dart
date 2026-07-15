@@ -16,6 +16,12 @@ class ListaClinicasView extends StatefulWidget {
 class _ListaClinicasViewState extends State<ListaClinicasView> {
   late final ClinicaController _clinicaController;
 
+  // 🔎 VARIÁVEIS DE BUSCA E ORDENAÇÃO
+  String _searchQuery = '';
+  int _linhasPorPagina = PaginatedDataTable.defaultRowsPerPage;
+  int _sortColumnIndex = 0;
+  bool _isAscending = true;
+
   @override
   void initState() {
     super.initState();
@@ -31,48 +37,119 @@ class _ListaClinicasViewState extends State<ListaClinicasView> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                "Clínicas Parceiras 🏥",
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
-              ElevatedButton.icon(
-                onPressed: () => _abrirModalFormulario(context),
-                icon: const Icon(Icons.add_business_rounded),
-                label: const Text(
-                  "Nova Clínica",
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 16,
+    return SingleChildScrollView(
+      // 💡 Proteção principal contra RenderFlex
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min, // 💡 Mantém o layout contido
+          children: [
+            // CABEÇALHO
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  "Clínicas Parceiras 🏥",
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
                   ),
-                  backgroundColor: Colors.teal,
-                  foregroundColor: Colors.white,
+                ),
+                ElevatedButton.icon(
+                  onPressed: () => _abrirModalFormulario(context),
+                  icon: const Icon(Icons.add_business_rounded),
+                  label: const Text(
+                    "Nova Clínica",
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 16,
+                    ),
+                    backgroundColor: Colors.teal,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+
+            // 🔎 CAMPO DE BUSCA
+            TextField(
+              decoration: InputDecoration(
+                hintText: 'Buscar por Nome, CNPJ ou Cidade...',
+                prefixIcon: const Icon(Icons.search, color: Colors.teal),
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: Colors.teal, width: 2),
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 24),
+              onChanged: (value) {
+                setState(() {
+                  _searchQuery = value;
+                });
+              },
+            ),
+            const SizedBox(height: 24),
 
-          Expanded(
-            child: ValueListenableBuilder<List<Clinica>>(
+            // 💡 TABELA PAGINADA INTELIGENTE
+            ValueListenableBuilder<List<Clinica>>(
               valueListenable: _clinicaController.todasClinicas,
               builder: (context, listaClinicas, child) {
-                if (listaClinicas.isEmpty) {
-                  return Center(
+                // 1. APLICAR BUSCA
+                List<Clinica> filtrados = listaClinicas.where((clinica) {
+                  if (_searchQuery.isEmpty) return true;
+                  final termo = _searchQuery.toLowerCase();
+                  return clinica.nome.toLowerCase().contains(termo) ||
+                      clinica.cnpj.toLowerCase().contains(termo) ||
+                      clinica.endereco.cidade.toLowerCase().contains(termo);
+                }).toList();
+
+                // 2. APLICAR ORDENAÇÃO
+                filtrados.sort((a, b) {
+                  int result = 0;
+                  switch (_sortColumnIndex) {
+                    case 0:
+                      result = a.nome.toLowerCase().compareTo(
+                        b.nome.toLowerCase(),
+                      );
+                      break;
+                    case 1:
+                      result = a.cnpj.compareTo(b.cnpj);
+                      break;
+                    case 2:
+                      result = a.endereco.cidade.toLowerCase().compareTo(
+                        b.endereco.cidade.toLowerCase(),
+                      );
+                      break;
+                  }
+                  return _isAscending ? result : -result;
+                });
+
+                // Tratamento de lista vazia
+                if (filtrados.isEmpty) {
+                  return Container(
+                    padding: const EdgeInsets.all(48.0),
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      border: Border.all(color: Colors.grey.shade200),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -83,7 +160,9 @@ class _ListaClinicasViewState extends State<ListaClinicasView> {
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          "Nenhuma clínica cadastrada ainda.",
+                          _searchQuery.isNotEmpty
+                              ? "Nenhuma clínica encontrada para '$_searchQuery'."
+                              : "Nenhuma clínica cadastrada ainda.",
                           style: TextStyle(
                             color: Colors.grey.shade500,
                             fontSize: 16,
@@ -94,118 +173,87 @@ class _ListaClinicasViewState extends State<ListaClinicasView> {
                   );
                 }
 
+                // 3. DATASOURCE PARA A PAGINAÇÃO NATIVA
+                final dataSource = _ClinicasDataSource(
+                  context: context,
+                  clinicas: filtrados,
+                  onSelect: (clinica) => widget.onClinicaSelected(clinica),
+                  onEdit: (clinica) =>
+                      _abrirModalFormulario(context, clinicaEdicao: clinica),
+                  onDelete: (clinica) => _confirmarExclusao(clinica),
+                );
+
                 return Container(
                   width: double.infinity,
                   decoration: BoxDecoration(
+                    color: Colors.white,
                     border: Border.all(color: Colors.grey.shade200),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: SingleChildScrollView(
-                    child: DataTable(
-                      headingRowColor: WidgetStateProperty.all(
-                        Colors.grey.shade50,
+                  child: PaginatedDataTable(
+                    header: const Text(
+                      "Diretório de Clínicas",
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
                       ),
-                      columns: const [
-                        DataColumn(
-                          label: Text(
-                            'Clínica',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                        DataColumn(
-                          label: Text(
-                            'CNPJ',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                        DataColumn(
-                          label: Text(
-                            'Localização',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                        DataColumn(
-                          label: Text(
-                            'Ações',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                      ],
-                      rows: listaClinicas
-                          .map((clinica) => _buildRowReal(clinica))
-                          .toList(),
                     ),
+                    rowsPerPage: _linhasPorPagina,
+                    availableRowsPerPage: const [5, 10, 20, 50],
+                    onRowsPerPageChanged: (value) {
+                      setState(() {
+                        _linhasPorPagina =
+                            value ?? PaginatedDataTable.defaultRowsPerPage;
+                      });
+                    },
+                    sortColumnIndex: _sortColumnIndex,
+                    sortAscending: _isAscending,
+                    columns: [
+                      DataColumn(
+                        label: const Text(
+                          'Clínica',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        onSort: (colIndex, asc) => setState(() {
+                          _sortColumnIndex = colIndex;
+                          _isAscending = asc;
+                        }),
+                      ),
+                      DataColumn(
+                        label: const Text(
+                          'CNPJ',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        onSort: (colIndex, asc) => setState(() {
+                          _sortColumnIndex = colIndex;
+                          _isAscending = asc;
+                        }),
+                      ),
+                      DataColumn(
+                        label: const Text(
+                          'Localização',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        onSort: (colIndex, asc) => setState(() {
+                          _sortColumnIndex = colIndex;
+                          _isAscending = asc;
+                        }),
+                      ),
+                      const DataColumn(
+                        label: Text(
+                          'Ações',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                    source: dataSource,
                   ),
                 );
               },
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    );
-  }
-
-  DataRow _buildRowReal(Clinica clinica) {
-    return DataRow(
-      cells: [
-        DataCell(
-          InkWell(
-            onTap: () => widget.onClinicaSelected(clinica),
-            borderRadius: BorderRadius.circular(4),
-            child: Padding(
-              padding: const EdgeInsets.all(4.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    clinica.nome,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.teal,
-                      decoration: TextDecoration.underline,
-                    ),
-                  ),
-                  Text(
-                    clinica.email,
-                    style: const TextStyle(fontSize: 11, color: Colors.grey),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-        DataCell(Text(clinica.cnpj.isNotEmpty ? clinica.cnpj : 'N/A')),
-        DataCell(
-          Text("${clinica.endereco.cidade} - ${clinica.endereco.estado}"),
-        ),
-        DataCell(
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.visibility_outlined, color: Colors.teal),
-                tooltip: "Acessar Painel",
-                onPressed: () => widget.onClinicaSelected(clinica),
-              ),
-              IconButton(
-                icon: const Icon(Icons.edit_note_rounded, color: Colors.blue),
-                tooltip: "Editar Cadastro",
-                onPressed: () =>
-                    _abrirModalFormulario(context, clinicaEdicao: clinica),
-              ),
-              IconButton(
-                icon: const Icon(
-                  Icons.delete_outline_rounded,
-                  color: Colors.redAccent,
-                ),
-                tooltip: "Remover Clínica",
-                onPressed: () => _confirmarExclusao(clinica),
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 
@@ -537,4 +585,95 @@ class _ListaClinicasViewState extends State<ListaClinicasView> {
       },
     );
   }
+}
+
+// 💡 DataSource Especializado para a PaginatedDataTable
+class _ClinicasDataSource extends DataTableSource {
+  final BuildContext context;
+  final List<Clinica> clinicas;
+  final Function(Clinica) onSelect;
+  final Function(Clinica) onEdit;
+  final Function(Clinica) onDelete;
+
+  _ClinicasDataSource({
+    required this.context,
+    required this.clinicas,
+    required this.onSelect,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  @override
+  DataRow? getRow(int index) {
+    if (index >= clinicas.length) return null;
+    final clinica = clinicas[index];
+
+    return DataRow(
+      cells: [
+        DataCell(
+          InkWell(
+            onTap: () => onSelect(clinica),
+            borderRadius: BorderRadius.circular(4),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    clinica.nome,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.teal,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                  Text(
+                    clinica.email,
+                    style: const TextStyle(fontSize: 11, color: Colors.grey),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        DataCell(Text(clinica.cnpj.isNotEmpty ? clinica.cnpj : 'N/A')),
+        DataCell(
+          Text("${clinica.endereco.cidade} - ${clinica.endereco.estado}"),
+        ),
+        DataCell(
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.visibility_outlined, color: Colors.teal),
+                tooltip: "Acessar Painel",
+                onPressed: () => onSelect(clinica),
+              ),
+              IconButton(
+                icon: const Icon(Icons.edit_note_rounded, color: Colors.blue),
+                tooltip: "Editar Cadastro",
+                onPressed: () => onEdit(clinica),
+              ),
+              IconButton(
+                icon: const Icon(
+                  Icons.delete_outline_rounded,
+                  color: Colors.redAccent,
+                ),
+                tooltip: "Remover Clínica",
+                onPressed: () => onDelete(clinica),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  @override
+  bool get isRowCountApproximate => false;
+  @override
+  int get rowCount => clinicas.length;
+  @override
+  int get selectedRowCount => 0;
 }

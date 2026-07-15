@@ -26,6 +26,12 @@ class _CadastroInsumoHubState extends State<CadastroInsumoHub> {
     'Outros',
   ];
 
+  // 🔎 VARIÁVEIS DE BUSCA, PAGINAÇÃO E ORDENAÇÃO
+  String _termoBusca = '';
+  int _linhasPorPagina = PaginatedDataTable.defaultRowsPerPage;
+  int _sortColumnIndex = 0;
+  bool _isAscending = true;
+
   @override
   void initState() {
     super.initState();
@@ -89,6 +95,35 @@ class _CadastroInsumoHubState extends State<CadastroInsumoHub> {
           ),
           const SizedBox(height: 24),
 
+          // 🔎 CAMPO DE BUSCA
+          TextField(
+            decoration: InputDecoration(
+              hintText: 'Buscar insumo por descrição, tipo ou volume...',
+              prefixIcon: const Icon(Icons.search, color: Colors.indigo),
+              filled: true,
+              fillColor: Colors.white,
+              contentPadding: const EdgeInsets.symmetric(vertical: 0),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: Colors.indigo, width: 2),
+              ),
+            ),
+            onChanged: (value) {
+              setState(() {
+                _termoBusca = value;
+              });
+            },
+          ),
+          const SizedBox(height: 24),
+
           Expanded(
             child: ValueListenableBuilder<bool>(
               valueListenable: _controller.isLoading,
@@ -102,7 +137,43 @@ class _CadastroInsumoHubState extends State<CadastroInsumoHub> {
                 return ValueListenableBuilder<List<InsumoModel>>(
                   valueListenable: _controller.insumos,
                   builder: (context, insumos, _) {
-                    if (insumos.isEmpty) {
+                    // 1. APLICA FILTRO DE BUSCA
+                    List<InsumoModel> insumosFiltrados = insumos.where((i) {
+                      final termo = _termoBusca.toLowerCase();
+                      return i.descricao.toLowerCase().contains(termo) ||
+                          i.tipo.toLowerCase().contains(termo) ||
+                          i.volume.toLowerCase().contains(termo);
+                    }).toList();
+
+                    // 2. APLICA ORDENAÇÃO (CLIQUE NO CABEÇALHO)
+                    insumosFiltrados.sort((a, b) {
+                      int result = 0;
+                      switch (_sortColumnIndex) {
+                        case 0: // Descrição
+                          result = a.descricao.toLowerCase().compareTo(
+                            b.descricao.toLowerCase(),
+                          );
+                          break;
+                        case 1: // Categoria
+                          result = a.tipo.toLowerCase().compareTo(
+                            b.tipo.toLowerCase(),
+                          );
+                          break;
+                        case 2: // Tamanho
+                          result = a.tamanho.toLowerCase().compareTo(
+                            b.tamanho.toLowerCase(),
+                          );
+                          break;
+                        case 3: // Volume
+                          result = a.volume.toLowerCase().compareTo(
+                            b.volume.toLowerCase(),
+                          );
+                          break;
+                      }
+                      return _isAscending ? result : -result;
+                    });
+
+                    if (insumosFiltrados.isEmpty) {
                       return Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -114,7 +185,9 @@ class _CadastroInsumoHubState extends State<CadastroInsumoHub> {
                             ),
                             const SizedBox(height: 16),
                             Text(
-                              "Nenhum insumo catalogado neste laboratório.",
+                              _termoBusca.isNotEmpty
+                                  ? "Nenhum insumo encontrado para '$_termoBusca'."
+                                  : "Nenhum insumo catalogado neste laboratório.",
                               style: TextStyle(
                                 color: Colors.grey.shade500,
                                 fontSize: 15,
@@ -125,6 +198,15 @@ class _CadastroInsumoHubState extends State<CadastroInsumoHub> {
                       );
                     }
 
+                    final dataSource = _InsumosDataSource(
+                      context: context,
+                      insumos: insumosFiltrados,
+                      onEdit: (insumo) =>
+                          _abrirModalCaixaInsumo(context, insumoAtual: insumo),
+                      onDelete: (insumo) =>
+                          _confirmarExclusaoInsumo(context, insumo),
+                    );
+
                     return Container(
                       width: double.infinity,
                       decoration: BoxDecoration(
@@ -133,117 +215,74 @@ class _CadastroInsumoHubState extends State<CadastroInsumoHub> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: SingleChildScrollView(
-                        child: DataTable(
-                          headingRowColor: WidgetStateProperty.all(
-                            Colors.grey.shade50,
+                        child: PaginatedDataTable(
+                          header: const Text(
+                            "Lista de Materiais",
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                          columns: const [
+                          rowsPerPage: _linhasPorPagina,
+                          availableRowsPerPage: const [5, 10, 20, 50],
+                          onRowsPerPageChanged: (value) {
+                            setState(() {
+                              _linhasPorPagina =
+                                  value ??
+                                  PaginatedDataTable.defaultRowsPerPage;
+                            });
+                          },
+                          sortColumnIndex: _sortColumnIndex,
+                          sortAscending: _isAscending,
+                          columns: [
                             DataColumn(
-                              label: Text(
+                              label: const Text(
                                 'Descrição do Item',
                                 style: TextStyle(fontWeight: FontWeight.bold),
                               ),
+                              onSort: (colIndex, asc) => setState(() {
+                                _sortColumnIndex = colIndex;
+                                _isAscending = asc;
+                              }),
                             ),
                             DataColumn(
-                              label: Text(
+                              label: const Text(
                                 'Categoria',
                                 style: TextStyle(fontWeight: FontWeight.bold),
                               ),
+                              onSort: (colIndex, asc) => setState(() {
+                                _sortColumnIndex = colIndex;
+                                _isAscending = asc;
+                              }),
                             ),
                             DataColumn(
-                              label: Text(
+                              label: const Text(
                                 'Tamanho',
                                 style: TextStyle(fontWeight: FontWeight.bold),
                               ),
+                              onSort: (colIndex, asc) => setState(() {
+                                _sortColumnIndex = colIndex;
+                                _isAscending = asc;
+                              }),
                             ),
                             DataColumn(
-                              label: Text(
+                              label: const Text(
                                 'Volume/Qtd',
                                 style: TextStyle(fontWeight: FontWeight.bold),
                               ),
+                              onSort: (colIndex, asc) => setState(() {
+                                _sortColumnIndex = colIndex;
+                                _isAscending = asc;
+                              }),
                             ),
-                            DataColumn(
+                            const DataColumn(
                               label: Text(
                                 'Ações',
                                 style: TextStyle(fontWeight: FontWeight.bold),
                               ),
                             ),
                           ],
-                          rows: insumos.map((insumo) {
-                            return DataRow(
-                              cells: [
-                                DataCell(
-                                  Text(
-                                    insumo.descricao,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.indigo,
-                                    ),
-                                  ),
-                                ),
-                                DataCell(
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.indigo.shade50,
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(
-                                      insumo.tipo,
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.indigo.shade700,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                DataCell(Text(insumo.tamanho)),
-                                DataCell(
-                                  Text(
-                                    insumo.volume,
-                                    style: TextStyle(
-                                      color: Colors.grey.shade700,
-                                    ),
-                                  ),
-                                ),
-                                DataCell(
-                                  Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      IconButton(
-                                        icon: const Icon(
-                                          Icons.edit_note_rounded,
-                                          color: Colors.blue,
-                                        ),
-                                        tooltip: "Editar Insumo",
-                                        onPressed: () => _abrirModalCaixaInsumo(
-                                          context,
-                                          insumoAtual: insumo,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      IconButton(
-                                        icon: const Icon(
-                                          Icons.delete_outline_rounded,
-                                          color: Colors.redAccent,
-                                        ),
-                                        tooltip: "Excluir Insumo",
-                                        onPressed: () =>
-                                            _confirmarExclusaoInsumo(
-                                              context,
-                                              insumo,
-                                            ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            );
-                          }).toList(),
+                          source: dataSource,
                         ),
                       ),
                     );
@@ -546,4 +585,90 @@ class _CadastroInsumoHubState extends State<CadastroInsumoHub> {
       },
     );
   }
+}
+
+// 💡 DataSource para a Tabela Paginada
+class _InsumosDataSource extends DataTableSource {
+  final BuildContext context;
+  final List<InsumoModel> insumos;
+  final Function(InsumoModel) onEdit;
+  final Function(InsumoModel) onDelete;
+
+  _InsumosDataSource({
+    required this.context,
+    required this.insumos,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  @override
+  DataRow? getRow(int index) {
+    if (index >= insumos.length) return null;
+    final insumo = insumos[index];
+
+    return DataRow(
+      cells: [
+        DataCell(
+          Text(
+            insumo.descricao,
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              color: Colors.indigo,
+            ),
+          ),
+        ),
+        DataCell(
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.indigo.shade50,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              insumo.tipo,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.indigo.shade700,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ),
+        DataCell(Text(insumo.tamanho)),
+        DataCell(
+          Text(insumo.volume, style: TextStyle(color: Colors.grey.shade700)),
+        ),
+        DataCell(
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.edit_note_rounded, color: Colors.blue),
+                tooltip: "Editar Insumo",
+                onPressed: () => onEdit(insumo),
+              ),
+              const SizedBox(width: 4),
+              IconButton(
+                icon: const Icon(
+                  Icons.delete_outline_rounded,
+                  color: Colors.redAccent,
+                ),
+                tooltip: "Excluir Insumo",
+                onPressed: () => onDelete(insumo),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  @override
+  bool get isRowCountApproximate => false;
+
+  @override
+  int get rowCount => insumos.length;
+
+  @override
+  int get selectedRowCount => 0;
 }

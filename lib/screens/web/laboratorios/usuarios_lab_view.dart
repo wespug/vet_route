@@ -2,17 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:vet_route/controllers/perfil_controller.dart';
-import 'package:vet_route/models/laboratorio_model.dart';
+import '../../../controllers/perfil_controller.dart';
+import '../../../models/laboratorio_model.dart';
 
 class UsuariosLabView extends StatefulWidget {
   final Laboratorio labContexto;
-  final String chavePermissao; // 💡 NOVO: A chave dinâmica entra aqui!
+  final String chavePermissao;
 
   const UsuariosLabView({
     super.key,
     required this.labContexto,
-    required this.chavePermissao, // 💡 Exigida na criação da tela
+    required this.chavePermissao,
   });
 
   @override
@@ -22,10 +22,26 @@ class UsuariosLabView extends StatefulWidget {
 class _UsuariosLabViewState extends State<UsuariosLabView> {
   final PerfilController _perfilController = PerfilController();
 
+  // 💡 MÁGICA CONTRA A PISCADINHA: Stream salvo na memória!
+  late Stream<QuerySnapshot> _usuariosStream;
+
+  // 🔎 VARIÁVEIS DE BUSCA, ORDENAÇÃO E PAGINAÇÃO LIMPA
+  String _searchQuery = '';
+  int _currentPage = 0;
+  final int _itemsPerPage = 10;
+  int _sortColumnIndex = 0;
+  bool _isAscending = true;
+
   @override
   void initState() {
     super.initState();
     _perfilController.carregarPerfis();
+
+    // Conectamos ao Firebase APENAS UMA VEZ para não piscar a tela
+    _usuariosStream = FirebaseFirestore.instance
+        .collection('usuarios')
+        .where('vinculoId', isEqualTo: widget.labContexto.id)
+        .snapshots();
   }
 
   @override
@@ -48,251 +64,500 @@ class _UsuariosLabViewState extends State<UsuariosLabView> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    "Operadores do Sistema 👥",
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min, // Força o tamanho compacto
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Operadores do Sistema 👥",
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      "Lista de contas com acesso exclusivo ao painel de ${widget.labContexto.nome}",
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+                ElevatedButton.icon(
+                  onPressed: () => _abrirModalCaixaUsuario(context),
+                  icon: const Icon(Icons.person_add_alt_1_rounded, size: 18),
+                  label: const Text(
+                    "Novo Operador",
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 16,
+                    ),
+                    backgroundColor: Colors.indigo,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    "Lista de contas com acesso exclusivo ao painel de ${widget.labContexto.nome}",
-                    style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
-                  ),
-                ],
-              ),
-              ElevatedButton.icon(
-                onPressed: () => _abrirModalCaixaUsuario(context),
-                icon: const Icon(Icons.person_add_alt_1_rounded, size: 18),
-                label: const Text(
-                  "Novo Usuário",
-                  style: TextStyle(fontWeight: FontWeight.bold),
                 ),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 16,
-                  ),
-                  backgroundColor: Colors.indigo,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
+              ],
+            ),
+            const SizedBox(height: 24),
 
-          Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('usuarios')
-                  .where('vinculoId', isEqualTo: widget.labContexto.id)
-                  .snapshots(),
+            // 🔎 CAMPO DE BUSCA
+            TextField(
+              decoration: InputDecoration(
+                hintText: 'Buscar operador por nome ou e-mail...',
+                prefixIcon: const Icon(Icons.search, color: Colors.indigo),
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: Colors.indigo, width: 2),
+                ),
+              ),
+              onChanged: (value) {
+                setState(() {
+                  _searchQuery = value;
+                  _currentPage = 0; // Reseta a página ao buscar
+                });
+              },
+            ),
+            const SizedBox(height: 24),
+
+            // 💡 TABELA PAGINADA - ALIMENTADA PELO STREAM SALVO NA MEMÓRIA
+            StreamBuilder<QuerySnapshot>(
+              stream: _usuariosStream,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(
-                    child: CircularProgressIndicator(color: Colors.indigo),
+                  return const Padding(
+                    padding: EdgeInsets.all(48.0),
+                    child: Center(
+                      child: CircularProgressIndicator(color: Colors.indigo),
+                    ),
                   );
                 }
 
                 if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.group_off_rounded,
-                          size: 64,
-                          color: Colors.grey.shade300,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          "Nenhum operador vinculado a este laboratório.",
-                          style: TextStyle(
-                            color: Colors.grey.shade500,
-                            fontSize: 15,
+                  return Padding(
+                    padding: const EdgeInsets.all(48.0),
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.group_off_rounded,
+                            size: 64,
+                            color: Colors.grey.shade300,
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 16),
+                          Text(
+                            _searchQuery.isNotEmpty
+                                ? "Nenhum operador encontrado para '$_searchQuery'."
+                                : "Nenhum operador vinculado a este laboratório.",
+                            style: TextStyle(
+                              color: Colors.grey.shade500,
+                              fontSize: 15,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   );
                 }
 
-                final usuariosDocs = snapshot.data!.docs;
-
                 return ListenableBuilder(
                   listenable: _perfilController,
                   builder: (context, child) {
-                    return Container(
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        border: Border.all(color: Colors.grey.shade200),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: SingleChildScrollView(
-                        child: DataTable(
-                          headingRowColor: WidgetStateProperty.all(
-                            Colors.grey.shade50,
-                          ),
-                          columns: const [
-                            DataColumn(
-                              label: Text(
-                                'Nome do Operador',
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                            DataColumn(
-                              label: Text(
-                                'E-mail de Login',
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                            DataColumn(
-                              label: Text(
-                                'Perfil de Acesso',
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                            DataColumn(
-                              label: Text(
-                                'Status',
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                            DataColumn(
-                              label: Text(
-                                'Ações',
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                          ],
-                          rows: usuariosDocs.map((doc) {
-                            final data = doc.data() as Map<String, dynamic>;
-                            final bool ativo = data['ativo'] ?? false;
-                            final String? perfilId = data['perfilId'];
+                    // 1. APLICA A BUSCA MANTENDO OS DADOS EM MEMÓRIA
+                    List<QueryDocumentSnapshot> docsFiltrados = snapshot
+                        .data!
+                        .docs
+                        .where((doc) {
+                          if (_searchQuery.isEmpty) return true;
 
-                            return DataRow(
-                              cells: [
-                                DataCell(
-                                  Text(
-                                    data['nome'] ?? 'Sem nome',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.indigo,
+                          final data = doc.data() as Map<String, dynamic>;
+                          final nome = (data['nome'] ?? '')
+                              .toString()
+                              .toLowerCase();
+                          final email = (data['email'] ?? '')
+                              .toString()
+                              .toLowerCase();
+                          final termo = _searchQuery.toLowerCase();
+
+                          return nome.contains(termo) || email.contains(termo);
+                        })
+                        .toList();
+
+                    // 2. APLICA A ORDENAÇÃO LOCAL
+                    docsFiltrados.sort((a, b) {
+                      final dataA = a.data() as Map<String, dynamic>;
+                      final dataB = b.data() as Map<String, dynamic>;
+
+                      int result = 0;
+                      switch (_sortColumnIndex) {
+                        case 0:
+                          String nomeA = (dataA['nome'] ?? '')
+                              .toString()
+                              .toLowerCase();
+                          String nomeB = (dataB['nome'] ?? '')
+                              .toString()
+                              .toLowerCase();
+                          result = nomeA.compareTo(nomeB);
+                          break;
+                        case 1:
+                          String emailA = (dataA['email'] ?? '')
+                              .toString()
+                              .toLowerCase();
+                          String emailB = (dataB['email'] ?? '')
+                              .toString()
+                              .toLowerCase();
+                          result = emailA.compareTo(emailB);
+                          break;
+                        case 3:
+                          int statusA = (dataA['ativo'] ?? false) ? 1 : 0;
+                          int statusB = (dataB['ativo'] ?? false) ? 1 : 0;
+                          result = statusA.compareTo(statusB);
+                          break;
+                        default:
+                          String nomeDefaultA = (dataA['nome'] ?? '')
+                              .toString()
+                              .toLowerCase();
+                          String nomeDefaultB = (dataB['nome'] ?? '')
+                              .toString()
+                              .toLowerCase();
+                          result = nomeDefaultA.compareTo(nomeDefaultB);
+                      }
+                      return _isAscending ? result : -result;
+                    });
+
+                    // 3. APLICAR PAGINAÇÃO MANUAL E COMPACTA
+                    int totalItems = docsFiltrados.length;
+                    int totalPages = (totalItems / _itemsPerPage).ceil();
+                    if (_currentPage >= totalPages && totalPages > 0) {
+                      _currentPage = totalPages - 1;
+                    }
+
+                    int startIndex = _currentPage * _itemsPerPage;
+                    int endIndex = startIndex + _itemsPerPage;
+                    if (endIndex > totalItems) endIndex = totalItems;
+
+                    List<QueryDocumentSnapshot> paginados =
+                        docsFiltrados.isNotEmpty
+                        ? docsFiltrados.sublist(startIndex, endIndex)
+                        : [];
+
+                    if (paginados.isEmpty && _searchQuery.isNotEmpty) {
+                      return Padding(
+                        padding: const EdgeInsets.all(48.0),
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.search_off_rounded,
+                                size: 64,
+                                color: Colors.grey.shade300,
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                "Nenhum operador corresponde à busca.",
+                                style: TextStyle(color: Colors.grey.shade500),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            border: Border.all(color: Colors.grey.shade200),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: DataTable(
+                              sortColumnIndex: _sortColumnIndex,
+                              sortAscending: _isAscending,
+                              headingRowColor: WidgetStateProperty.all(
+                                Colors.grey.shade50,
+                              ),
+                              columns: [
+                                DataColumn(
+                                  label: const Text(
+                                    'Nome do Operador',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  onSort: (col, asc) => setState(() {
+                                    _sortColumnIndex = col;
+                                    _isAscending = asc;
+                                  }),
+                                ),
+                                DataColumn(
+                                  label: const Text(
+                                    'E-mail de Login',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  onSort: (col, asc) => setState(() {
+                                    _sortColumnIndex = col;
+                                    _isAscending = asc;
+                                  }),
+                                ),
+                                const DataColumn(
+                                  label: Text(
+                                    'Perfil de Acesso',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
                                     ),
                                   ),
                                 ),
-                                DataCell(Text(data['email'] ?? 'Sem e-mail')),
-                                DataCell(
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.indigo.shade50,
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(
-                                      _obterNomeDoPerfil(perfilId),
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.indigo.shade700,
-                                        fontWeight: FontWeight.bold,
-                                      ),
+                                DataColumn(
+                                  label: const Text(
+                                    'Status',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
                                     ),
                                   ),
+                                  onSort: (col, asc) => setState(() {
+                                    _sortColumnIndex = col;
+                                    _isAscending = asc;
+                                  }),
                                 ),
-                                DataCell(
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                      vertical: 4,
+                                const DataColumn(
+                                  label: Text(
+                                    'Ações',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
                                     ),
-                                    decoration: BoxDecoration(
-                                      color: ativo
-                                          ? Colors.green.shade50
-                                          : Colors.red.shade50,
-                                      borderRadius: BorderRadius.circular(4),
-                                      border: Border.all(
-                                        color: ativo
-                                            ? Colors.green.shade200
-                                            : Colors.red.shade200,
-                                      ),
-                                    ),
-                                    child: Text(
-                                      ativo ? "Ativo" : "Inativo",
-                                      style: TextStyle(
-                                        color: ativo
-                                            ? Colors.green.shade700
-                                            : Colors.red.shade700,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                DataCell(
-                                  Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      IconButton(
-                                        icon: const Icon(
-                                          Icons.edit_note_rounded,
-                                          color: Colors.blue,
-                                        ),
-                                        tooltip: "Editar Operador",
-                                        onPressed: () =>
-                                            _abrirModalCaixaUsuario(
-                                              context,
-                                              usuarioDoc: doc,
-                                            ),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      IconButton(
-                                        icon: const Icon(
-                                          Icons.delete_outline_rounded,
-                                          color: Colors.redAccent,
-                                        ),
-                                        tooltip: "Excluir Operador",
-                                        onPressed: () =>
-                                            _confirmarExclusaoUsuario(
-                                              context,
-                                              doc,
-                                              data['nome'] ?? 'este operador',
-                                            ),
-                                      ),
-                                    ],
                                   ),
                                 ),
                               ],
-                            );
-                          }).toList(),
+                              rows: paginados.map((doc) {
+                                final data = doc.data() as Map<String, dynamic>;
+                                final bool ativo = data['ativo'] ?? false;
+                                final String? perfilId = data['perfilId'];
+
+                                return DataRow(
+                                  cells: [
+                                    DataCell(
+                                      Row(
+                                        children: [
+                                          CircleAvatar(
+                                            radius: 12,
+                                            backgroundColor:
+                                                Colors.indigo.shade50,
+                                            child: const Icon(
+                                              Icons.person,
+                                              size: 14,
+                                              color: Colors.indigo,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            data['nome'] ?? 'Sem nome',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.indigo,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    DataCell(
+                                      Text(data['email'] ?? 'Sem e-mail'),
+                                    ),
+                                    DataCell(
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 4,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.indigo.shade50,
+                                          borderRadius: BorderRadius.circular(
+                                            4,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          _obterNomeDoPerfil(perfilId),
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.indigo.shade700,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    DataCell(
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                          vertical: 4,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: ativo
+                                              ? Colors.green.shade50
+                                              : Colors.red.shade50,
+                                          borderRadius: BorderRadius.circular(
+                                            4,
+                                          ),
+                                          border: Border.all(
+                                            color: ativo
+                                                ? Colors.green.shade200
+                                                : Colors.red.shade200,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          ativo ? "Ativo" : "Inativo",
+                                          style: TextStyle(
+                                            color: ativo
+                                                ? Colors.green.shade700
+                                                : Colors.red.shade700,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    DataCell(
+                                      Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          IconButton(
+                                            icon: const Icon(
+                                              Icons.edit_note_rounded,
+                                              color: Colors.blue,
+                                            ),
+                                            tooltip: "Editar Operador",
+                                            onPressed: () =>
+                                                _abrirModalCaixaUsuario(
+                                                  context,
+                                                  usuarioDoc: doc,
+                                                ),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          IconButton(
+                                            icon: const Icon(
+                                              Icons.delete_outline_rounded,
+                                              color: Colors.redAccent,
+                                            ),
+                                            tooltip: "Excluir Operador",
+                                            onPressed: () =>
+                                                _confirmarExclusaoUsuario(
+                                                  context,
+                                                  doc,
+                                                  data['nome'] ??
+                                                      'este operador',
+                                                ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              }).toList(),
+                            ),
+                          ),
                         ),
-                      ),
+
+                        // Controles de Paginação sem Operadores Complexos (...)
+                        if (totalPages > 1) const SizedBox(height: 12),
+                        if (totalPages > 1)
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              Text(
+                                "Página ${_currentPage + 1} de $totalPages",
+                                style: TextStyle(
+                                  color: Colors.grey.shade700,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Container(
+                                decoration: BoxDecoration(
+                                  border: Border.all(
+                                    color: Colors.grey.shade300,
+                                  ),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.chevron_left_rounded,
+                                      ),
+                                      color: _currentPage > 0
+                                          ? Colors.indigo
+                                          : Colors.grey.shade300,
+                                      onPressed: _currentPage > 0
+                                          ? () => setState(() => _currentPage--)
+                                          : null,
+                                    ),
+                                    Container(
+                                      width: 1,
+                                      height: 24,
+                                      color: Colors.grey.shade300,
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.chevron_right_rounded,
+                                      ),
+                                      color: _currentPage < totalPages - 1
+                                          ? Colors.indigo
+                                          : Colors.grey.shade300,
+                                      onPressed: _currentPage < totalPages - 1
+                                          ? () => setState(() => _currentPage++)
+                                          : null,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                      ],
                     );
                   },
                 );
               },
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -316,6 +581,7 @@ class _UsuariosLabViewState extends State<UsuariosLabView> {
     final senhaController = TextEditingController();
 
     String? idPerfilSelecionado = dataAtual?['perfilId'];
+    bool ativoSelecionado = dataAtual?['ativo'] ?? true;
     bool salvando = false;
 
     showDialog(
@@ -399,7 +665,7 @@ class _UsuariosLabViewState extends State<UsuariosLabView> {
                         ),
                         const SizedBox(height: 16),
 
-                        if (!isEdicao) ...[
+                        if (!isEdicao)
                           TextFormField(
                             controller: senhaController,
                             obscureText: true,
@@ -411,17 +677,14 @@ class _UsuariosLabViewState extends State<UsuariosLabView> {
                                 ? "Mínimo de 6 dígitos"
                                 : null,
                           ),
-                          const SizedBox(height: 16),
-                        ],
+                        if (!isEdicao) const SizedBox(height: 16),
 
-                        // 🔒 DROPDOWN DINÂMICO
                         ListenableBuilder(
                           listenable: _perfilController,
                           builder: (context, child) {
                             final perfisPermitidosParaLab = _perfilController
                                 .perfis
                                 .where((perfil) {
-                                  // 💡 USA A CHAVE INJETADA PELO CONSTRUTOR
                                   return perfil.exibirEm.contains(
                                     widget.chavePermissao,
                                   );
@@ -448,6 +711,23 @@ class _UsuariosLabViewState extends State<UsuariosLabView> {
                                   : null,
                             );
                           },
+                        ),
+                        const SizedBox(height: 16),
+
+                        SwitchListTile(
+                          title: const Text(
+                            "Conta Ativa",
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          subtitle: Text(
+                            ativoSelecionado
+                                ? "O operador pode fazer login"
+                                : "Acesso bloqueado",
+                          ),
+                          value: ativoSelecionado,
+                          activeColor: Colors.green,
+                          onChanged: (val) =>
+                              setModalState(() => ativoSelecionado = val),
                         ),
                       ],
                     ),
@@ -482,6 +762,7 @@ class _UsuariosLabViewState extends State<UsuariosLabView> {
                                   .update({
                                     'nome': nomeController.text.trim(),
                                     'perfilId': idPerfilSelecionado,
+                                    'ativo': ativoSelecionado,
                                   });
                             } else {
                               FirebaseApp appSecundario =
@@ -506,7 +787,7 @@ class _UsuariosLabViewState extends State<UsuariosLabView> {
                                     'email': emailController.text.trim(),
                                     'perfilId': idPerfilSelecionado,
                                     'vinculoId': widget.labContexto.id,
-                                    'ativo': true,
+                                    'ativo': ativoSelecionado,
                                     'dataCriacao': FieldValue.serverTimestamp(),
                                   });
                               await appSecundario.delete();

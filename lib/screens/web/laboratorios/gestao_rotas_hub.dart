@@ -15,6 +15,12 @@ class GestaoRotasHub extends StatefulWidget {
 class _GestaoRotasHubState extends State<GestaoRotasHub> {
   final RotaController _controller = RotaController();
 
+  // 🔎 VARIÁVEIS DE BUSCA, PAGINAÇÃO E ORDENAÇÃO
+  String _termoBusca = '';
+  int _linhasPorPagina = PaginatedDataTable.defaultRowsPerPage;
+  int _sortColumnIndex = 0;
+  bool _isAscending = true;
+
   @override
   void initState() {
     super.initState();
@@ -79,19 +85,77 @@ class _GestaoRotasHubState extends State<GestaoRotasHub> {
           ),
           const SizedBox(height: 24),
 
+          // 🔎 CAMPO DE BUSCA
+          TextField(
+            decoration: InputDecoration(
+              hintText: 'Buscar por nome do motoboy...',
+              prefixIcon: const Icon(Icons.search, color: Colors.indigo),
+              filled: true,
+              fillColor: Colors.white,
+              contentPadding: const EdgeInsets.symmetric(vertical: 0),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: Colors.indigo, width: 2),
+              ),
+            ),
+            onChanged: (value) {
+              setState(() {
+                _termoBusca = value;
+              });
+            },
+          ),
+          const SizedBox(height: 24),
+
           Expanded(
             child: ValueListenableBuilder<bool>(
               valueListenable: _controller.isLoading,
               builder: (context, isLoading, _) {
-                if (isLoading)
+                if (isLoading) {
                   return const Center(
                     child: CircularProgressIndicator(color: Colors.indigo),
                   );
+                }
 
                 return ValueListenableBuilder<List<RotaModel>>(
                   valueListenable: _controller.rotas,
                   builder: (context, rotas, _) {
-                    if (rotas.isEmpty) {
+                    // 1. APLICA FILTRO DE BUSCA
+                    List<RotaModel> rotasFiltradas = rotas.where((r) {
+                      return r.nomeEntregador.toLowerCase().contains(
+                        _termoBusca.toLowerCase(),
+                      );
+                    }).toList();
+
+                    // 2. APLICA ORDENAÇÃO (CLIQUE NO CABEÇALHO)
+                    rotasFiltradas.sort((a, b) {
+                      int result = 0;
+                      switch (_sortColumnIndex) {
+                        case 0: // Nome do Motoboy
+                          result = a.nomeEntregador.toLowerCase().compareTo(
+                            b.nomeEntregador.toLowerCase(),
+                          );
+                          break;
+                        case 1: // Status (Ativa/Inativa)
+                          int valA = a.ativa ? 1 : 0;
+                          int valB = b.ativa ? 1 : 0;
+                          result = valA.compareTo(valB);
+                          break;
+                        case 2: // Qtd Paradas
+                          result = a.paradas.length.compareTo(b.paradas.length);
+                          break;
+                      }
+                      return _isAscending ? result : -result;
+                    });
+
+                    if (rotasFiltradas.isEmpty) {
                       return Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -103,7 +167,9 @@ class _GestaoRotasHubState extends State<GestaoRotasHub> {
                             ),
                             const SizedBox(height: 16),
                             Text(
-                              "Nenhuma rota fixa cadastrada.",
+                              _termoBusca.isNotEmpty
+                                  ? "Nenhuma rota encontrada para '$_termoBusca'."
+                                  : "Nenhuma rota fixa cadastrada.",
                               style: TextStyle(
                                 color: Colors.grey.shade500,
                                 fontSize: 15,
@@ -114,6 +180,14 @@ class _GestaoRotasHubState extends State<GestaoRotasHub> {
                       );
                     }
 
+                    final dataSource = _RotasDataSource(
+                      context: context,
+                      rotas: rotasFiltradas,
+                      onEdit: (rota) =>
+                          _abrirModalCaixaRota(context, rotaAtual: rota),
+                      onDelete: (rota) => _confirmarExclusaoRota(context, rota),
+                    );
+
                     return Container(
                       width: double.infinity,
                       decoration: BoxDecoration(
@@ -122,144 +196,76 @@ class _GestaoRotasHubState extends State<GestaoRotasHub> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: SingleChildScrollView(
-                        child: DataTable(
-                          headingRowColor: WidgetStateProperty.all(
-                            Colors.grey.shade50,
+                        child: PaginatedDataTable(
+                          header: const Text(
+                            "Lista de Rotas Operacionais",
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                          columns: const [
+                          rowsPerPage: _linhasPorPagina,
+                          availableRowsPerPage: const [5, 10, 20, 50],
+                          onRowsPerPageChanged: (value) {
+                            setState(() {
+                              _linhasPorPagina =
+                                  value ??
+                                  PaginatedDataTable.defaultRowsPerPage;
+                            });
+                          },
+                          sortColumnIndex: _sortColumnIndex,
+                          sortAscending: _isAscending,
+                          columns: [
                             DataColumn(
-                              label: Text(
+                              label: const Text(
                                 'Motoboy Designado',
                                 style: TextStyle(fontWeight: FontWeight.bold),
                               ),
+                              onSort: (colIndex, asc) {
+                                setState(() {
+                                  _sortColumnIndex = colIndex;
+                                  _isAscending = asc;
+                                });
+                              },
                             ),
                             DataColumn(
-                              label: Text(
+                              label: const Text(
                                 'Status da Rota',
                                 style: TextStyle(fontWeight: FontWeight.bold),
                               ),
+                              onSort: (colIndex, asc) {
+                                setState(() {
+                                  _sortColumnIndex = colIndex;
+                                  _isAscending = asc;
+                                });
+                              },
                             ),
                             DataColumn(
-                              label: Text(
-                                'Qtd. de Clínicas (Paradas)',
+                              label: const Text(
+                                'Qtd. Paradas',
                                 style: TextStyle(fontWeight: FontWeight.bold),
                               ),
+                              onSort: (colIndex, asc) {
+                                setState(() {
+                                  _sortColumnIndex = colIndex;
+                                  _isAscending = asc;
+                                });
+                              },
                             ),
-                            DataColumn(
+                            const DataColumn(
                               label: Text(
                                 'Resumo do Trajeto',
                                 style: TextStyle(fontWeight: FontWeight.bold),
                               ),
                             ),
-                            DataColumn(
+                            const DataColumn(
                               label: Text(
                                 'Ações',
                                 style: TextStyle(fontWeight: FontWeight.bold),
                               ),
                             ),
                           ],
-                          rows: rotas.map((rota) {
-                            return DataRow(
-                              cells: [
-                                DataCell(
-                                  Row(
-                                    children: [
-                                      const Icon(
-                                        Icons.sports_motorsports_rounded,
-                                        color: Colors.indigo,
-                                        size: 18,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        rota.nomeEntregador,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.indigo,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                DataCell(
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: rota.ativa
-                                          ? Colors.green.shade50
-                                          : Colors.red.shade50,
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(
-                                      rota.ativa ? "Ativa" : "Inativa",
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: rota.ativa
-                                            ? Colors.green.shade700
-                                            : Colors.red.shade700,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                DataCell(
-                                  Text(
-                                    "${rota.paradas.length} paradas",
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                                DataCell(
-                                  SizedBox(
-                                    width: 250,
-                                    child: Text(
-                                      rota.paradas
-                                          .map((p) => p.nomeClinica)
-                                          .join(" ➔ "),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        color: Colors.grey.shade600,
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                DataCell(
-                                  Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      IconButton(
-                                        icon: const Icon(
-                                          Icons.edit_note_rounded,
-                                          color: Colors.blue,
-                                        ),
-                                        tooltip: "Editar Rota",
-                                        onPressed: () => _abrirModalCaixaRota(
-                                          context,
-                                          rotaAtual: rota,
-                                        ),
-                                      ),
-                                      IconButton(
-                                        icon: const Icon(
-                                          Icons.delete_outline_rounded,
-                                          color: Colors.redAccent,
-                                        ),
-                                        tooltip: "Excluir Rota",
-                                        onPressed: () => _confirmarExclusaoRota(
-                                          context,
-                                          rota,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            );
-                          }).toList(),
+                          source: dataSource,
                         ),
                       ),
                     );
@@ -493,7 +499,6 @@ class _GestaoRotasHubState extends State<GestaoRotasHub> {
                                 margin: const EdgeInsets.only(top: 4),
                                 child: ElevatedButton(
                                   onPressed: () {
-                                    // 💡 O RADAR DE CONFLITOS DE HORÁRIO ENTRA EM AÇÃO AQUI!
                                     if (entregadorIdSelecionado == null) {
                                       ScaffoldMessenger.of(
                                         context,
@@ -513,7 +518,6 @@ class _GestaoRotasHubState extends State<GestaoRotasHub> {
                                       final novoHorario = horarioController.text
                                           .trim();
 
-                                      // 1. Checa conflito na lista atual (A rota que você está montando agora)
                                       bool conflitoInterno = paradasTemporarias
                                           .any(
                                             (p) =>
@@ -534,7 +538,6 @@ class _GestaoRotasHubState extends State<GestaoRotasHub> {
                                         return;
                                       }
 
-                                      // 2. Checa conflito no Banco de Dados (Outras rotas desse mesmo motoboy)
                                       bool conflitoExterno = false;
                                       String nomeClinicaConflito = '';
 
@@ -571,7 +574,6 @@ class _GestaoRotasHubState extends State<GestaoRotasHub> {
                                         return;
                                       }
 
-                                      // Passou no radar! Adiciona na lista.
                                       setModalState(() {
                                         paradasTemporarias.add(
                                           ParadaRota(
@@ -813,4 +815,112 @@ class _GestaoRotasHubState extends State<GestaoRotasHub> {
       },
     );
   }
+}
+
+// 💡 DataSource para a Tabela Paginada
+class _RotasDataSource extends DataTableSource {
+  final BuildContext context;
+  final List<RotaModel> rotas;
+  final Function(RotaModel) onEdit;
+  final Function(RotaModel) onDelete;
+
+  _RotasDataSource({
+    required this.context,
+    required this.rotas,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  @override
+  DataRow? getRow(int index) {
+    if (index >= rotas.length) return null;
+    final rota = rotas[index];
+
+    return DataRow(
+      cells: [
+        DataCell(
+          Row(
+            children: [
+              const Icon(
+                Icons.sports_motorsports_rounded,
+                color: Colors.indigo,
+                size: 18,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                rota.nomeEntregador,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: Colors.indigo,
+                ),
+              ),
+            ],
+          ),
+        ),
+        DataCell(
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: rota.ativa ? Colors.green.shade50 : Colors.red.shade50,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              rota.ativa ? "Ativa" : "Inativa",
+              style: TextStyle(
+                fontSize: 12,
+                color: rota.ativa ? Colors.green.shade700 : Colors.red.shade700,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ),
+        DataCell(
+          Text(
+            "${rota.paradas.length} paradas",
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+        ),
+        DataCell(
+          SizedBox(
+            width: 250,
+            child: Text(
+              rota.paradas.map((p) => p.nomeClinica).join(" ➔ "),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+            ),
+          ),
+        ),
+        DataCell(
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.edit_note_rounded, color: Colors.blue),
+                tooltip: "Editar Rota",
+                onPressed: () => onEdit(rota),
+              ),
+              IconButton(
+                icon: const Icon(
+                  Icons.delete_outline_rounded,
+                  color: Colors.redAccent,
+                ),
+                tooltip: "Excluir Rota",
+                onPressed: () => onDelete(rota),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  @override
+  bool get isRowCountApproximate => false;
+
+  @override
+  int get rowCount => rotas.length;
+
+  @override
+  int get selectedRowCount => 0;
 }

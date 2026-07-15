@@ -26,6 +26,13 @@ class _CadastroExameHubState extends State<CadastroExameHub> {
   ];
   final List<String> _portes = ['Pequeno', 'Médio', 'Grande', 'Todos'];
 
+  // 🔎 VARIÁVEIS DE BUSCA, ORDENAÇÃO E PAGINAÇÃO LIMPA
+  String _searchQuery = '';
+  int _currentPage = 0;
+  final int _itemsPerPage = 10;
+  int _sortColumnIndex = 0;
+  bool _isAscending = true;
+
   @override
   void initState() {
     super.initState();
@@ -40,227 +47,414 @@ class _CadastroExameHubState extends State<CadastroExameHub> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 💡 CABEÇALHO PADRÃO DO DESIGN SYSTEM
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    "Catálogo de Exames 🔬",
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+    return SingleChildScrollView(
+      // 💡 Proteção principal de layout
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min, // 💡 Força o tamanho compacto
+          children: [
+            // 💡 CABEÇALHO PADRÃO DO DESIGN SYSTEM
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Catálogo de Exames 🔬",
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      "Gerencie os exames oferecidos pela base de ${widget.labContexto.nome}",
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+                ElevatedButton.icon(
+                  onPressed: () => _abrirModalCaixaExame(context),
+                  icon: const Icon(Icons.add_circle_outline_rounded, size: 18),
+                  label: const Text(
+                    "Novo Exame",
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 16,
+                    ),
+                    backgroundColor: Colors.indigo,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    "Gerencie os exames oferecidos pela base de ${widget.labContexto.nome}",
-                    style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
-                  ),
-                ],
-              ),
-              ElevatedButton.icon(
-                onPressed: () => _abrirModalCaixaExame(context),
-                icon: const Icon(Icons.add_circle_outline_rounded, size: 18),
-                label: const Text(
-                  "Novo Exame",
-                  style: TextStyle(fontWeight: FontWeight.bold),
                 ),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 16,
-                  ),
-                  backgroundColor: Colors.indigo,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
+              ],
+            ),
+            const SizedBox(height: 24),
 
-          // 💡 LISTAGEM NA TABELA CORPORATIVA
-          Expanded(
-            child: ValueListenableBuilder<bool>(
+            // 🔎 CAMPO DE BUSCA
+            TextField(
+              decoration: InputDecoration(
+                hintText: 'Buscar exame por nome, espécie ou porte...',
+                prefixIcon: const Icon(Icons.search, color: Colors.indigo),
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: Colors.indigo, width: 2),
+                ),
+              ),
+              onChanged: (value) {
+                setState(() {
+                  _searchQuery = value;
+                  _currentPage = 0; // Reseta a página ao buscar
+                });
+              },
+            ),
+            const SizedBox(height: 24),
+
+            // 💡 LISTAGEM COMPACTA E INTELIGENTE
+            ValueListenableBuilder<bool>(
               valueListenable: _controller.isLoading,
               builder: (context, isLoading, _) {
                 if (isLoading) {
-                  return const Center(
-                    child: CircularProgressIndicator(color: Colors.indigo),
+                  return const Padding(
+                    padding: EdgeInsets.all(48.0),
+                    child: Center(
+                      child: CircularProgressIndicator(color: Colors.indigo),
+                    ),
                   );
                 }
 
                 return ValueListenableBuilder<List<ExameModel>>(
                   valueListenable: _controller.exames,
                   builder: (context, exames, _) {
-                    if (exames.isEmpty) {
-                      return Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.science_outlined,
-                              size: 64,
-                              color: Colors.grey.shade300,
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              "Nenhum exame catalogado neste laboratório.",
-                              style: TextStyle(
-                                color: Colors.grey.shade500,
-                                fontSize: 15,
+                    // 1. APLICAR BUSCA
+                    List<ExameModel> filtrados = exames.where((e) {
+                      if (_searchQuery.isEmpty) return true;
+                      final termo = _searchQuery.toLowerCase();
+                      return e.nome.toLowerCase().contains(termo) ||
+                          e.especie.toLowerCase().contains(termo) ||
+                          e.porte.toLowerCase().contains(termo);
+                    }).toList();
+
+                    // 2. APLICAR ORDENAÇÃO
+                    filtrados.sort((a, b) {
+                      int result = 0;
+                      switch (_sortColumnIndex) {
+                        case 0:
+                          result = a.nome.toLowerCase().compareTo(
+                            b.nome.toLowerCase(),
+                          );
+                          break;
+                        case 1:
+                          result = a.especie.toLowerCase().compareTo(
+                            b.especie.toLowerCase(),
+                          );
+                          break;
+                        case 2:
+                          result = a.porte.toLowerCase().compareTo(
+                            b.porte.toLowerCase(),
+                          );
+                          break;
+                        default:
+                          result = a.nome.compareTo(b.nome);
+                      }
+                      return _isAscending ? result : -result;
+                    });
+
+                    // Tratamento de lista vazia
+                    if (filtrados.isEmpty) {
+                      return Padding(
+                        padding: const EdgeInsets.all(48.0),
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.science_outlined,
+                                size: 64,
+                                color: Colors.grey.shade300,
                               ),
-                            ),
-                          ],
+                              const SizedBox(height: 16),
+                              Text(
+                                _searchQuery.isNotEmpty
+                                    ? "Nenhum exame encontrado para '$_searchQuery'."
+                                    : "Nenhum exame catalogado neste laboratório.",
+                                style: TextStyle(
+                                  color: Colors.grey.shade500,
+                                  fontSize: 15,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       );
                     }
 
-                    return Container(
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        border: Border.all(color: Colors.grey.shade200),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: SingleChildScrollView(
-                        child: DataTable(
-                          headingRowColor: WidgetStateProperty.all(
-                            Colors.grey.shade50,
+                    // 3. APLICAR PAGINAÇÃO MANUAL E COMPACTA
+                    int totalItems = filtrados.length;
+                    int totalPages = (totalItems / _itemsPerPage).ceil();
+                    if (_currentPage >= totalPages && totalPages > 0) {
+                      _currentPage = totalPages - 1;
+                    }
+
+                    int startIndex = _currentPage * _itemsPerPage;
+                    int endIndex = startIndex + _itemsPerPage;
+                    if (endIndex > totalItems) endIndex = totalItems;
+
+                    List<ExameModel> paginados = filtrados.sublist(
+                      startIndex,
+                      endIndex,
+                    );
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      mainAxisSize: MainAxisSize.min, // Força layout compacto
+                      children: [
+                        // Tabela
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            border: Border.all(color: Colors.grey.shade200),
+                            borderRadius: BorderRadius.circular(8),
                           ),
-                          columns: const [
-                            DataColumn(
-                              label: Text(
-                                'Nome do Exame',
-                                style: TextStyle(fontWeight: FontWeight.bold),
+                          width: double.infinity,
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: DataTable(
+                              sortColumnIndex: _sortColumnIndex,
+                              sortAscending: _isAscending,
+                              headingRowColor: WidgetStateProperty.all(
+                                Colors.grey.shade50,
                               ),
-                            ),
-                            DataColumn(
-                              label: Text(
-                                'Espécie',
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                            DataColumn(
-                              label: Text(
-                                'Porte',
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                            DataColumn(
-                              label: Text(
-                                'Orientações/Detalhes',
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                            DataColumn(
-                              label: Text(
-                                'Ações',
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                          ],
-                          rows: exames.map((exame) {
-                            return DataRow(
-                              cells: [
-                                DataCell(
-                                  Text(
-                                    exame.nome,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.indigo,
+                              columns: [
+                                DataColumn(
+                                  label: const Text(
+                                    'Nome do Exame',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  onSort: (col, asc) => setState(() {
+                                    _sortColumnIndex = col;
+                                    _isAscending = asc;
+                                  }),
+                                ),
+                                DataColumn(
+                                  label: const Text(
+                                    'Espécie',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  onSort: (col, asc) => setState(() {
+                                    _sortColumnIndex = col;
+                                    _isAscending = asc;
+                                  }),
+                                ),
+                                DataColumn(
+                                  label: const Text(
+                                    'Porte',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  onSort: (col, asc) => setState(() {
+                                    _sortColumnIndex = col;
+                                    _isAscending = asc;
+                                  }),
+                                ),
+                                const DataColumn(
+                                  label: Text(
+                                    'Orientações/Detalhes',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
                                     ),
                                   ),
                                 ),
-                                DataCell(
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 4,
+                                const DataColumn(
+                                  label: Text(
+                                    'Ações',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
                                     ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.indigo.shade50,
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(
-                                      exame.especie,
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.indigo.shade700,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                DataCell(Text(exame.porte)),
-                                DataCell(
-                                  SizedBox(
-                                    width: 250,
-                                    child: Text(
-                                      exame.detalhes,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        color: Colors.grey.shade600,
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                DataCell(
-                                  Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      IconButton(
-                                        icon: const Icon(
-                                          Icons.edit_note_rounded,
-                                          color: Colors.blue,
-                                        ),
-                                        tooltip: "Editar Exame",
-                                        onPressed: () => _abrirModalCaixaExame(
-                                          context,
-                                          exameAtual: exame,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      IconButton(
-                                        icon: const Icon(
-                                          Icons.delete_outline_rounded,
-                                          color: Colors.redAccent,
-                                        ),
-                                        tooltip: "Excluir Exame",
-                                        onPressed: () =>
-                                            _confirmarExclusaoExame(
-                                              context,
-                                              exame,
-                                            ),
-                                      ),
-                                    ],
                                   ),
                                 ),
                               ],
-                            );
-                          }).toList(),
+                              rows: paginados.map((exame) {
+                                return DataRow(
+                                  cells: [
+                                    DataCell(
+                                      Text(
+                                        exame.nome,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.indigo,
+                                        ),
+                                      ),
+                                    ),
+                                    DataCell(
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 4,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.indigo.shade50,
+                                          borderRadius: BorderRadius.circular(
+                                            4,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          exame.especie,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.indigo.shade700,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    DataCell(Text(exame.porte)),
+                                    DataCell(
+                                      SizedBox(
+                                        width: 250,
+                                        child: Text(
+                                          exame.detalhes,
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            color: Colors.grey.shade600,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    DataCell(
+                                      Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          IconButton(
+                                            icon: const Icon(
+                                              Icons.edit_note_rounded,
+                                              color: Colors.blue,
+                                            ),
+                                            tooltip: "Editar Exame",
+                                            onPressed: () =>
+                                                _abrirModalCaixaExame(
+                                                  context,
+                                                  exameAtual: exame,
+                                                ),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          IconButton(
+                                            icon: const Icon(
+                                              Icons.delete_outline_rounded,
+                                              color: Colors.redAccent,
+                                            ),
+                                            tooltip: "Excluir Exame",
+                                            onPressed: () =>
+                                                _confirmarExclusaoExame(
+                                                  context,
+                                                  exame,
+                                                ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              }).toList(),
+                            ),
+                          ),
                         ),
-                      ),
+
+                        // Controles de Paginação Colados na Tabela
+                        if (totalPages > 1) ...[
+                          const SizedBox(height: 12),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              Text(
+                                "Página ${_currentPage + 1} de $totalPages",
+                                style: TextStyle(
+                                  color: Colors.grey.shade700,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Container(
+                                decoration: BoxDecoration(
+                                  border: Border.all(
+                                    color: Colors.grey.shade300,
+                                  ),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.chevron_left_rounded,
+                                      ),
+                                      color: _currentPage > 0
+                                          ? Colors.indigo
+                                          : Colors.grey.shade300,
+                                      onPressed: _currentPage > 0
+                                          ? () => setState(() => _currentPage--)
+                                          : null,
+                                    ),
+                                    Container(
+                                      width: 1,
+                                      height: 24,
+                                      color: Colors.grey.shade300,
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.chevron_right_rounded,
+                                      ),
+                                      color: _currentPage < totalPages - 1
+                                          ? Colors.indigo
+                                          : Colors.grey.shade300,
+                                      onPressed: _currentPage < totalPages - 1
+                                          ? () => setState(() => _currentPage++)
+                                          : null,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ],
                     );
                   },
                 );
               },
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

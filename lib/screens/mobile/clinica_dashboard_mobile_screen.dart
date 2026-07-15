@@ -1001,6 +1001,7 @@ class _ClinicaDashboardMobileScreenState
     );
   }
 
+  // 💡 MÁGICA REFATORADA: O modal Mobile agora salva na coleção pedidos_insumos
   void _abrirModalPedirInsumos() {
     String? localLabIdSelecionado;
     String? localLabNomeSelecionado;
@@ -1294,23 +1295,20 @@ class _ClinicaDashboardMobileScreenState
 
                           setModalState(() => enviando = true);
 
-                          final chamado = ChamadoColetaModel(
-                            id: '',
-                            clinicaId: widget.clinicaContexto.id!,
-                            clinicaNome: widget.clinicaContexto.nome,
-                            laboratorioId: localLabIdSelecionado!,
-                            laboratorioNome: localLabNomeSelecionado!,
-                            status: 'Aguardando Insumos',
-                            isEmergencia: false,
-                            dataCriacao: DateTime.now(),
-                            dataAgendamento: DateTime.now(),
-                            tipoChamado: 'Insumo',
-                            insumosSolicitados: insumosSelecionados,
+                          // 💡 AGORA SALVAMOS O MAP DIRETAMENTE NA COLEÇÃO CERTA!
+                          final pedidoData = {
+                            'clinicaId': widget.clinicaContexto.id,
+                            'clinicaNome': widget.clinicaContexto.nome,
+                            'laboratorioId': localLabIdSelecionado,
+                            'status': 'Pendente',
+                            'dataSolicitacao': FieldValue.serverTimestamp(),
+                            'itens': insumosSelecionados,
+                          };
+
+                          final sucesso = await _controller.criarPedidoInsumo(
+                            pedidoData,
                           );
 
-                          final sucesso = await _controller.criarChamado(
-                            chamado,
-                          );
                           if (sucesso && context.mounted) {
                             Navigator.pop(context);
                             ScaffoldMessenger.of(context).showSnackBar(

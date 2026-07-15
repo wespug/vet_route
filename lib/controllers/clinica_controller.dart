@@ -60,6 +60,7 @@ class ClinicaController extends ChangeNotifier {
     }
   }
 
+  // 💡 ESTE MÉTODO CONTINUA PARA COLETAS (MOTOBOY)
   Future<bool> criarChamado(ChamadoColetaModel chamado) async {
     try {
       isLoading.value = true;
@@ -68,6 +69,22 @@ class ClinicaController extends ChangeNotifier {
       return true;
     } catch (e) {
       debugPrint('Erro ao criar chamado: $e');
+      return false;
+    } finally {
+      isLoading.value = false;
+      notifyListeners();
+    }
+  }
+
+  // 💡 NOVO MÉTODO EXCLUSIVO PARA INSUMOS (SALVA NA COLEÇÃO NOVA)
+  Future<bool> criarPedidoInsumo(Map<String, dynamic> pedidoData) async {
+    try {
+      isLoading.value = true;
+      notifyListeners();
+      await _db.collection('pedidos_insumos').add(pedidoData);
+      return true;
+    } catch (e) {
+      debugPrint('Erro ao criar pedido de insumo: $e');
       return false;
     } finally {
       isLoading.value = false;

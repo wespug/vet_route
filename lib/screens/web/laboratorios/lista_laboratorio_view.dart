@@ -16,6 +16,13 @@ class ListaLaboratoriosView extends StatefulWidget {
 class _ListaLaboratoriosViewState extends State<ListaLaboratoriosView> {
   final LaboratorioAdminController _controller = LaboratorioAdminController();
 
+  // 🔎 VARIÁVEIS DE BUSCA, ORDENAÇÃO E PAGINAÇÃO LIMPA
+  String _searchQuery = '';
+  int _currentPage = 0;
+  final int _itemsPerPage = 10;
+  int _sortColumnIndex = 0;
+  bool _isAscending = true;
+
   @override
   void initState() {
     super.initState();
@@ -30,114 +37,272 @@ class _ListaLaboratoriosViewState extends State<ListaLaboratoriosView> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                "Laboratórios Parceiros 🔬",
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
-              ElevatedButton.icon(
-                onPressed: () => _abrirModalFormulario(context),
-                icon: const Icon(Icons.add_business_rounded),
-                label: const Text(
-                  "Vincular Novo",
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 16,
+    return SingleChildScrollView(
+      // 💡 Proteção principal contra RenderFlex (Tela Vermelha)
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min, // Força o layout compacto
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  "Laboratórios Parceiros 🔬",
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
                   ),
-                  backgroundColor: Colors.indigo,
-                  foregroundColor: Colors.white,
+                ),
+                ElevatedButton.icon(
+                  onPressed: () => _abrirModalFormulario(context),
+                  icon: const Icon(Icons.add_business_rounded),
+                  label: const Text(
+                    "Vincular Novo",
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 16,
+                    ),
+                    backgroundColor: Colors.indigo,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+
+            // 🔎 CAMPO DE BUSCA
+            TextField(
+              decoration: InputDecoration(
+                hintText: 'Buscar por Nome, CNPJ ou Cidade...',
+                prefixIcon: const Icon(Icons.search, color: Colors.indigo),
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: Colors.indigo, width: 2),
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 24),
+              onChanged: (value) {
+                setState(() {
+                  _searchQuery = value;
+                  _currentPage = 0; // Reseta a página ao buscar
+                });
+              },
+            ),
+            const SizedBox(height: 24),
 
-          Expanded(
-            child: ValueListenableBuilder<List<Laboratorio>>(
+            // 💡 LISTAGEM COMPACTA E INTELIGENTE
+            ValueListenableBuilder<List<Laboratorio>>(
               valueListenable: _controller.laboratorios,
-              builder: (context, listaLabs, child) {
-                if (listaLabs.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.biotech_rounded,
-                          size: 64,
-                          color: Colors.grey.shade300,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          "Nenhum laboratório cadastrado ainda.",
-                          style: TextStyle(
-                            color: Colors.grey.shade500,
-                            fontSize: 16,
+              builder: (context, todosLaboratorios, child) {
+                // 1. APLICAR BUSCA
+                List<Laboratorio> filtrados = todosLaboratorios.where((lab) {
+                  if (_searchQuery.isEmpty) return true;
+                  final termo = _searchQuery.toLowerCase();
+                  return lab.nome.toLowerCase().contains(termo) ||
+                      lab.cnpj.toLowerCase().contains(termo) ||
+                      lab.endereco.cidade.toLowerCase().contains(termo);
+                }).toList();
+
+                // 2. APLICAR ORDENAÇÃO
+                filtrados.sort((a, b) {
+                  int result = 0;
+                  switch (_sortColumnIndex) {
+                    case 0:
+                      result = a.nome.toLowerCase().compareTo(
+                        b.nome.toLowerCase(),
+                      );
+                      break;
+                    case 1:
+                      result = a.cnpj.compareTo(b.cnpj);
+                      break;
+                    case 2:
+                      result = a.endereco.cidade.toLowerCase().compareTo(
+                        b.endereco.cidade.toLowerCase(),
+                      );
+                      break;
+                    default:
+                      result = a.nome.compareTo(b.nome);
+                  }
+                  return _isAscending ? result : -result;
+                });
+
+                // Tratamento de lista vazia
+                if (filtrados.isEmpty) {
+                  return Padding(
+                    padding: const EdgeInsets.all(48.0),
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.biotech_rounded,
+                            size: 64,
+                            color: Colors.grey.shade300,
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 16),
+                          Text(
+                            _searchQuery.isNotEmpty
+                                ? "Nenhum laboratório encontrado para '$_searchQuery'."
+                                : "Nenhum laboratório cadastrado ainda.",
+                            style: TextStyle(
+                              color: Colors.grey.shade500,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   );
                 }
 
-                return Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade200),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: SingleChildScrollView(
-                    child: DataTable(
-                      headingRowColor: WidgetStateProperty.all(
-                        Colors.grey.shade50,
+                // 3. APLICAR PAGINAÇÃO MANUAL E COMPACTA
+                int totalItems = filtrados.length;
+                int totalPages = (totalItems / _itemsPerPage).ceil();
+                if (_currentPage >= totalPages && totalPages > 0) {
+                  _currentPage = totalPages - 1;
+                }
+
+                int startIndex = _currentPage * _itemsPerPage;
+                int endIndex = startIndex + _itemsPerPage;
+                if (endIndex > totalItems) endIndex = totalItems;
+
+                List<Laboratorio> paginados = filtrados.sublist(
+                  startIndex,
+                  endIndex,
+                );
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  mainAxisSize: MainAxisSize.min, // Força layout compacto
+                  children: [
+                    Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        border: Border.all(color: Colors.grey.shade200),
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                      columns: const [
-                        DataColumn(
-                          label: Text(
-                            'Laboratório',
-                            style: TextStyle(fontWeight: FontWeight.bold),
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: DataTable(
+                          sortColumnIndex: _sortColumnIndex,
+                          sortAscending: _isAscending,
+                          headingRowColor: WidgetStateProperty.all(
+                            Colors.grey.shade50,
                           ),
+                          columns: [
+                            DataColumn(
+                              label: const Text(
+                                'Laboratório',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              onSort: (col, asc) => setState(() {
+                                _sortColumnIndex = col;
+                                _isAscending = asc;
+                              }),
+                            ),
+                            const DataColumn(
+                              label: Text(
+                                'CNPJ',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                            DataColumn(
+                              label: const Text(
+                                'Localização',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              onSort: (col, asc) => setState(() {
+                                _sortColumnIndex = col;
+                                _isAscending = asc;
+                              }),
+                            ),
+                            const DataColumn(
+                              label: Text(
+                                'Ações',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ],
+                          rows: paginados
+                              .map((lab) => _buildRowReal(lab))
+                              .toList(),
                         ),
-                        DataColumn(
-                          label: Text(
-                            'CNPJ',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                        DataColumn(
-                          label: Text(
-                            'Localização',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                        DataColumn(
-                          label: Text(
-                            'Ações',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                      ],
-                      rows: listaLabs.map((lab) => _buildRowReal(lab)).toList(),
+                      ),
                     ),
-                  ),
+
+                    // Controles de Paginação
+                    if (totalPages > 1) const SizedBox(height: 12),
+                    if (totalPages > 1)
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Text(
+                            "Página ${_currentPage + 1} de $totalPages",
+                            style: TextStyle(
+                              color: Colors.grey.shade700,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Container(
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey.shade300),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.chevron_left_rounded),
+                                  color: _currentPage > 0
+                                      ? Colors.indigo
+                                      : Colors.grey.shade300,
+                                  onPressed: _currentPage > 0
+                                      ? () => setState(() => _currentPage--)
+                                      : null,
+                                ),
+                                Container(
+                                  width: 1,
+                                  height: 24,
+                                  color: Colors.grey.shade300,
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.chevron_right_rounded),
+                                  color: _currentPage < totalPages - 1
+                                      ? Colors.indigo
+                                      : Colors.grey.shade300,
+                                  onPressed: _currentPage < totalPages - 1
+                                      ? () => setState(() => _currentPage++)
+                                      : null,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                  ],
                 );
               },
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -180,7 +345,6 @@ class _ListaLaboratoriosViewState extends State<ListaLaboratoriosView> {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // 💡 NOVO: Botão de olho para Gerenciar/Entrar no laboratório diretamente
               IconButton(
                 icon: const Icon(
                   Icons.visibility_outlined,

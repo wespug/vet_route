@@ -4,7 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:vet_route/controllers/permissoes_controller.dart';
 import 'package:vet_route/models/laboratorio_model.dart';
 import 'package:vet_route/models/submenu_item_model.dart';
-
+import 'package:vet_route/screens/web/laboratorios/gestao_pedidos_insumos_lab_view.dart';
 import 'package:vet_route/screens/web/laboratorios/lista_laboratorio_view.dart';
 import 'package:vet_route/screens/web/laboratorios/lab_dashboard_view.dart';
 import 'package:vet_route/screens/web/laboratorios/cadastro_insumo.dart';
@@ -157,6 +157,8 @@ class _LaboratoriosHubState extends State<LaboratoriosHub>
         return CadastroInsumoHub(labContexto: _labSelecionado!);
       case 'lab_gestao_rotas':
         return GestaoRotasHub(labContexto: _labSelecionado!);
+      case 'lab_pedidos_insumos':
+        return GestaoPedidosInsumosLabView(labContexto: _labSelecionado!);
       default:
         return _buildPlaceholder(rota);
     }
