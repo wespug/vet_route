@@ -3,9 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:vet_route/controllers/chamado_coleta_controller.dart';
 import 'package:vet_route/models/clinica_model.dart';
 import 'package:vet_route/models/chamado_coleta_model.dart';
-import 'package:vet_route/screens/web/clinicas/modal/modal_detalhes_coleta.dart';
-
-import 'package:vet_route/screens/web/clinicas/modal/modal_detalhes_insumo.dart';
+import 'package:vet_route/screens/web/clinicas/components/chamados_data_source.dart';
 import 'package:vet_route/screens/web/clinicas/modal/modal_pedir_insumos.dart';
 import 'package:vet_route/screens/web/clinicas/modal/modal_novo_chamado.dart';
 
@@ -25,7 +23,7 @@ class _GestaoChamadosViewState extends State<GestaoChamadosView>
   String _termoBusca = '';
   int _linhasPorPagina = PaginatedDataTable.defaultRowsPerPage;
 
-  // 💡 Controle de Ordenação
+  // Controle de Ordenação
   int? _sortColumnIndex;
   bool _sortAscending = true;
 
@@ -52,7 +50,6 @@ class _GestaoChamadosViewState extends State<GestaoChamadosView>
     return 'Usuário Desconhecido';
   }
 
-  // 💡 Função chamada quando o usuário clica no título da coluna
   void _onSort(int columnIndex, bool ascending) {
     setState(() {
       _sortColumnIndex = columnIndex;
@@ -106,7 +103,7 @@ class _GestaoChamadosViewState extends State<GestaoChamadosView>
                 indicatorSize: TabBarIndicatorSize.tab,
                 tabs: [
                   Tab(text: "Coletas Ativas & Agendadas"),
-                  Tab(text: "Coletas Entregues / Histórico"),
+                  Tab(text: "Encerrados / Histórico"),
                 ],
               ),
               const SizedBox(height: 16),
@@ -260,25 +257,38 @@ class _GestaoChamadosViewState extends State<GestaoChamadosView>
         return ValueListenableBuilder<List<ChamadoColetaModel>>(
           valueListenable: listenableTarget,
           builder: (context, chamados, child) {
-            // 1. Filtragem pela busca
+            // 1. Filtragem por busca e garantia de separação por status
             List<ChamadoColetaModel> chamadosFiltrados = chamados.where((c) {
+              final statusLower = c.status.toLowerCase();
+              final eEncerrado =
+                  statusLower == 'entregue' ||
+                  statusLower == 'concluído' ||
+                  statusLower == 'cancelado' ||
+                  statusLower == 'recusado' ||
+                  statusLower == 'finalizada';
+
+              // Filtra se deve aparecer na aba atual
+              if (isHistorico && !eEncerrado) return false;
+              if (!isHistorico && eEncerrado) return false;
+
+              // Filtra pelo termo buscado
               final termo = _termoBusca.toLowerCase();
               return c.laboratorioNome.toLowerCase().contains(termo) ||
                   c.status.toLowerCase().contains(termo);
             }).toList();
 
-            // 2. 💡 Lógica de Ordenação em Memória
+            // 2. Lógica de Ordenação em Memória
             if (_sortColumnIndex != null) {
               chamadosFiltrados.sort((a, b) {
                 int comp = 0;
                 switch (_sortColumnIndex) {
-                  case 1: // Laboratório
+                  case 1:
                     comp = a.laboratorioNome.compareTo(b.laboratorioNome);
                     break;
-                  case 2: // Data
+                  case 2:
                     comp = a.dataAgendamento.compareTo(b.dataAgendamento);
                     break;
-                  case 3: // Status
+                  case 3:
                     comp = a.status.compareTo(b.status);
                     break;
                 }
@@ -334,7 +344,7 @@ class _GestaoChamadosViewState extends State<GestaoChamadosView>
                 child: PaginatedDataTable(
                   header: Text(
                     isHistorico
-                        ? "Histórico Operacional"
+                        ? "Histórico Operacional / Encerrados"
                         : "Painel de Coletas Ativas",
                     style: const TextStyle(
                       fontSize: 16,
@@ -347,7 +357,6 @@ class _GestaoChamadosViewState extends State<GestaoChamadosView>
                     () => _linhasPorPagina =
                         value ?? PaginatedDataTable.defaultRowsPerPage,
                   ),
-                  // 💡 Indicadores de Ordenação da Tabela
                   sortColumnIndex: _sortColumnIndex,
                   sortAscending: _sortAscending,
                   columns: [
@@ -362,21 +371,21 @@ class _GestaoChamadosViewState extends State<GestaoChamadosView>
                         'Laboratório Destino',
                         style: TextStyle(fontWeight: FontWeight.bold),
                       ),
-                      onSort: _onSort, // 💡 Permite Clicar para Ordenar
+                      onSort: _onSort,
                     ),
                     DataColumn(
                       label: const Text(
                         'Data',
                         style: TextStyle(fontWeight: FontWeight.bold),
                       ),
-                      onSort: _onSort, // 💡 Permite Clicar para Ordenar
+                      onSort: _onSort,
                     ),
                     DataColumn(
                       label: const Text(
                         'Status',
                         style: TextStyle(fontWeight: FontWeight.bold),
                       ),
-                      onSort: _onSort, // 💡 Permite Clicar para Ordenar
+                      onSort: _onSort,
                     ),
                     const DataColumn(
                       label: Text(
@@ -394,151 +403,4 @@ class _GestaoChamadosViewState extends State<GestaoChamadosView>
       },
     );
   }
-}
-
-class ChamadosDataSource extends DataTableSource {
-  final BuildContext context;
-  final List<ChamadoColetaModel> chamados;
-  final Clinica clinicaContexto;
-  final String usuarioLogado;
-
-  ChamadosDataSource({
-    required this.context,
-    required this.chamados,
-    required this.clinicaContexto,
-    required this.usuarioLogado,
-  });
-
-  static Color obterCorStatus(String status) {
-    switch (status.toLowerCase()) {
-      case 'aguardando entregador':
-      case 'pendente':
-        return Colors.orange;
-      case 'a caminho':
-        return Colors.blue;
-      case 'aguardando insumos':
-      case 'aprovado':
-        return Colors.teal;
-      case 'concluído':
-      case 'finalizada':
-      case 'entregue':
-        return Colors.green;
-      case 'cancelado':
-        return Colors.red;
-      default:
-        return Colors.grey.shade700;
-    }
-  }
-
-  @override
-  DataRow? getRow(int index) {
-    if (index >= chamados.length) return null;
-    final chamado = chamados[index];
-
-    final String dataFormatada =
-        "${chamado.dataAgendamento.day.toString().padLeft(2, '0')}/${chamado.dataAgendamento.month.toString().padLeft(2, '0')}/${chamado.dataAgendamento.year}";
-    final corStatus = obterCorStatus(chamado.status);
-    final bool isInsumo = chamado.laboratorioId.startsWith('INSUMO_');
-
-    IconData iconeTipo;
-    Color corTipo;
-    Color corFundoTipo;
-
-    if (isInsumo) {
-      iconeTipo = Icons.inventory_2_rounded;
-      corTipo = Colors.teal;
-      corFundoTipo = Colors.teal.shade50;
-    } else if (chamado.isEmergencia) {
-      iconeTipo = Icons.flash_on_rounded;
-      corTipo = Colors.redAccent.shade700;
-      corFundoTipo = Colors.red.shade50;
-    } else {
-      iconeTipo = Icons.motorcycle_rounded;
-      corTipo = Colors.indigo;
-      corFundoTipo = Colors.indigo.shade50;
-    }
-
-    return DataRow(
-      cells: [
-        DataCell(
-          Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: corFundoTipo,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(iconeTipo, color: corTipo, size: 20),
-          ),
-        ),
-        DataCell(
-          Text(
-            chamado.laboratorioNome,
-            style: const TextStyle(
-              fontWeight: FontWeight.w600,
-              color: Colors.indigo,
-            ),
-          ),
-        ),
-        DataCell(Text(dataFormatada)),
-        DataCell(
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: corStatus.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: corStatus.withOpacity(0.5)),
-            ),
-            child: Text(
-              chamado.status.toUpperCase(),
-              style: TextStyle(
-                color: corStatus,
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 0.5,
-              ),
-            ),
-          ),
-        ),
-        DataCell(
-          IconButton(
-            icon: const Icon(
-              Icons.arrow_forward_ios_rounded,
-              size: 16,
-              color: Colors.grey,
-            ),
-            onPressed: () {
-              if (isInsumo) {
-                showDialog(
-                  context: context,
-                  builder: (_) => ModalDetalhesInsumo(
-                    chamado: chamado,
-                    clinicaContexto: clinicaContexto,
-                    usuarioLogado: usuarioLogado,
-                    obterCorStatus: obterCorStatus,
-                  ),
-                );
-              } else {
-                showDialog(
-                  context: context,
-                  builder: (_) => ModalDetalhesColeta(
-                    chamado: chamado,
-                    clinicaContexto: clinicaContexto,
-                    usuarioLogado: usuarioLogado,
-                    obterCorStatus: obterCorStatus,
-                  ),
-                );
-              }
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  @override
-  bool get isRowCountApproximate => false;
-  @override
-  int get rowCount => chamados.length;
-  @override
-  int get selectedRowCount => 0;
 }

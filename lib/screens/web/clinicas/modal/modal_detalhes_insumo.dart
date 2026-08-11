@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:vet_route/models/clinica_model.dart';
+import 'package:intl/intl.dart';
 import 'package:vet_route/models/chamado_coleta_model.dart';
+import 'package:vet_route/models/clinica_model.dart';
 
 class ModalDetalhesInsumo extends StatelessWidget {
   final ChamadoColetaModel chamado;
@@ -17,400 +18,387 @@ class ModalDetalhesInsumo extends StatelessWidget {
     required this.obterCorStatus,
   });
 
+  // 🎨 Mapeamento Visual dos Status do Pedido de Insumos
+  Color _obterCorStatusInsumo(String status) {
+    switch (status.toLowerCase()) {
+      case 'pendente':
+      case 'aguardando_analise':
+        return Colors.orange.shade700;
+      case 'em_separacao':
+      case 'em separação':
+        return Colors.blue.shade700;
+      case 'aguardando_coleta':
+      case 'aguardando coleta':
+        return Colors.purple.shade700;
+      case 'entregue':
+      case 'concluído':
+      case 'concluido':
+        return Colors.green.shade700;
+      case 'recusado':
+      case 'cancelado':
+        return Colors.red.shade700;
+      default:
+        return Colors.grey.shade700;
+    }
+  }
+
+  String _obterTextoStatus(String status) {
+    switch (status.toLowerCase()) {
+      case 'pendente':
+      case 'aguardando_analise':
+        return 'Pendente / Em Análise pelo Lab';
+      case 'em_separacao':
+      case 'em separação':
+        return 'Em Separação no Laboratório';
+      case 'aguardando_coleta':
+      case 'aguardando coleta':
+        return 'Pronto / Aguardando Motoboy';
+      case 'entregue':
+      case 'concluído':
+      case 'concluido':
+        return 'Pedido Entregue';
+      case 'recusado':
+      case 'cancelado':
+        return 'Pedido Recusado pelo Laboratório';
+      default:
+        return status;
+    }
+  }
+
+  IconData _obterIconeStatus(String status) {
+    switch (status.toLowerCase()) {
+      case 'pendente':
+      case 'aguardando_analise':
+        return Icons.hourglass_top_rounded;
+      case 'em_separacao':
+      case 'em separação':
+        return Icons.inventory_2_outlined;
+      case 'aguardando_coleta':
+      case 'aguardando coleta':
+        return Icons.sports_motorsports_outlined;
+      case 'entregue':
+      case 'concluído':
+      case 'concluido':
+        return Icons.check_circle_outline;
+      case 'recusado':
+      case 'cancelado':
+        return Icons.cancel_outlined;
+      default:
+        return Icons.help_outline;
+    }
+  }
+
+  // Helper para formatar Timestamp/DateTime em 'dd/MM/yyyy HH:mm'
+  String _formatarDataHora(dynamic valorData) {
+    if (valorData == null) return '';
+    try {
+      if (valorData is Timestamp) {
+        return DateFormat('dd/MM/yyyy HH:mm').format(valorData.toDate());
+      } else if (valorData is DateTime) {
+        return DateFormat('dd/MM/yyyy HH:mm').format(valorData);
+      }
+    } catch (_) {}
+    return '';
+  }
+
   @override
   Widget build(BuildContext context) {
+    // 💡 Remove o prefixo interno 'INSUMO_' para buscar o ID real no Firestore
+    final docIdLimpo = chamado.id.replaceFirst('INSUMO_', '');
+
     return AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      titlePadding: EdgeInsets.zero,
-      title: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.teal.shade700,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(16),
-            topRight: Radius.circular(16),
-          ),
-        ),
-        child: const Row(
-          children: [
-            Icon(Icons.inventory_2_rounded, color: Colors.white),
-            SizedBox(width: 12),
-            Text(
-              "Detalhes do Pedido",
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-                fontSize: 18,
-              ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      title: Row(
+        children: [
+          const Icon(Icons.inventory_2_rounded, color: Colors.teal),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              "Insumos - ${chamado.laboratorioNome}",
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              overflow: TextOverflow.ellipsis,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
       content: SizedBox(
         width: 550,
-        height: 650,
         child: FutureBuilder<DocumentSnapshot>(
           future: FirebaseFirestore.instance
               .collection('pedidos_insumos')
-              .doc(chamado.id)
+              .doc(docIdLimpo)
               .get(),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(
-                child: CircularProgressIndicator(color: Colors.teal),
+              return const SizedBox(
+                height: 220,
+                child: Center(
+                  child: CircularProgressIndicator(color: Colors.teal),
+                ),
               );
             }
+
             if (!snapshot.hasData || !snapshot.data!.exists) {
-              return const Center(
-                child: Text("Pedido não encontrado ou foi excluído."),
+              return const Padding(
+                padding: EdgeInsets.all(24.0),
+                child: Text(
+                  "Não foi possível localizar os dados deste pedido de insumos.",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey),
+                ),
               );
             }
 
             final data = snapshot.data!.data() as Map<String, dynamic>;
-            final itens = List<Map<String, dynamic>>.from(data['itens'] ?? []);
-            List<Map<String, dynamic>> historico =
-                List<Map<String, dynamic>>.from(data['historico'] ?? []);
+            final status = (data['status'] ?? 'Pendente').toString();
 
-            if (historico.isEmpty) {
-              DateTime dataCriacao = DateTime.now();
-              if (data['dataSolicitacao'] is Timestamp) {
-                dataCriacao = (data['dataSolicitacao'] as Timestamp).toDate();
-              }
-              historico.add({
-                'status': 'Pendente',
-                'data': dataCriacao.toIso8601String(),
-                'observacao': 'Pedido de insumos realizado por $usuarioLogado',
-              });
-            }
+            // 1. DADOS DO SOLICITANTE DA CLÍNICA
+            final String solicitanteNome =
+                data['usuarioSolicitante'] ??
+                data['solicitanteNome'] ??
+                data['usuarioLogado'] ??
+                'Não informado';
 
-            final obsLab = data['observacaoLaboratorio'] as String?;
-            final statusAtual = data['status'] ?? 'Pendente';
+            final rawData = data['dataSolicitacao'] ?? data['dataPedido'];
+            final dataFormatada = rawData != null
+                ? _formatarDataHora(rawData)
+                : _formatarDataHora(chamado.dataCriacao);
+
+            // 2. DADOS DA OBSERVAÇÃO/RECUSA DO LABORATÓRIO
+            final String justificativaLab =
+                data['justificativaLab'] ?? data['observacaoLaboratorio'] ?? '';
+            final String usuarioLabObs =
+                data['usuarioObservacaoLab'] ??
+                data['usuarioRespostaLab'] ??
+                data['laboratorioUsuario'] ??
+                '';
+            final String dataLabObsFormatada = _formatarDataHora(
+              data['dataObservacaoLab'] ?? data['dataRespostaLab'],
+            );
+
+            final List itens = data['itens'] ?? [];
+
+            final isRecusado =
+                status.toLowerCase() == 'recusado' ||
+                status.toLowerCase() == 'cancelado';
+
+            final corStatus = _obterCorStatusInsumo(status);
 
             return SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              "DESTINO",
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.grey.shade500,
-                                letterSpacing: 1.2,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              chamado.laboratorioNome,
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black87,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: obterCorStatus(statusAtual).withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: obterCorStatus(statusAtual).withOpacity(0.5),
-                          ),
-                        ),
-                        child: Text(
-                          statusAtual.toUpperCase(),
-                          style: TextStyle(
-                            color: obterCorStatus(statusAtual),
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1.0,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  const Divider(),
-                  const SizedBox(height: 16),
-                  if (obsLab != null && obsLab.isNotEmpty) ...[
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.amber.shade50,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.amber.shade200),
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Icon(
-                            Icons.warning_rounded,
-                            color: Colors.amber.shade800,
-                            size: 24,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  "Retorno do Laboratório:",
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.amber.shade900,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  obsLab,
-                                  style: TextStyle(
-                                    color: Colors.amber.shade900,
-                                    height: 1.4,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                  ],
-                  Text(
-                    "MATERIAIS SOLICITADOS",
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey.shade500,
-                      letterSpacing: 1.2,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
+                  // 1. HEADER DE STATUS DESTACADO (COM QUEM SOLICITOU + DATA/HORA)
                   Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade50,
-                      border: Border.all(color: Colors.grey.shade200),
-                      borderRadius: BorderRadius.circular(12),
+                      color: corStatus.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: corStatus.withOpacity(0.3)),
                     ),
-                    child: ListView.separated(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: itens.length,
-                      separatorBuilder: (_, __) =>
-                          Divider(height: 1, color: Colors.grey.shade200),
-                      itemBuilder: (context, index) {
-                        final item = itens[index];
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-                          child: Row(
+                    child: Row(
+                      children: [
+                        Icon(
+                          _obterIconeStatus(status),
+                          color: corStatus,
+                          size: 28,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: Colors.teal.shade50,
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Icon(
-                                  Icons.vaccines_rounded,
-                                  size: 16,
-                                  color: Colors.teal.shade600,
+                              Text(
+                                _obterTextoStatus(status),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: corStatus,
+                                  fontSize: 15,
                                 ),
                               ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                              const SizedBox(height: 2),
+                              RichText(
+                                text: TextSpan(
+                                  style: TextStyle(
+                                    color: Colors.grey.shade700,
+                                    fontSize: 12,
+                                  ),
                                   children: [
-                                    Text(
-                                      item['descricao'] ?? '',
+                                    TextSpan(
+                                      text: "Solicitado em: $dataFormatada",
+                                    ),
+                                    const TextSpan(text: " por "),
+                                    TextSpan(
+                                      text: solicitanteNome,
                                       style: const TextStyle(
                                         fontWeight: FontWeight.bold,
-                                        color: Colors.black87,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      item['tipo'] ?? '',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey.shade600,
                                       ),
                                     ),
                                   ],
                                 ),
                               ),
-                              Text(
-                                "${item['quantidade']} UN",
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                  color: Colors.teal,
-                                ),
-                              ),
                             ],
                           ),
-                        );
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-                  Text(
-                    "LINHA DO TEMPO",
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey.shade500,
-                      letterSpacing: 1.2,
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 16),
-                  Padding(
-                    padding: const EdgeInsets.only(left: 8.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: historico.asMap().entries.map((entry) {
-                        final index = entry.key;
-                        final h = entry.value;
-                        final isLast = index == historico.length - 1;
 
-                        DateTime dataH;
-                        if (h['data'] is String) {
-                          dataH = DateTime.parse(h['data']);
-                        } else if (h['data'] is Timestamp) {
-                          dataH = (h['data'] as Timestamp).toDate();
-                        } else {
-                          dataH = DateTime.now();
-                        }
-
-                        final String dataFormatada =
-                            "${dataH.day.toString().padLeft(2, '0')}/${dataH.month.toString().padLeft(2, '0')}/${dataH.year}";
-                        final String horaFormatada =
-                            "${dataH.hour.toString().padLeft(2, '0')}:${dataH.minute.toString().padLeft(2, '0')}";
-                        final corHistorico = obterCorStatus(h['status'] ?? '');
-
-                        return IntrinsicHeight(
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                  // 2. 📌 ALERTA DE OBSERVAÇÃO OU RECUSA DO LABORATÓRIO (COM AUTOR E DATA/HORA)
+                  if (justificativaLab.isNotEmpty) ...[
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: isRecusado
+                            ? Colors.red.shade50
+                            : Colors.amber.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: isRecusado
+                              ? Colors.red.shade300
+                              : Colors.amber.shade400,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
                             children: [
-                              Column(
-                                children: [
-                                  Container(
-                                    width: 16,
-                                    height: 16,
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: corHistorico,
-                                        width: 4,
-                                      ),
-                                    ),
-                                  ),
-                                  if (!isLast)
-                                    Expanded(
-                                      child: Container(
-                                        width: 2,
-                                        color: Colors.grey.shade300,
-                                        margin: const EdgeInsets.symmetric(
-                                          vertical: 4,
-                                        ),
-                                      ),
-                                    ),
-                                ],
+                              Icon(
+                                isRecusado
+                                    ? Icons.error_outline
+                                    : Icons.info_outline,
+                                color: isRecusado
+                                    ? Colors.red.shade700
+                                    : Colors.amber.shade900,
+                                size: 20,
                               ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: Padding(
-                                  padding: const EdgeInsets.only(bottom: 24.0),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Text(
-                                            h['status'] ?? '',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 15,
-                                              color: corHistorico,
-                                            ),
-                                          ),
-                                          Text(
-                                            "$dataFormatada - $horaFormatada",
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w600,
-                                              color: Colors.grey.shade500,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 4),
-                                      if (h['observacao'] != null &&
-                                          (h['observacao'] as String)
-                                              .isNotEmpty)
-                                        Container(
-                                          padding: const EdgeInsets.all(10),
-                                          margin: const EdgeInsets.only(top: 8),
-                                          decoration: BoxDecoration(
-                                            color: Colors.grey.shade100,
-                                            borderRadius: BorderRadius.circular(
-                                              8,
-                                            ),
-                                            border: Border.all(
-                                              color: Colors.grey.shade200,
-                                            ),
-                                          ),
-                                          child: Row(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Icon(
-                                                Icons.person_outline,
-                                                size: 16,
-                                                color: Colors.grey.shade600,
-                                              ),
-                                              const SizedBox(width: 8),
-                                              Expanded(
-                                                child: Text(
-                                                  h['observacao'],
-                                                  style: TextStyle(
-                                                    fontSize: 13,
-                                                    color: Colors.grey.shade800,
-                                                    height: 1.3,
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                    ],
-                                  ),
+                              const SizedBox(width: 8),
+                              Text(
+                                isRecusado
+                                    ? "Motivo da Recusa do Pedido:"
+                                    : "Observação do Laboratório:",
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: isRecusado
+                                      ? Colors.red.shade700
+                                      : Colors.amber.shade900,
+                                  fontSize: 13,
                                 ),
                               ),
                             ],
                           ),
+                          const SizedBox(height: 6),
+                          Text(
+                            justificativaLab,
+                            style: TextStyle(
+                              color: isRecusado
+                                  ? Colors.red.shade900
+                                  : Colors.black87,
+                              fontSize: 13,
+                              height: 1.3,
+                            ),
+                          ),
+
+                          // Autoria e Data/Hora da Observação
+                          if (usuarioLabObs.isNotEmpty ||
+                              dataLabObsFormatada.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: Text(
+                                "Por: ${usuarioLabObs.isNotEmpty ? usuarioLabObs : 'Laboratório'}" +
+                                    (dataLabObsFormatada.isNotEmpty
+                                        ? " em $dataLabObsFormatada"
+                                        : ""),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontStyle: FontStyle.italic,
+                                  fontWeight: FontWeight.w600,
+                                  color: isRecusado
+                                      ? Colors.red.shade800
+                                      : Colors.amber.shade900,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+
+                  // 3. LISTA DE MATERIAIS SOLICITADOS
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        "Materiais Solicitados:",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                      Text(
+                        "${itens.length} tipo(s)",
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+
+                  Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade300),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: itens.length,
+                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        final item = itens[index];
+                        final nomeInsumo =
+                            item['descricao'] ??
+                            item['nomeInsumo'] ??
+                            item['nome'] ??
+                            'Insumo';
+                        final qtd =
+                            item['quantidade'] ??
+                            item['quantidadeSolicitada'] ??
+                            item['qtd'] ??
+                            0;
+                        final tipo = item['tipo'] ?? item['categoria'] ?? '-';
+
+                        return ListTile(
+                          dense: true,
+                          leading: const Icon(
+                            Icons.science_outlined,
+                            color: Colors.teal,
+                          ),
+                          title: Text(
+                            nomeInsumo,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          subtitle: Text("Categoria: $tipo"),
+                          trailing: Text(
+                            "$qtd un.",
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                              color: Colors.teal,
+                            ),
+                          ),
                         );
-                      }).toList(),
+                      },
                     ),
                   ),
                 ],
@@ -419,110 +407,17 @@ class ModalDetalhesInsumo extends StatelessWidget {
           },
         ),
       ),
-      actionsPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       actions: [
-        // 💡 Botão Inteligente: Trava Blindada com contains()
-        StreamBuilder<DocumentSnapshot>(
-          stream: FirebaseFirestore.instance
-              .collection('pedidos_insumos')
-              .doc(chamado.id)
-              .snapshots(),
-          builder: (context, snapshot) {
-            if (!snapshot.hasData || !snapshot.data!.exists) {
-              return const SizedBox.shrink();
-            }
-            final data = snapshot.data!.data() as Map<String, dynamic>;
-            final statusLower = (data['status'] ?? chamado.status)
-                .toString()
-                .toLowerCase();
-
-            // Usando contains para driblar acentos, maiúsculas e "o/a"
-            final bool isFinalizado =
-                statusLower.contains('entregue') ||
-                statusLower.contains('finalizad') ||
-                statusLower.contains('conclu') ||
-                statusLower.contains('cancelad');
-
-            if (isFinalizado) return const SizedBox.shrink();
-
-            return TextButton(
-              onPressed: () async {
-                if (context.mounted) {
-                  bool confirm = await showDialog(
-                    context: context,
-                    builder: (c) => AlertDialog(
-                      title: const Text("Cancelar Pedido?"),
-                      content: const Text(
-                        "Tem certeza que deseja cancelar a solicitação destes insumos?",
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(c, false),
-                          child: const Text("Não, Voltar"),
-                        ),
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.redAccent,
-                          ),
-                          onPressed: () => Navigator.pop(c, true),
-                          child: const Text(
-                            "Sim, Cancelar",
-                            style: TextStyle(color: Colors.white),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-
-                  if (confirm == true) {
-                    await FirebaseFirestore.instance
-                        .collection('pedidos_insumos')
-                        .doc(chamado.id)
-                        .update({
-                          'status': 'Cancelado',
-                          'historico': FieldValue.arrayUnion([
-                            {
-                              'status': 'Cancelado',
-                              'data': DateTime.now().toIso8601String(),
-                              'observacao': 'Cancelado por: $usuarioLogado',
-                            },
-                          ]),
-                        });
-                    if (context.mounted) {
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text("Pedido cancelado com sucesso."),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
-                  }
-                }
-              },
-              style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
-              child: const Text(
-                "Cancelar Pedido",
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-            );
-          },
-        ),
         ElevatedButton(
-          onPressed: () => Navigator.pop(context),
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.teal.shade600,
+            backgroundColor: Colors.teal,
             foregroundColor: Colors.white,
-            elevation: 0,
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(6),
             ),
           ),
-          child: const Text(
-            "Fechar",
-            style: TextStyle(fontWeight: FontWeight.bold),
-          ),
+          onPressed: () => Navigator.pop(context),
+          child: const Text("Fechar"),
         ),
       ],
     );

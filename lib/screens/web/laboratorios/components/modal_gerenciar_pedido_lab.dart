@@ -79,9 +79,7 @@ class _ModalPedirInsumosState extends State<ModalPedirInsumos> {
                   items: laboratorios.map((item) {
                     return DropdownMenuItem<String>(
                       value: item['id'] as String,
-                      child: Text(
-                        item['nome'] as String? ?? 'Laboratório sem nome',
-                      ),
+                      child: Text(item['nome'] as String),
                     );
                   }).toList(),
                   value: localLabIdSelecionado,
@@ -219,7 +217,6 @@ class _ModalPedirInsumosState extends State<ModalPedirInsumos> {
                     );
                     return;
                   }
-
                   final insumosSelecionados = insumoController.insumos.value
                       .where((i) => (quantidadesSelecionadas[i.id!] ?? 0) > 0)
                       .map(
@@ -240,43 +237,32 @@ class _ModalPedirInsumosState extends State<ModalPedirInsumos> {
                     );
                     return;
                   }
-
                   setState(() => enviando = true);
-
                   try {
-                    final listaLabs = widget.controller.laboratorios.value;
-                    final labEncontrado = listaLabs
-                        .cast<Map<String, dynamic>?>()
+                    final labInfo = widget.controller.laboratorios.value
                         .firstWhere(
-                          (l) => l != null && l['id'] == localLabIdSelecionado,
-                          orElse: () => null,
+                          (l) => l['id'] == localLabIdSelecionado,
+                          orElse: () => {'nome': 'Laboratório Parceiro'},
                         );
-
-                    final String nomeLaboratorio =
-                        labEncontrado?['nome'] as String? ??
-                        'Laboratório Parceiro';
-
-                    await FirebaseFirestore.instance
-                        .collection('pedidos_insumos')
-                        .add({
-                          'clinicaId': widget.clinicaContexto.id,
-                          'clinicaNome': widget.clinicaContexto.nome,
-                          'laboratorioId': localLabIdSelecionado,
-                          'laboratorioNome': nomeLaboratorio,
-                          'usuarioSolicitante': widget.usuarioLogado,
+                    await FirebaseFirestore.instance.collection('pedidos_insumos').add({
+                      'clinicaId': widget.clinicaContexto.id,
+                      'clinicaNome': widget.clinicaContexto.nome,
+                      'laboratorioId': localLabIdSelecionado,
+                      'laboratorioNome': labInfo['nome'],
+                      'usuarioSolicitante': widget
+                          .usuarioLogado, // 👈 Adicionado para busca direta no Firestore
+                      'status': 'Pendente',
+                      'dataSolicitacao': FieldValue.serverTimestamp(),
+                      'historico': [
+                        {
                           'status': 'Pendente',
-                          'dataSolicitacao': FieldValue.serverTimestamp(),
-                          'historico': [
-                            {
-                              'status': 'Pendente',
-                              'data': DateTime.now().toIso8601String(),
-                              'observacao':
-                                  'Pedido de insumos realizado por: ${widget.usuarioLogado}',
-                            },
-                          ],
-                          'itens': insumosSelecionados,
-                        });
-
+                          'data': DateTime.now().toIso8601String(),
+                          'observacao':
+                              'Pedido de insumos realizado por: ${widget.usuarioLogado}',
+                        },
+                      ],
+                      'itens': insumosSelecionados,
+                    });
                     if (context.mounted) {
                       Navigator.pop(context);
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -288,18 +274,7 @@ class _ModalPedirInsumosState extends State<ModalPedirInsumos> {
                     }
                   } catch (e) {
                     debugPrint("Erro ao salvar pedido WEB: $e");
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text("Erro ao enviar pedido: $e"),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
-                  } finally {
-                    if (mounted) {
-                      setState(() => enviando = false);
-                    }
+                    setState(() => enviando = false);
                   }
                 },
           child: enviando

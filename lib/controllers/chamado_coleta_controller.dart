@@ -76,7 +76,7 @@ class ChamadoColetaController {
                   clinicaNome: data['clinicaNome'] ?? '',
                   // 💡 MÁGICA 1: Inserimos 'INSUMO_' no ID para o sistema saber abrir o modal certo!
                   laboratorioId: 'INSUMO_${data['laboratorioId'] ?? ''}',
-                  // 💡 MÁGICA 2: Agora mostramos o NOME REAL do laboratório (Sua regra nº 1 atendida)
+                  // 💡 MÁGICA 2: Mostramos o NOME REAL do laboratório
                   laboratorioNome:
                       data['laboratorioNome'] ?? 'Laboratório Parceiro',
                   status: data['status'] ?? 'Pendente',
@@ -92,18 +92,18 @@ class ChamadoColetaController {
 
           return listaUnificada;
         }).listen((todosOsChamados) {
-          final dataAtual = DateTime.now();
           final List<ChamadoColetaModel> listaHoje = [];
           final List<ChamadoColetaModel> listaPassados = [];
 
           for (var c in todosOsChamados) {
             final statusLower = c.status.toLowerCase();
 
+            // 💡 REGRA DE NEGÓCIO: Se estiver entregue, concluído, cancelado, recusado ou finalizada, vai para o Histórico / Encerrados
             final isHistorico =
                 statusLower == 'entregue' ||
                 statusLower == 'concluído' ||
-                statusLower ==
-                    'cancelado' || // 💡 Se for cancelado também sai da visão ativa
+                statusLower == 'cancelado' ||
+                statusLower == 'recusado' ||
                 statusLower == 'finalizada';
 
             if (isHistorico) {
@@ -113,12 +113,14 @@ class ChamadoColetaController {
             }
           }
 
+          // Ordenação da aba de Ativas (Emergências primeiro, depois por data)
           listaHoje.sort((a, b) {
             if (a.isEmergencia && !b.isEmergencia) return -1;
             if (!a.isEmergencia && b.isEmergencia) return 1;
             return a.dataAgendamento.compareTo(b.dataAgendamento);
           });
 
+          // Ordenação da aba de Histórico (Mais recentes primeiro)
           listaPassados.sort(
             (a, b) => b.dataAgendamento.compareTo(a.dataAgendamento),
           );
