@@ -8,11 +8,15 @@ class ChamadoColetaModel {
   final bool isEmergencia;
   final DateTime dataCriacao;
   final DateTime dataAgendamento;
-  // 💡 CAMPOS PARA SUPORTAR PEDIDO DE INSUMOS
   final String tipoChamado;
   final List<Map<String, dynamic>> insumosSolicitados;
-  // 💡 NOVO CAMPO: Observação do material a ser coletado
   final String observacao;
+
+  // 💡 NOVOS CAMPOS: Suporte a atribuição e rastreio de Motoboy/Entregador
+  final String? entregadorId;
+  final String? entregadorNome;
+  final String? enderecoOrigem;
+  final String? enderecoDestino;
 
   ChamadoColetaModel({
     required this.id,
@@ -24,9 +28,13 @@ class ChamadoColetaModel {
     required this.isEmergencia,
     required this.dataCriacao,
     required this.dataAgendamento,
-    this.tipoChamado = 'Coleta', // Mantém o padrão antigo intacto
+    this.tipoChamado = 'Coleta',
     this.insumosSolicitados = const [],
-    this.observacao = '', // 💡 Proteção contra dados antigos nulos
+    this.observacao = '',
+    this.entregadorId,
+    this.entregadorNome,
+    this.enderecoOrigem,
+    this.enderecoDestino,
   });
 
   Map<String, dynamic> toMap() {
@@ -41,11 +49,21 @@ class ChamadoColetaModel {
       'dataAgendamento': dataAgendamento.toIso8601String(),
       'tipoChamado': tipoChamado,
       'insumosSolicitados': insumosSolicitados,
-      'observacao': observacao, // 💡 Adicionado para ir para o Firebase
+      'observacao': observacao,
+      'entregadorId': entregadorId,
+      'entregadorNome': entregadorNome,
+      'enderecoOrigem': enderecoOrigem,
+      'enderecoDestino': enderecoDestino,
     };
   }
 
   factory ChamadoColetaModel.fromMap(String id, Map<String, dynamic> map) {
+    DateTime parseData(dynamic val) {
+      if (val == null) return DateTime.now();
+      if (val is String) return DateTime.tryParse(val) ?? DateTime.now();
+      return DateTime.now();
+    }
+
     return ChamadoColetaModel(
       id: id,
       clinicaId: map['clinicaId'] ?? '',
@@ -58,13 +76,13 @@ class ChamadoColetaModel {
       insumosSolicitados: List<Map<String, dynamic>>.from(
         map['insumosSolicitados'] ?? [],
       ),
-      dataCriacao: map['dataCriacao'] != null
-          ? DateTime.parse(map['dataCriacao'])
-          : DateTime.now(),
-      dataAgendamento: map['dataAgendamento'] != null
-          ? DateTime.parse(map['dataAgendamento'])
-          : DateTime.now(),
-      observacao: map['observacao'] ?? '', // 💡 Adicionado para ler do Firebase
+      dataCriacao: parseData(map['dataCriacao']),
+      dataAgendamento: parseData(map['dataAgendamento']),
+      observacao: map['observacao'] ?? '',
+      entregadorId: map['entregadorId'],
+      entregadorNome: map['entregadorNome'],
+      enderecoOrigem: map['enderecoOrigem'],
+      enderecoDestino: map['enderecoDestino'],
     );
   }
 }
