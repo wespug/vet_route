@@ -4,9 +4,10 @@ import 'package:vet_route/screens/widgets/generic_tab_hub.dart';
 import 'package:vet_route/models/entregador_model.dart';
 import 'package:vet_route/screens/web/entregadores/lista_entregadores_view.dart';
 import 'package:vet_route/screens/web/entregadores/entregador_dashboard_view.dart';
+import 'package:vet_route/screens/web/entregadores/direcionamento_coletas_view.dart'; // 👈 IMPORTAÇÃO DA NOVA TELA
 
 class EntregadoresHub extends StatefulWidget {
-  final String? rotaAbaAtiva; // 💡 NOVO: Parâmetro Deep Link
+  final String? rotaAbaAtiva; // 💡 Deep Link do Menu Lateral
 
   const EntregadoresHub({super.key, this.rotaAbaAtiva});
 
@@ -17,14 +18,36 @@ class EntregadoresHub extends StatefulWidget {
 class _EntregadoresHubState extends State<EntregadoresHub> {
   Entregador? _entregadorSelecionado;
 
+  // 🔀 ROTEADOR INTERNO DAS ABAS DO MOTOBOY / ENTREGADOR
   Widget _resolverConteudoDaAba(String rotaSubmenu) {
+    if (_entregadorSelecionado == null) {
+      return const Center(
+        child: Text(
+          "Selecione um entregador para gerir.",
+          style: TextStyle(fontSize: 16, color: Colors.grey),
+        ),
+      );
+    }
+
     switch (rotaSubmenu) {
       case 'entregador_dashboard':
         return EntregadorDashboardView(
           entregadorContexto: _entregadorSelecionado!,
         );
 
+      // 🟢 ROTA DO SUBMENU DO QUADRADINHO VERDE
+      case 'entregador_direcionamento_coletas':
+      case 'coletas_entregador':
+      case 'direcionar_coletas':
+        return const DirecionamentoColetasView();
+
       default:
+        // Fallback inteligente caso a rota contenha 'coleta' ou 'direciona'
+        if (rotaSubmenu.contains('coleta') ||
+            rotaSubmenu.contains('direciona')) {
+          return const DirecionamentoColetasView();
+        }
+
         return _buildPlaceholder(
           'Funcionalidade ($rotaSubmenu) em desenvolvimento 🚧',
           Icons.construction_rounded,
@@ -54,6 +77,7 @@ class _EntregadoresHubState extends State<EntregadoresHub> {
 
   @override
   Widget build(BuildContext context) {
+    // 1. SELEÇÃO DE ENTREGADOR/MOTOBOY NA LISTA GERAL
     if (_entregadorSelecionado == null) {
       return ListaEntregadoresView(
         onEntregadorSelected: (entregador) {
@@ -64,6 +88,7 @@ class _EntregadoresHubState extends State<EntregadoresHub> {
       );
     }
 
+    // 2. MONTAGEM DAS ABAS SUPERIORES DINÂMICAS
     return ListenableBuilder(
       listenable: permissoesGlobais,
       builder: (context, child) {
@@ -131,7 +156,7 @@ class _EntregadoresHubState extends State<EntregadoresHub> {
             Expanded(
               child: GenericTabHub(
                 abas: abasDinamicas,
-                indiceInicial: indiceFoco, // Injeta o foco na aba correta!
+                indiceInicial: indiceFoco, // Injeta a aba selecionada no topo
               ),
             ),
           ],

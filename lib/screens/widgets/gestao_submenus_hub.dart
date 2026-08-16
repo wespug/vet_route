@@ -56,6 +56,7 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
     'clinica_gestao': 'Gestão da Clínica (Web)',
     'lab_dashboard': 'Dashboard do Laboratório',
     'entregador_dashboard': 'Dashboard do Entregador',
+    'entregador_direcionamento_coletas': 'Direcionar Coletas (Motoboy)',
     'lab_adicionar_usuario': 'Adicionar Usuários (Laboratório)',
     'clinica_adicionar_usuario': 'Adicionar Usuários (Clínica)',
     'lab_cadastro_exames': 'Cadastro de Exames',
