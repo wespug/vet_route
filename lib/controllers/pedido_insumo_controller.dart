@@ -268,10 +268,12 @@ class PedidoInsumoController extends ChangeNotifier {
     }
   }
 
+  // 💡 ATUALIZADO: Aceita os itens parciais para gravação!
   Future<ResultadoOperacao> processarDecisaoModal({
     required String pedidoId,
     required DecisaoAtendimento decisao,
     required String motivoOuObservacao,
+    List<Map<String, dynamic>>? itensAtualizados,
   }) async {
     String novoStatus = 'em_separacao';
     String obs = motivoOuObservacao.trim();
@@ -292,6 +294,18 @@ class PedidoInsumoController extends ChangeNotifier {
       obs = obs.isEmpty
           ? 'Aprovado totalmente: Pedido enviado para separação.'
           : 'Aprovado totalmente: $obs';
+    }
+
+    // Grava as quantidades parciais no Firestore se fornecidas
+    if (decisao == DecisaoAtendimento.aprovarParcial &&
+        itensAtualizados != null) {
+      try {
+        await _firestore.collection('pedidos_insumos').doc(pedidoId).update({
+          'itens': itensAtualizados,
+        });
+      } catch (e) {
+        debugPrint("Erro ao atualizar os itens parciais: $e");
+      }
     }
 
     return await atualizarStatusDetalhado(
