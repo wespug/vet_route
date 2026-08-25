@@ -17,6 +17,7 @@ class ModalDetalhesItemView extends StatelessWidget {
     required this.controller,
   });
 
+  // 💡 TRAVA DE SEGURANÇA: Bloqueia o cancelamento se for recusado
   bool get _podeCancelar {
     final statusLower = item.status.toLowerCase();
     return !statusLower.contains('coletado') &&
@@ -24,7 +25,8 @@ class ModalDetalhesItemView extends StatelessWidget {
         !statusLower.contains('em rota') &&
         !statusLower.contains('entregue') &&
         !statusLower.contains('concluido') &&
-        !statusLower.contains('cancelado');
+        !statusLower.contains('cancelado') &&
+        !statusLower.contains('recusado'); // Adicionado o bloqueio de Recusado
   }
 
   @override
@@ -248,7 +250,7 @@ class ModalDetalhesItemView extends StatelessWidget {
                       ),
                       const SizedBox(height: 24),
 
-                      // Histórico de Logs Oficial do Model com Linha do Tempo
+                      // Histórico de Logs Oficial
                       const Text(
                         "Histórico do Pedido",
                         style: TextStyle(
@@ -284,7 +286,7 @@ class ModalDetalhesItemView extends StatelessWidget {
                           ),
                         )
                       : const Text(
-                          "Cancelamento indisponível (já em andamento/concluído)",
+                          "Cancelamento indisponível (já processado ou recusado)",
                           style: TextStyle(fontSize: 12, color: Colors.grey),
                         ),
                   ElevatedButton(
@@ -347,7 +349,6 @@ class ModalDetalhesItemView extends StatelessWidget {
     );
   }
 
-  // 💡 AGORA A VIEW É "BURRA" E APENAS DESENHA O QUE O MODELO MANDA
   Widget _buildHistoricoLista() {
     final logs = item.historicoCompletoEOrdenado;
 
@@ -362,7 +363,6 @@ class ModalDetalhesItemView extends StatelessWidget {
         return Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Coluna da Timeline (Bolinha + Tracinho)
             Column(
               children: [
                 Container(
@@ -382,8 +382,6 @@ class ModalDetalhesItemView extends StatelessWidget {
               ],
             ),
             const SizedBox(width: 16),
-
-            // Coluna dos Dados Textuais
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.only(bottom: 20.0),
@@ -391,7 +389,7 @@ class ModalDetalhesItemView extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      log.status,
+                      log.status.toUpperCase(), // Destaque extra no status
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
@@ -413,7 +411,11 @@ class ModalDetalhesItemView extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 12,
                           fontStyle: FontStyle.italic,
-                          color: Colors.grey.shade500,
+                          color: log.status.toLowerCase().contains('recusad')
+                              ? Colors
+                                    .red
+                                    .shade700 // Destaca em vermelho a recusa
+                              : Colors.grey.shade600,
                         ),
                       ),
                     ],

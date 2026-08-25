@@ -66,16 +66,54 @@ class ItemLogisticaModel {
     this.usuarioCriador = '',
   });
 
-  String get textoStatus => status;
+  // 💡 LABEL AMIGÁVEL: Separação definitiva entre Recusado e Cancelado
+  String get textoStatus {
+    final s = status.toLowerCase().trim();
+    if (s.contains('separacao') ||
+        s.contains('separação') ||
+        s.contains('aprovado')) {
+      return 'Em Separação';
+    }
+    if (s.contains('aguardando')) {
+      return 'Aguardando Coleta';
+    }
+    if (s.contains('rota') ||
+        s.contains('transito') ||
+        s.contains('trânsito')) {
+      return 'Em Rota';
+    }
+    if (s.contains('recusad')) {
+      return 'Recusado pelo Lab';
+    }
+    if (s.contains('cancelado')) {
+      return 'Cancelado';
+    }
+    if (s.contains('entregue') || s.contains('conclu')) {
+      return 'Concluído';
+    }
+    if (s.contains('pendente')) {
+      return 'Pendente';
+    }
+    return status.isNotEmpty
+        ? (status[0].toUpperCase() + status.substring(1))
+        : 'Desconhecido';
+  }
 
+  // 💡 CORES DEFINITIVAS: Vermelho Escuro para Recusado e Padrão para Cancelado
   Color get corStatus {
-    final s = status.toLowerCase();
-    if (s.contains('cancelado')) return Colors.red;
-    if (s.contains('entregue') ||
-        s.contains('concluído') ||
-        s.contains('concluido'))
-      return Colors.green;
-    if (s.contains('rota') || s.contains('coletado')) return Colors.blue;
+    final s = status.toLowerCase().trim();
+    if (s.contains('recusad'))
+      return Colors.red.shade900; // Destaque extra para recusa
+    if (s.contains('cancel')) return Colors.red.shade600;
+    if (s.contains('entregue') || s.contains('conclu'))
+      return Colors.green.shade700;
+    if (s.contains('separacao') ||
+        s.contains('separação') ||
+        s.contains('aprovado'))
+      return Colors.blue.shade700;
+    if (s.contains('rota') || s.contains('trânsito') || s.contains('transito'))
+      return Colors.indigo.shade600;
+    if (s.contains('aguardando')) return Colors.orange.shade700;
     return Colors.amber.shade800;
   }
 
@@ -85,7 +123,6 @@ class ItemLogisticaModel {
 
   List<HistoricoStatusLog> get historicoCompletoEOrdenado {
     List<HistoricoStatusLog> logs = List.from(historicoLogs);
-
     logs.sort((a, b) => a.data.compareTo(b.data));
 
     bool possuiMarcoZero = logs.any(
@@ -114,14 +151,15 @@ class ItemLogisticaModel {
   factory ItemLogisticaModel.fromChamadoColeta(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>? ?? {};
 
+    // 💡 PONTE DE DADOS: Lê tanto 'historicoLogs' (Clínica) quanto 'historico' (Lab)
     List<HistoricoStatusLog> logs = [];
-    if (data['historicoLogs'] != null) {
-      logs = (data['historicoLogs'] as List)
+    final rawLogs = data['historicoLogs'] ?? data['historico'];
+    if (rawLogs != null) {
+      logs = (rawLogs as List)
           .map((e) => HistoricoStatusLog.fromMap(Map<String, dynamic>.from(e)))
           .toList();
     }
 
-    // 💡 Proteção extra para IDs curtos gerados em testes manuais no Firebase
     final safeCodigo =
         (data['codigo'] != null && data['codigo'].toString().trim().isNotEmpty)
         ? data['codigo'].toString()
@@ -133,9 +171,7 @@ class ItemLogisticaModel {
       id: doc.id,
       codigo: safeCodigo,
       laboratorioNome: data['laboratorioNome'] ?? 'Laboratório Geral',
-      dataCriacao: _parseDataSegura(
-        data['dataCriacao'],
-      ), // Aplicação da blindagem
+      dataCriacao: _parseDataSegura(data['dataCriacao']),
       status: data['status'] ?? 'Pendente',
       isInsumo: false,
       nomeTipoFormatado: data['isUrgencia'] == true
@@ -150,9 +186,11 @@ class ItemLogisticaModel {
   factory ItemLogisticaModel.fromPedidoInsumo(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>? ?? {};
 
+    // 💡 PONTE DE DADOS: Lê tanto 'historicoLogs' (Clínica) quanto 'historico' (Lab)
     List<HistoricoStatusLog> logs = [];
-    if (data['historicoLogs'] != null) {
-      logs = (data['historicoLogs'] as List)
+    final rawLogs = data['historicoLogs'] ?? data['historico'];
+    if (rawLogs != null) {
+      logs = (rawLogs as List)
           .map((e) => HistoricoStatusLog.fromMap(Map<String, dynamic>.from(e)))
           .toList();
     }
@@ -168,9 +206,7 @@ class ItemLogisticaModel {
       id: doc.id,
       codigo: safeCodigo,
       laboratorioNome: data['laboratorioNome'] ?? 'Laboratório Geral',
-      dataCriacao: _parseDataSegura(
-        data['dataCriacao'],
-      ), // Aplicação da blindagem
+      dataCriacao: _parseDataSegura(data['dataCriacao']),
       status: data['status'] ?? 'Pendente',
       isInsumo: true,
       nomeTipoFormatado: 'Pedido de Insumo',
