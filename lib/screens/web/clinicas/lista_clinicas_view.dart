@@ -472,7 +472,7 @@ class _ListaClinicasViewState extends State<ListaClinicasView> {
                           );
 
                           final clinicaDados = Clinica(
-                            id: clinicaEdicao?.id,
+                            id: clinicaEdicao?.id ?? '',
                             nome: nomeController.text.trim(),
                             email: emailController.text.trim(),
                             telefone: telefoneController.text.trim(),
@@ -481,9 +481,9 @@ class _ListaClinicasViewState extends State<ListaClinicasView> {
                           );
 
                           bool sucesso = false;
-                          if (isEdicao && clinicaEdicao?.id != null) {
+                          if (isEdicao && clinicaEdicao!.id.isNotEmpty) {
                             sucesso = await _clinicaController.atualizarClinica(
-                              clinicaEdicao!.id!,
+                              clinicaEdicao.id,
                               clinicaDados,
                             );
                           } else {
@@ -568,8 +568,8 @@ class _ListaClinicasViewState extends State<ListaClinicasView> {
               ),
               onPressed: () async {
                 Navigator.pop(context);
-                if (clinica.id != null) {
-                  await _clinicaController.deletarClinica(clinica.id!);
+                if (clinica.id.isNotEmpty) {
+                  await _clinicaController.deletarClinica(clinica.id);
                 }
               },
               child: const Text(

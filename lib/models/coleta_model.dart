@@ -8,9 +8,11 @@ class Coleta {
   final String id;
   final Clinica clinicaOrigem;
   final Laboratorio laboratorioDestino;
-  final Entregador?
-  entregador; // Nullable porque a coleta pode estar aguardando aceite
+  final Entregador? entregador; // Nullable se estiver aguardando aceite
   final String status; // Ex: 'Aguardando', 'Em Rota', 'Entregue'
+  final bool isUrgente;
+  final String? codigoAcompanhamento;
+  final DateTime? dataSolicitacao;
 
   Coleta({
     required this.id,
@@ -18,53 +20,78 @@ class Coleta {
     required this.laboratorioDestino,
     this.entregador,
     this.status = 'Aguardando',
+    this.isUrgente = false,
+    this.codigoAcompanhamento,
+    this.dataSolicitacao,
   });
 
-  // 💡 Converte o objeto Coleta completo em um Map para salvar no Firestore
+  // 💡 Getters de conveniência para uso direto na View (evita erros de compilação)
+  bool get isEmergencia => isUrgente;
+  String get nomeClinica => clinicaOrigem.nome;
+  String get codigo => codigoAcompanhamento ?? id;
+  String get enderecoCompleto =>
+      '${clinicaOrigem.endereco.logradouro}, ${clinicaOrigem.endereco.numero} - ${clinicaOrigem.endereco.bairro}';
+  DateTime? get dataCriacao => dataSolicitacao;
+
+  // 💡 Converte o objeto Coleta em Map para salvar no Firestore
   Map<String, dynamic> toMap() {
     return {
       'status': status,
+      'isUrgente': isUrgente,
+      'codigoAcompanhamento': codigoAcompanhamento,
       'clinicaOrigem': clinicaOrigem.toMap(),
       'laboratorioDestino': laboratorioDestino.toMap(),
-      'entregador': entregador
-          ?.toMap(), // Executa apenas se o entregador não for nulo
+      'entregador': entregador?.toMap(),
+      'dataSolicitacao': dataSolicitacao != null
+          ? Timestamp.fromDate(dataSolicitacao!)
+          : FieldValue.serverTimestamp(),
       'dataAtualizacao': FieldValue.serverTimestamp(),
     };
   }
 
   // 💡 Reconstrói o objeto Coleta a partir de um DocumentSnapshot do Firestore
   factory Coleta.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+    final data = doc.data() as Map<String, dynamic>? ?? {};
+
+    final Map<String, dynamic> clinicaData =
+        data['clinicaOrigem'] as Map<String, dynamic>? ?? {};
+    final Map<String, dynamic> labData =
+        data['laboratorioDestino'] as Map<String, dynamic>? ?? {};
 
     return Coleta(
       id: doc.id,
       status: data['status'] ?? 'Aguardando',
+      isUrgente: data['isUrgente'] ?? data['urgente'] ?? false,
+      codigoAcompanhamento: data['codigoAcompanhamento'] ?? data['codigo'],
+      dataSolicitacao: data['dataSolicitacao'] is Timestamp
+          ? (data['dataSolicitacao'] as Timestamp).toDate()
+          : null,
 
-      // Reconstrói a Clínica a partir do mapa interno embutido no documento
+      // Reconstrói a Clínica
       clinicaOrigem: Clinica(
-        id: data['clinicaOrigem']['id'] ?? '',
-        nome: data['clinicaOrigem']['nome'] ?? '',
-        email: data['clinicaOrigem']['email'] ?? '',
-        telefone: data['clinicaOrigem']['telefone'] ?? '',
-        cnpj: data['clinicaOrigem']['cnpj'] ?? '',
+        id: clinicaData['id'] ?? '',
+        nome: clinicaData['nome'] ?? '',
+        email: clinicaData['email'] ?? '',
+        telefone: clinicaData['telefone'] ?? '',
+        cnpj: clinicaData['cnpj'] ?? '',
         endereco: Endereco.fromMap(
-          data['clinicaOrigem']['endereco'] as Map<String, dynamic>? ?? {},
+          clinicaData['endereco'] as Map<String, dynamic>? ?? {},
         ),
       ),
 
-      // Reconstrói o Laboratório a partir do mapa interno embutido no documento
+      // Reconstrói o Laboratório
       laboratorioDestino: Laboratorio(
-        id: data['laboratorioDestino']['id'] ?? '',
-        nome: data['laboratorioDestino']['nome'] ?? '',
-        email: data['laboratorioDestino']['email'] ?? '',
-        telefone: data['laboratorioDestino']['telefone'] ?? '',
-        cnpj: data['laboratorioDestino']['cnpj'] ?? '',
+        id: labData['id'] ?? '',
+        nome: labData['nome'] ?? '',
+        email: labData['email'] ?? '',
+        telefone: labData['telefone'] ?? '',
+        cnpj: labData['cnpj'] ?? '',
         endereco: Endereco.fromMap(
-          data['laboratorioDestino']['endereco'] as Map<String, dynamic>? ?? {},
+          labData['endereco'] as Map<String, dynamic>? ?? {},
         ),
       ),
 
-      // Trata o entregador de forma condicional se ele houver assumido a corrida
+      // Trata o entregador condicionalmente
       entregador: data['entregador'] != null
           ? Entregador.fromMap(data['entregador'] as Map<String, dynamic>)
           : null,

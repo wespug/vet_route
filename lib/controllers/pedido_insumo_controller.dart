@@ -1,7 +1,10 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:vet_route/models/pedido_insumo_model.dart';
 import 'package:vet_route/models/rota_model.dart';
+import 'package:vet_route/models/laboratorio_model.dart';
+import 'package:vet_route/models/endereco_model.dart';
 import 'package:vet_route/repositories/pedido_insumo_repository.dart';
 import 'package:vet_route/repositories/rota_repository.dart';
 
@@ -17,12 +20,186 @@ class ResultadoOperacao {
 class PedidoInsumoController extends ChangeNotifier {
   final PedidoInsumoRepository _repository = PedidoInsumoRepository();
   final RotaRepository _rotaRepository = RotaRepository();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   List<PedidoInsumoModel> pedidos = [];
+
+  // 🔹 Listas específicas para a visão da Clínica (Separadas por status)
+  List<PedidoInsumoModel> pedidosAtivos = [];
+  List<PedidoInsumoModel> pedidosEncerrados = [];
+
   bool carregando = true;
 
-  // --- ESCUTA DE PEDIDOS EM TEMPO REAL ---
+  // 🔹 Notifiers para suprir a listagem de laboratórios no modal de insumos
+  final ValueNotifier<List<Laboratorio>> laboratorios =
+      ValueNotifier<List<Laboratorio>>([]);
+  final ValueNotifier<bool> isLoadingLab = ValueNotifier<bool>(false);
 
+  // ===========================================================================
+  // 0. SUPORTE AO MODAL DE PEDIR INSUMOS (LABORATÓRIOS E CRIAÇÃO)
+  // ===========================================================================
+
+  /// Carrega a lista de laboratórios parceiros para o dropdown do modal
+  Future<void> carregarLaboratorios() async {
+    isLoadingLab.value = true;
+    try {
+      final snapshot = await _firestore.collection('laboratorios').get();
+      final lista = snapshot.docs
+          .map((doc) => Laboratorio.fromFirestore(doc))
+          .toList();
+      laboratorios.value = lista;
+    } catch (e) {
+      debugPrint("Erro ao carregar laboratórios: $e");
+    } finally {
+      isLoadingLab.value = false;
+    }
+  }
+
+  /// Cria o pedido de insumos no Firestore acionado pelo modal da clínica
+  Future<bool> criarPedido({
+    required String clinicaId,
+    required String clinicaNome,
+    required String laboratorioId,
+    required String laboratorioNome,
+    required String usuarioSolicitante,
+    required List<Map<String, dynamic>> itens,
+  }) async {
+    try {
+      final docRef = _firestore.collection('pedidos_insumos').doc();
+      final dataAtual = DateTime.now().toIso8601String();
+
+      final Map<String, dynamic> itemHistorico = {
+        'status': 'pendente',
+        'data': dataAtual,
+        'observacao': 'Pedido de insumos criado pela clínica.',
+        'usuario': usuarioSolicitante,
+      };
+
+      await docRef.set({
+        'id': docRef.id,
+        'clinicaId': clinicaId,
+        'clinicaNome': clinicaNome,
+        'laboratorioId': laboratorioId,
+        'laboratorioNome': laboratorioNome,
+        'status': 'pendente',
+        'itens': itens,
+        'dataCriacao': FieldValue.serverTimestamp(),
+        'usuarioSolicitante': usuarioSolicitante,
+        'historico': [itemHistorico],
+      });
+
+      return true;
+    } catch (e) {
+      debugPrint("Erro ao criar pedido de insumo: $e");
+      return false;
+    }
+  }
+
+  // ===========================================================================
+  // 1. ESCUTA E FLUXO DO LADO DA CLÍNICA (MODAL DE DETALHES E LISTAGEM)
+  // ===========================================================================
+
+  /// Escuta em tempo real os pedidos feitos por uma Clínica específica (divide ativos e encerrados)
+  void escutarPedidosPorClinica(String clinicaId) {
+    carregando = true;
+    notifyListeners();
+
+    _firestore
+        .collection('pedidos_insumos')
+        .where('clinicaId', isEqualTo: clinicaId)
+        .snapshots()
+        .listen(
+          (snapshot) {
+            final todos = snapshot.docs
+                .map((doc) => PedidoInsumoModel.fromFirestore(doc))
+                .toList();
+
+            List<PedidoInsumoModel> ativos = [];
+            List<PedidoInsumoModel> encerrados = [];
+
+            for (var p in todos) {
+              if (p.isRecusadoOuCancelado ||
+                  p.status.toLowerCase() == 'entregue' ||
+                  p.status.toLowerCase() == 'concluído' ||
+                  p.status.toLowerCase() == 'concluido') {
+                encerrados.add(p);
+              } else {
+                ativos.add(p);
+              }
+            }
+
+            pedidosAtivos = ativos;
+            pedidosEncerrados = encerrados;
+            pedidos = todos;
+            carregando = false;
+            notifyListeners();
+          },
+          onError: (e) {
+            debugPrint("Erro ao escutar pedidos da clínica: $e");
+            carregando = false;
+            notifyListeners();
+          },
+        );
+  }
+
+  /// Stream em tempo real do documento específico para a Modal da Clínica
+  Stream<PedidoInsumoModel?> obterStreamPedido(String docIdLimpo) {
+    return _firestore
+        .collection('pedidos_insumos')
+        .doc(docIdLimpo)
+        .snapshots()
+        .map((doc) => doc.exists ? PedidoInsumoModel.fromFirestore(doc) : null);
+  }
+
+  /// Cancela o pedido de insumos registrando a ação no histórico
+  Future<void> cancelarPedido({
+    required String docIdLimpo,
+    required String chamadoIdOriginal,
+    required String usuarioLogado,
+  }) async {
+    final batch = _firestore.batch();
+    final dataAtual = DateTime.now().toIso8601String();
+
+    final Map<String, dynamic> itemHistorico = {
+      'status': 'cancelado',
+      'data': dataAtual,
+      'observacao': 'Pedido cancelado pela clínica solicitante.',
+      'usuario': usuarioLogado,
+    };
+
+    final docInsumoRef = _firestore
+        .collection('pedidos_insumos')
+        .doc(docIdLimpo);
+    batch.set(docInsumoRef, {
+      'status': 'cancelado',
+      'dataAtualizacao': FieldValue.serverTimestamp(),
+      'usuarioCancelamento': usuarioLogado,
+      'justificativaLab': 'Pedido cancelado pela clínica solicitante.',
+      'historico': FieldValue.arrayUnion([itemHistorico]),
+    }, SetOptions(merge: true));
+
+    if (chamadoIdOriginal.isNotEmpty) {
+      final docChamadoRef = _firestore
+          .collection('chamados_coleta')
+          .doc(chamadoIdOriginal);
+      final docSnapshot = await docChamadoRef.get();
+
+      if (docSnapshot.exists) {
+        batch.update(docChamadoRef, {
+          'status': 'cancelado',
+          'atualizadoEm': FieldValue.serverTimestamp(),
+        });
+      }
+    }
+
+    await batch.commit();
+  }
+
+  // ===========================================================================
+  // 2. ESCUTA E FLUXO DO LADO DO LABORATÓRIO (LISTAGEM E PAINEL)
+  // ===========================================================================
+
+  /// Escuta pedidos em tempo real vinculados a um laboratório
   void escutarPedidos(String laboratorioId) {
     _repository
         .streamPedidosPorLaboratorio(laboratorioId)
@@ -49,9 +226,6 @@ class PedidoInsumoController extends ChangeNotifier {
     }
   }
 
-  // --- REGRAS DE NEGÓCIO E HISTÓRICO ---
-
-  /// Atualiza o status registrando o histórico detalhado através do PedidoInsumoRepository
   Future<ResultadoOperacao> atualizarStatusDetalhado({
     required String pedidoId,
     required String novoStatus,
@@ -94,7 +268,6 @@ class PedidoInsumoController extends ChangeNotifier {
     }
   }
 
-  /// Processa a decisão vinda do Modal do Card (Aprovar Total, Parcial ou Recusar)
   Future<ResultadoOperacao> processarDecisaoModal({
     required String pedidoId,
     required DecisaoAtendimento decisao,
@@ -128,7 +301,6 @@ class PedidoInsumoController extends ChangeNotifier {
     );
   }
 
-  /// Procura a rota/motoboy ideal na coleção 'rotas_fixas' através do RotaRepository
   Future<ResultadoOperacao> encaminharParaEntrega({
     required String pedidoId,
     required Map<String, dynamic> pedidoData,
@@ -139,15 +311,14 @@ class PedidoInsumoController extends ChangeNotifier {
         .trim()
         .toLowerCase();
     final laboratorioId = (pedidoData['laboratorioId'] ?? '').toString().trim();
+    final chamadoIdOriginal = (pedidoData['chamadoId'] ?? '').toString().trim();
 
     try {
-      // 1. Busca rotas ativas através do RotaRepository (na coleção 'rotas_fixas')
       final List<RotaModel> rotasAtivas = await _rotaRepository
           .buscarRotasAtivas(laboratorioId);
 
       RotaModel? rotaEncontrada;
 
-      // 2. Realiza o cruzamento insensível a maiúsculas/minúsculas entre paradas e clínica
       for (var rota in rotasAtivas) {
         final atendeClinica = rota.paradas.any((parada) {
           final pClinicaId = parada.clinicaId.trim();
@@ -169,7 +340,6 @@ class PedidoInsumoController extends ChangeNotifier {
         }
       }
 
-      // 3. Fallback: Se não encontrar uma específica para a clínica, seleciona a primeira rota ativa disponível
       rotaEncontrada ??= rotasAtivas.isNotEmpty ? rotasAtivas.first : null;
 
       if (rotaEncontrada == null) {
@@ -183,12 +353,39 @@ class PedidoInsumoController extends ChangeNotifier {
       final obs =
           'Separação concluída. Encaminhado para o entregador ${rotaEncontrada.nomeEntregador}.';
 
-      return await atualizarStatusDetalhado(
+      final res = await atualizarStatusDetalhado(
         pedidoId: pedidoId,
         novoStatus: novoStatus,
         observacao: obs,
         entregadorId: rotaEncontrada.entregadorId,
         nomeEntregador: rotaEncontrada.nomeEntregador,
+      );
+
+      if (!res.sucesso) return res;
+
+      final String idParaAtualizar = chamadoIdOriginal.isNotEmpty
+          ? chamadoIdOriginal
+          : pedidoId;
+      final docChamadoRef = _firestore
+          .collection('chamados_coleta')
+          .doc(idParaAtualizar);
+
+      await docChamadoRef.set({
+        'entregadorId': rotaEncontrada.entregadorId,
+        'nomeEntregador': rotaEncontrada.nomeEntregador,
+        'status': 'aguardando_coleta',
+        'possuiInsumo': true,
+        'pedidoInsumoId': pedidoId,
+        'clinicaId': clinicaId,
+        'clinicaNome': pedidoData['clinicaNome'] ?? '',
+        'laboratorioId': laboratorioId,
+        'atualizadoEm': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      return ResultadoOperacao(
+        sucesso: true,
+        mensagem:
+            "Pedido encaminhado para o entregador ${rotaEncontrada.nomeEntregador} com sucesso!",
       );
     } catch (e) {
       return ResultadoOperacao(
@@ -198,7 +395,9 @@ class PedidoInsumoController extends ChangeNotifier {
     }
   }
 
-  // --- FORMATAÇÕES VISUAIS E DATAS ---
+  // ===========================================================================
+  // 3. MÉTODOS DE FORMATAÇÃO E ESTILO
+  // ===========================================================================
 
   String formatarData(dynamic data) {
     if (data == null) return '';
@@ -207,6 +406,8 @@ class PedidoInsumoController extends ChangeNotifier {
       dt = data.toDate();
     } else if (data is String) {
       dt = DateTime.tryParse(data) ?? DateTime.now();
+    } else if (data is DateTime) {
+      dt = data;
     } else {
       return '';
     }

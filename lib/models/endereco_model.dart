@@ -8,17 +8,17 @@ class Endereco {
   final String bairro;
   final String cidade;
   final String estado; // UF
-  final double? latitude; // 💡 Pensando no futuro do mapa!
+  final double? latitude;
   final double? longitude;
 
   Endereco({
-    required this.cep,
-    required this.logradouro,
-    required this.numero,
+    this.cep = '',
+    this.logradouro = '',
+    this.numero = '',
     this.complemento = '',
-    required this.bairro,
-    required this.cidade,
-    required this.estado,
+    this.bairro = '',
+    this.cidade = '',
+    this.estado = '',
     this.latitude,
     this.longitude,
   });
@@ -55,7 +55,6 @@ class Endereco {
       bairro: map['bairro'] ?? '',
       cidade: map['cidade'] ?? '',
       estado: map['estado'] ?? '',
-      // Tratamento seguro para double no Firestore
       latitude: map['latitude'] != null
           ? (map['latitude'] as num).toDouble()
           : null,

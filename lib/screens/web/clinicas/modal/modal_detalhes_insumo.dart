@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:intl/intl.dart';
+import 'package:vet_route/controllers/pedido_insumo_controller.dart';
 import 'package:vet_route/models/chamado_coleta_model.dart';
 import 'package:vet_route/models/clinica_model.dart';
+import 'package:vet_route/models/pedido_insumo_model.dart';
 
 class ModalDetalhesInsumo extends StatelessWidget {
   final ChamadoColetaModel chamado;
@@ -10,7 +10,9 @@ class ModalDetalhesInsumo extends StatelessWidget {
   final String usuarioLogado;
   final Color Function(String) obterCorStatus;
 
-  const ModalDetalhesInsumo({
+  final PedidoInsumoController _controller = PedidoInsumoController();
+
+  ModalDetalhesInsumo({
     super.key,
     required this.chamado,
     required this.clinicaContexto,
@@ -18,191 +20,152 @@ class ModalDetalhesInsumo extends StatelessWidget {
     required this.obterCorStatus,
   });
 
-  // 🎨 Mapeamento Visual dos Status do Pedido de Insumos
-  Color _obterCorStatusInsumo(String status) {
-    switch (status.toLowerCase()) {
-      case 'pendente':
-      case 'aguardando_analise':
-        return Colors.orange.shade700;
-      case 'em_separacao':
-      case 'em separação':
-        return Colors.blue.shade700;
-      case 'aguardando_coleta':
-      case 'aguardando coleta':
-        return Colors.purple.shade700;
-      case 'entregue':
-      case 'concluído':
-      case 'concluido':
-        return Colors.green.shade700;
-      case 'recusado':
-      case 'cancelado':
-        return Colors.red.shade700;
-      default:
-        return Colors.grey.shade700;
-    }
-  }
+  Future<void> _solicitarCancelamento(
+    BuildContext context,
+    String docIdLimpo,
+  ) async {
+    final confirmou = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Cancelar Pedido de Insumos?"),
+        content: const Text(
+          "Tem certeza de que deseja cancelar esta solicitação? Esta ação não pode ser desfeita.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text("Voltar", style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text("Confirmar Cancelamento"),
+          ),
+        ],
+      ),
+    );
 
-  String _obterTextoStatus(String status) {
-    switch (status.toLowerCase()) {
-      case 'pendente':
-      case 'aguardando_analise':
-        return 'Pendente / Em Análise pelo Lab';
-      case 'em_separacao':
-      case 'em separação':
-        return 'Em Separação no Laboratório';
-      case 'aguardando_coleta':
-      case 'aguardando coleta':
-        return 'Pronto / Aguardando Motoboy';
-      case 'entregue':
-      case 'concluído':
-      case 'concluido':
-        return 'Pedido Entregue';
-      case 'recusado':
-      case 'cancelado':
-        return 'Pedido Recusado pelo Laboratório';
-      default:
-        return status;
-    }
-  }
+    if (confirmou == true) {
+      try {
+        await _controller.cancelarPedido(
+          docIdLimpo: docIdLimpo,
+          chamadoIdOriginal: chamado.id,
+          usuarioLogado: usuarioLogado,
+        );
 
-  IconData _obterIconeStatus(String status) {
-    switch (status.toLowerCase()) {
-      case 'pendente':
-      case 'aguardando_analise':
-        return Icons.hourglass_top_rounded;
-      case 'em_separacao':
-      case 'em separação':
-        return Icons.inventory_2_outlined;
-      case 'aguardando_coleta':
-      case 'aguardando coleta':
-        return Icons.sports_motorsports_outlined;
-      case 'entregue':
-      case 'concluído':
-      case 'concluido':
-        return Icons.check_circle_outline;
-      case 'recusado':
-      case 'cancelado':
-        return Icons.cancel_outlined;
-      default:
-        return Icons.help_outline;
-    }
-  }
-
-  // Helper para formatar Timestamp/DateTime em 'dd/MM/yyyy HH:mm'
-  String _formatarDataHora(dynamic valorData) {
-    if (valorData == null) return '';
-    try {
-      if (valorData is Timestamp) {
-        return DateFormat('dd/MM/yyyy HH:mm').format(valorData.toDate());
-      } else if (valorData is DateTime) {
-        return DateFormat('dd/MM/yyyy HH:mm').format(valorData);
+        if (context.mounted) {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Pedido de insumos cancelado com sucesso."),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Erro ao cancelar o pedido: $e"),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
-    } catch (_) {}
-    return '';
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    // 💡 Remove o prefixo interno 'INSUMO_' para buscar o ID real no Firestore
     final docIdLimpo = chamado.id.replaceFirst('INSUMO_', '');
 
-    return AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      title: Row(
-        children: [
-          const Icon(Icons.inventory_2_rounded, color: Colors.teal),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              "Insumos - ${chamado.laboratorioNome}",
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-              overflow: TextOverflow.ellipsis,
+    return StreamBuilder<PedidoInsumoModel?>(
+      stream: _controller.obterStreamPedido(docIdLimpo),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
             ),
+            content: const SizedBox(
+              height: 180,
+              child: Center(
+                child: CircularProgressIndicator(color: Colors.teal),
+              ),
+            ),
+          );
+        }
+
+        final pedido = snapshot.data;
+
+        if (pedido == null) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            content: const Padding(
+              padding: EdgeInsets.all(24.0),
+              child: Text(
+                "Não foi possível localizar os dados deste pedido de insumos.",
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text("Fechar"),
+              ),
+            ],
+          );
+        }
+
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
           ),
-        ],
-      ),
-      content: SizedBox(
-        width: 550,
-        child: FutureBuilder<DocumentSnapshot>(
-          future: FirebaseFirestore.instance
-              .collection('pedidos_insumos')
-              .doc(docIdLimpo)
-              .get(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const SizedBox(
-                height: 220,
-                child: Center(
-                  child: CircularProgressIndicator(color: Colors.teal),
-                ),
-              );
-            }
-
-            if (!snapshot.hasData || !snapshot.data!.exists) {
-              return const Padding(
-                padding: EdgeInsets.all(24.0),
+          title: Row(
+            children: [
+              const Icon(Icons.inventory_2_rounded, color: Colors.teal),
+              const SizedBox(width: 10),
+              Expanded(
                 child: Text(
-                  "Não foi possível localizar os dados deste pedido de insumos.",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey),
+                  "Insumos - ${chamado.laboratorioNome}",
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
-              );
-            }
-
-            final data = snapshot.data!.data() as Map<String, dynamic>;
-            final status = (data['status'] ?? 'Pendente').toString();
-
-            // 1. DADOS DO SOLICITANTE DA CLÍNICA
-            final String solicitanteNome =
-                data['usuarioSolicitante'] ??
-                data['solicitanteNome'] ??
-                data['usuarioLogado'] ??
-                'Não informado';
-
-            final rawData = data['dataSolicitacao'] ?? data['dataPedido'];
-            final dataFormatada = rawData != null
-                ? _formatarDataHora(rawData)
-                : _formatarDataHora(chamado.dataCriacao);
-
-            // 2. DADOS DA OBSERVAÇÃO/RECUSA DO LABORATÓRIO
-            final String justificativaLab =
-                data['justificativaLab'] ?? data['observacaoLaboratorio'] ?? '';
-            final String usuarioLabObs =
-                data['usuarioObservacaoLab'] ??
-                data['usuarioRespostaLab'] ??
-                data['laboratorioUsuario'] ??
-                '';
-            final String dataLabObsFormatada = _formatarDataHora(
-              data['dataObservacaoLab'] ?? data['dataRespostaLab'],
-            );
-
-            final List itens = data['itens'] ?? [];
-
-            final isRecusado =
-                status.toLowerCase() == 'recusado' ||
-                status.toLowerCase() == 'cancelado';
-
-            final corStatus = _obterCorStatusInsumo(status);
-
-            return SingleChildScrollView(
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: 550,
+            child: SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // 1. HEADER DE STATUS DESTACADO (COM QUEM SOLICITOU + DATA/HORA)
+                  // 1. HEADER DE STATUS
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: corStatus.withOpacity(0.08),
+                      color: pedido.corStatus.withOpacity(0.08),
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: corStatus.withOpacity(0.3)),
+                      border: Border.all(
+                        color: pedido.corStatus.withOpacity(0.3),
+                      ),
                     ),
                     child: Row(
                       children: [
                         Icon(
-                          _obterIconeStatus(status),
-                          color: corStatus,
+                          pedido.iconeStatus,
+                          color: pedido.corStatus,
                           size: 28,
                         ),
                         const SizedBox(width: 12),
@@ -211,10 +174,10 @@ class ModalDetalhesInsumo extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                _obterTextoStatus(status),
+                                pedido.textoStatus,
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
-                                  color: corStatus,
+                                  color: pedido.corStatus,
                                   fontSize: 15,
                                 ),
                               ),
@@ -227,11 +190,12 @@ class ModalDetalhesInsumo extends StatelessWidget {
                                   ),
                                   children: [
                                     TextSpan(
-                                      text: "Solicitado em: $dataFormatada",
+                                      text:
+                                          "Solicitado em: ${pedido.formatarData(pedido.dataSolicitacao ?? chamado.dataCriacao)}",
                                     ),
                                     const TextSpan(text: " por "),
                                     TextSpan(
-                                      text: solicitanteNome,
+                                      text: pedido.usuarioSolicitante,
                                       style: const TextStyle(
                                         fontWeight: FontWeight.bold,
                                       ),
@@ -247,18 +211,18 @@ class ModalDetalhesInsumo extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
 
-                  // 2. 📌 ALERTA DE OBSERVAÇÃO OU RECUSA DO LABORATÓRIO (COM AUTOR E DATA/HORA)
-                  if (justificativaLab.isNotEmpty) ...[
+                  // 2. ALERTA DE OBSERVAÇÃO / RECUSA
+                  if (pedido.justificativaLab.isNotEmpty) ...[
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: isRecusado
+                        color: pedido.isRecusadoOuCancelado
                             ? Colors.red.shade50
                             : Colors.amber.shade50,
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: isRecusado
+                          color: pedido.isRecusadoOuCancelado
                               ? Colors.red.shade300
                               : Colors.amber.shade400,
                         ),
@@ -269,22 +233,22 @@ class ModalDetalhesInsumo extends StatelessWidget {
                           Row(
                             children: [
                               Icon(
-                                isRecusado
+                                pedido.isRecusadoOuCancelado
                                     ? Icons.error_outline
                                     : Icons.info_outline,
-                                color: isRecusado
+                                color: pedido.isRecusadoOuCancelado
                                     ? Colors.red.shade700
                                     : Colors.amber.shade900,
                                 size: 20,
                               ),
                               const SizedBox(width: 8),
                               Text(
-                                isRecusado
-                                    ? "Motivo da Recusa do Pedido:"
+                                pedido.isRecusadoOuCancelado
+                                    ? "Motivo do Cancelamento / Recusa:"
                                     : "Observação do Laboratório:",
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
-                                  color: isRecusado
+                                  color: pedido.isRecusadoOuCancelado
                                       ? Colors.red.shade700
                                       : Colors.amber.shade900,
                                   fontSize: 13,
@@ -294,32 +258,30 @@ class ModalDetalhesInsumo extends StatelessWidget {
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            justificativaLab,
+                            pedido.justificativaLab,
                             style: TextStyle(
-                              color: isRecusado
+                              color: pedido.isRecusadoOuCancelado
                                   ? Colors.red.shade900
                                   : Colors.black87,
                               fontSize: 13,
                               height: 1.3,
                             ),
                           ),
-
-                          // Autoria e Data/Hora da Observação
-                          if (usuarioLabObs.isNotEmpty ||
-                              dataLabObsFormatada.isNotEmpty) ...[
+                          if (pedido.usuarioLabObs.isNotEmpty ||
+                              pedido.dataLabObs != null) ...[
                             const SizedBox(height: 8),
                             Align(
                               alignment: Alignment.centerRight,
                               child: Text(
-                                "Por: ${usuarioLabObs.isNotEmpty ? usuarioLabObs : 'Laboratório'}" +
-                                    (dataLabObsFormatada.isNotEmpty
-                                        ? " em $dataLabObsFormatada"
+                                "Por: ${pedido.usuarioLabObs.isNotEmpty ? pedido.usuarioLabObs : 'Laboratório'}" +
+                                    (pedido.dataLabObs != null
+                                        ? " em ${pedido.formatarData(pedido.dataLabObs)}"
                                         : ""),
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontStyle: FontStyle.italic,
                                   fontWeight: FontWeight.w600,
-                                  color: isRecusado
+                                  color: pedido.isRecusadoOuCancelado
                                       ? Colors.red.shade800
                                       : Colors.amber.shade900,
                                 ),
@@ -332,7 +294,7 @@ class ModalDetalhesInsumo extends StatelessWidget {
                     const SizedBox(height: 16),
                   ],
 
-                  // 3. LISTA DE MATERIAIS SOLICITADOS
+                  // 3. MATERIAIS
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -344,7 +306,7 @@ class ModalDetalhesInsumo extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        "${itens.length} tipo(s)",
+                        "${pedido.itens.length} tipo(s)",
                         style: TextStyle(
                           color: Colors.grey.shade600,
                           fontSize: 12,
@@ -362,10 +324,10 @@ class ModalDetalhesInsumo extends StatelessWidget {
                     child: ListView.separated(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                      itemCount: itens.length,
+                      itemCount: pedido.itens.length,
                       separatorBuilder: (_, __) => const Divider(height: 1),
                       itemBuilder: (context, index) {
-                        final item = itens[index];
+                        final item = pedido.itens[index];
                         final nomeInsumo =
                             item['descricao'] ??
                             item['nomeInsumo'] ??
@@ -403,23 +365,45 @@ class ModalDetalhesInsumo extends StatelessWidget {
                   ),
                 ],
               ),
-            );
-          },
-        ),
-      ),
-      actions: [
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.teal,
-            foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(6),
             ),
           ),
-          onPressed: () => Navigator.pop(context),
-          child: const Text("Fechar"),
-        ),
-      ],
+          actions: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                if (pedido.podeCancelar)
+                  OutlinedButton.icon(
+                    onPressed: () =>
+                        _solicitarCancelamento(context, docIdLimpo),
+                    icon: const Icon(Icons.cancel_outlined, size: 18),
+                    label: const Text("Cancelar Pedido"),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
+                      side: const BorderSide(color: Colors.red),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                    ),
+                  )
+                else
+                  const SizedBox.shrink(),
+
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.teal,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                  ),
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("Fechar"),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
     );
   }
 }

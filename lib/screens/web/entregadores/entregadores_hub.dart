@@ -4,10 +4,10 @@ import 'package:vet_route/screens/widgets/generic_tab_hub.dart';
 import 'package:vet_route/models/entregador_model.dart';
 import 'package:vet_route/screens/web/entregadores/lista_entregadores_view.dart';
 import 'package:vet_route/screens/web/entregadores/entregador_dashboard_view.dart';
-import 'package:vet_route/screens/web/entregadores/direcionamento_coletas_view.dart'; // 👈 IMPORTAÇÃO DA NOVA TELA
+import 'package:vet_route/screens/web/entregadores/direcionamento_coletas_view.dart';
 
 class EntregadoresHub extends StatefulWidget {
-  final String? rotaAbaAtiva; // 💡 Deep Link do Menu Lateral
+  final String? rotaAbaAtiva; // Deep Link do Menu Lateral
 
   const EntregadoresHub({super.key, this.rotaAbaAtiva});
 
@@ -18,7 +18,7 @@ class EntregadoresHub extends StatefulWidget {
 class _EntregadoresHubState extends State<EntregadoresHub> {
   Entregador? _entregadorSelecionado;
 
-  // 🔀 ROTEADOR INTERNO DAS ABAS DO MOTOBOY / ENTREGADOR
+  // ROTEADOR INTERNO DAS ABAS DO MOTOBOY / ENTREGADOR
   Widget _resolverConteudoDaAba(String rotaSubmenu) {
     if (_entregadorSelecionado == null) {
       return const Center(
@@ -35,14 +35,12 @@ class _EntregadoresHubState extends State<EntregadoresHub> {
           entregadorContexto: _entregadorSelecionado!,
         );
 
-      // 🟢 ROTA DO SUBMENU DO QUADRADINHO VERDE
       case 'entregador_direcionamento_coletas':
       case 'coletas_entregador':
       case 'direcionar_coletas':
         return const DirecionamentoColetasView();
 
       default:
-        // Fallback inteligente caso a rota contenha 'coleta' ou 'direciona'
         if (rotaSubmenu.contains('coleta') ||
             rotaSubmenu.contains('direciona')) {
           return const DirecionamentoColetasView();
@@ -129,7 +127,7 @@ class _EntregadoresHubState extends State<EntregadoresHub> {
 
         submenusFiltrados.sort((a, b) => a.peso.compareTo(b.peso));
 
-        // 💡 CÁLCULO DE FOCO: Sincroniza a aba com o menu lateral
+        // CÁLCULO DE FOCO: Sincroniza a aba com o menu lateral
         int indiceFoco = 0;
         final abasDinamicas = <TabItemModel>[];
 
@@ -156,7 +154,7 @@ class _EntregadoresHubState extends State<EntregadoresHub> {
             Expanded(
               child: GenericTabHub(
                 abas: abasDinamicas,
-                indiceInicial: indiceFoco, // Injeta a aba selecionada no topo
+                indiceInicial: indiceFoco,
               ),
             ),
           ],

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:vet_route/controllers/chamado_coleta_controller.dart';
 import 'package:vet_route/models/clinica_model.dart';
-import 'package:vet_route/models/chamado_coleta_model.dart';
+import 'package:vet_route/models/laboratorio_model.dart';
 
 class ModalNovoChamado extends StatefulWidget {
   final bool isEmergencia;
@@ -24,6 +26,9 @@ class _ModalNovoChamadoState extends State<ModalNovoChamado> {
   String? _labNomeSelecionado;
   DateTime dataSelecionada = DateTime.now();
   final TextEditingController observacaoController = TextEditingController();
+
+  // 💡 Controle de carregamento no botão para evitar cliques duplos
+  bool enviando = false;
 
   @override
   Widget build(BuildContext context) {
@@ -64,14 +69,15 @@ class _ModalNovoChamadoState extends State<ModalNovoChamado> {
                 ),
               ),
               const SizedBox(height: 8),
-              ValueListenableBuilder<List<Map<String, dynamic>>>(
+              ValueListenableBuilder<List<Laboratorio>>(
                 valueListenable: widget.controller.laboratorios,
                 builder: (context, laboratorios, child) {
-                  if (laboratorios.isEmpty)
+                  if (laboratorios.isEmpty) {
                     return const Text(
                       "⚠️ Nenhum laboratório cadastrado.",
                       style: TextStyle(color: Colors.redAccent),
                     );
+                  }
                   return DropdownButtonFormField<String>(
                     decoration: InputDecoration(
                       border: OutlineInputBorder(
@@ -80,10 +86,14 @@ class _ModalNovoChamadoState extends State<ModalNovoChamado> {
                       filled: true,
                       fillColor: Colors.grey.shade50,
                     ),
-                    items: laboratorios.map((item) {
+                    items: laboratorios.map((lab) {
                       return DropdownMenuItem<String>(
-                        value: item['id'] as String,
-                        child: Text(item['nome'] as String),
+                        value: lab.id,
+                        child: Text(
+                          lab.nome.isNotEmpty
+                              ? lab.nome
+                              : 'Laboratório sem nome',
+                        ),
                       );
                     }).toList(),
                     value: _labIdSelecionado,
@@ -93,10 +103,9 @@ class _ModalNovoChamadoState extends State<ModalNovoChamado> {
                         _labIdSelecionado = val;
                         if (val != null) {
                           final labSelecionado = laboratorios.firstWhere(
-                            (l) => l['id'] == val,
+                            (l) => l.id == val,
                           );
-                          _labNomeSelecionado =
-                              labSelecionado['nome'] as String;
+                          _labNomeSelecionado = labSelecionado.nome;
                         }
                       });
                     },
@@ -142,8 +151,9 @@ class _ModalNovoChamadoState extends State<ModalNovoChamado> {
                     firstDate: DateTime.now(),
                     lastDate: DateTime(2100),
                   );
-                  if (pickedDate != null)
+                  if (pickedDate != null) {
                     setState(() => dataSelecionada = pickedDate);
+                  }
                 },
                 child: Container(
                   width: double.infinity,
@@ -204,7 +214,7 @@ class _ModalNovoChamadoState extends State<ModalNovoChamado> {
       ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.pop(context),
+          onPressed: enviando ? null : () => Navigator.pop(context),
           child: const Text("Cancelar", style: TextStyle(color: Colors.grey)),
         ),
         ElevatedButton(
@@ -217,50 +227,102 @@ class _ModalNovoChamadoState extends State<ModalNovoChamado> {
               borderRadius: BorderRadius.circular(8),
             ),
           ),
-          onPressed: () async {
-            if (_labIdSelecionado == null) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text("Selecione o Laboratório destino!"),
-                ),
-              );
-              return;
-            }
-            final momentoAgendado = DateTime(
-              dataSelecionada.year,
-              dataSelecionada.month,
-              dataSelecionada.day,
-              0,
-              0,
-            );
-            final chamado = ChamadoColetaModel(
-              id: '',
-              clinicaId: widget.clinicaContexto.id!,
-              clinicaNome: widget.clinicaContexto.nome,
-              laboratorioId: _labIdSelecionado!,
-              laboratorioNome: _labNomeSelecionado!,
-              status: 'Aguardando Entregador',
-              isEmergencia: widget.isEmergencia,
-              dataCriacao: DateTime.now(),
-              dataAgendamento: momentoAgendado,
-            );
+          onPressed: enviando
+              ? null
+              : () async {
+                  if (_labIdSelecionado == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text("Selecione o Laboratório destino!"),
+                      ),
+                    );
+                    return;
+                  }
 
-            final sucesso = await widget.controller.criarChamado(chamado);
+                  setState(() => enviando = true);
 
-            if (sucesso && context.mounted) {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text("Coleta solicitada com sucesso!"),
-                  backgroundColor: Colors.green,
+                  try {
+                    final momentoAgendado = DateTime(
+                      dataSelecionada.year,
+                      dataSelecionada.month,
+                      dataSelecionada.day,
+                      0,
+                      0,
+                    );
+
+                    // 💡 Pega o usuário logado para carimbar o histórico
+                    final user = FirebaseAuth.instance.currentUser;
+                    final usuarioLogado = user?.displayName?.isNotEmpty == true
+                        ? user!.displayName!
+                        : (user?.email ?? 'Usuário da Clínica');
+
+                    // 💡 Gravação Limpa e Perfeita no Banco com Timestamps oficiais
+                    await FirebaseFirestore.instance
+                        .collection('chamados_coleta')
+                        .add({
+                          'clinicaId': widget.clinicaContexto.id,
+                          'clinicaNome': widget.clinicaContexto.nome,
+                          'laboratorioId': _labIdSelecionado,
+                          'laboratorioNome':
+                              _labNomeSelecionado ?? 'Laboratório',
+                          'status': 'Pendente',
+                          'isUrgencia': widget.isEmergencia,
+                          'isEmergencia': widget.isEmergencia,
+                          'dataCriacao':
+                              Timestamp.now(), // Formato estrito para não quebrar a tabela
+                          'dataAgendamento': Timestamp.fromDate(
+                            momentoAgendado,
+                          ),
+                          'observacao': observacaoController.text,
+                          'usuarioCriador': usuarioLogado,
+                          'historicoLogs': [
+                            {
+                              'status': 'Pendente',
+                              'usuario': usuarioLogado,
+                              'data': Timestamp.now(),
+                              'observacao': 'Coleta agendada na plataforma',
+                            },
+                          ],
+                        });
+
+                    if (context.mounted) {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text("Coleta solicitada com sucesso!"),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    debugPrint("Erro ao salvar coleta WEB: $e");
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text("Erro ao agendar coleta: $e"),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  } finally {
+                    if (mounted) {
+                      setState(() => enviando = false);
+                    }
+                  }
+                },
+          child: enviando
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
+                )
+              : const Text(
+                  "Confirmar Coleta",
+                  style: TextStyle(fontWeight: FontWeight.bold),
                 ),
-              );
-            }
-          },
-          child: const Text(
-            "Confirmar Coleta",
-            style: TextStyle(fontWeight: FontWeight.bold),
-          ),
         ),
       ],
     );

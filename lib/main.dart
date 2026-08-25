@@ -1,21 +1,39 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_core/firebase_core.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:vet_route/controllers/permissoes_controller.dart';
+import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+
+import 'package:vet_route/repositories/coleta_repository.dart';
+import 'package:vet_route/repositories/firestore_coleta_repository.dart';
+import 'package:vet_route/controllers/coleta_controller.dart';
+
 import 'package:vet_route/l10n/app_localizations.dart';
 import 'package:vet_route/screens/web/admin_chassi.dart';
 import 'package:vet_route/screens/web/mobile_chassi.dart';
 import 'package:vet_route/theme/app_theme.dart';
-import 'firebase_options.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:vet_route/screens/login_screen.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
+import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  runApp(const VetRouteAPP());
+
+  runApp(
+    MultiProvider(
+      providers: [
+        // 1. Injeção da Interface com a Implementação Concreta
+        Provider<ColetaRepository>(create: (_) => FirestoreColetaRepository()),
+        // 2. Controller que consome a interface ColetaRepository
+        ChangeNotifierProvider<ColetaController>(
+          create: (context) =>
+              ColetaController(context.read<ColetaRepository>()),
+        ),
+      ],
+      child: const VetRouteAPP(),
+    ),
+  );
 }
 
 class VetRouteAPP extends StatelessWidget {
@@ -41,10 +59,8 @@ class VetRouteAPP extends StatelessWidget {
                 conteudo: SizedBox(),
                 titulo: 'Painel Vet Route',
               )
-            // 📱 Mobile Roteador cai no Chassi
             : const MobileChassi(),
       },
-      // 🛡️ O GUARDIÃO DO FIREBASE
       home: StreamBuilder<User?>(
         stream: FirebaseAuth.instance.authStateChanges(),
         builder: (context, snapshot) {
@@ -55,14 +71,12 @@ class VetRouteAPP extends StatelessWidget {
           }
 
           if (snapshot.hasData && snapshot.data != null) {
-            // 🚀 BIFURCAÇÃO CRÍTICA DO SISTEMA
             if (kIsWeb) {
               return const AdminChassi(
                 conteudo: SizedBox(),
                 titulo: 'Painel Vet Route',
               );
             } else {
-              // 📱 Mobile force o aplicativo a abrir o Chassi com o Menu
               return const MobileChassi();
             }
           }

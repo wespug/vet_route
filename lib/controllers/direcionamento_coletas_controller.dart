@@ -2,13 +2,20 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:vet_route/models/chamado_coleta_model.dart';
+import 'package:vet_route/models/rota_model.dart';
 
 class DirecionamentoColetasController {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
-  StreamSubscription? _subscription;
+  StreamSubscription? _subColetas;
+  StreamSubscription? _subRota;
 
   // --- ESTADOS REATIVOS ---
   final ValueNotifier<bool> isLoading = ValueNotifier(true);
+
+  // Guardamos o mapa de horários/turnos previstos por clínica { clinicaId: horarioPrevisto }
+  final ValueNotifier<Map<String, String>> mapaHorariosClinica = ValueNotifier(
+    {},
+  );
 
   // Agrupamento da Agenda (Aba 1)
   final ValueNotifier<List<ChamadoColetaModel>> coletasAtrasadas =
@@ -22,84 +29,140 @@ class DirecionamentoColetasController {
   final ValueNotifier<List<ChamadoColetaModel>> coletasConcluidas =
       ValueNotifier([]);
 
-  /// Escuta em tempo real todas as coletas vinculadas ao entregador (ou todas caso seja visão de Admin)
-  void escutarColetasDoEntregador({String? entregadorId}) {
+  /// Carrega as rotas ativas do entregador e filtra estritamente as coletas das clínicas pertencentes
+  void escutarColetasDoEntregador({required String entregadorId}) {
     isLoading.value = true;
-    _subscription?.cancel();
+    _subColetas?.cancel();
+    _subRota?.cancel();
 
-    Query query = _db.collection('chamados_coleta');
-    if (entregadorId != null && entregadorId.isNotEmpty) {
-      query = query.where('entregadorId', isEqualTo: entregadorId);
-    }
+    // 1. OUVIR A ROTA ATIVA DO ENTREGADOR
+    _subRota = _db
+        .collection('rotas')
+        .where('entregadorId', isEqualTo: entregadorId)
+        .where('ativa', isEqualTo: true)
+        .snapshots()
+        .listen((rotaSnapshot) {
+          final Set<String> clinicasDoEntregador = {};
+          final Map<String, String> horariosPorClinica = {};
 
-    _subscription = query.snapshots().listen((snapshot) {
-      final List<ChamadoColetaModel> atrasadas = [];
-      final List<ChamadoColetaModel> hoje = [];
-      final List<ChamadoColetaModel> futuras = [];
-      final List<ChamadoColetaModel> concluidas = [];
-
-      final agora = DateTime.now();
-      final hojeInicio = DateTime(agora.year, agora.month, agora.day);
-      final hojeFim = DateTime(agora.year, agora.month, agora.day, 23, 59, 59);
-
-      for (var doc in snapshot.docs) {
-        try {
-          final coleta = ChamadoColetaModel.fromMap(
-            doc.id,
-            doc.data() as Map<String, dynamic>,
-          );
-          final statusLower = coleta.status.toLowerCase();
-
-          // 💡 REGRA DE NEGÓCIO 3 & 4: Separação de Status Concluídos vs Agenda Ativa
-          final isFinalizado =
-              statusLower == 'entregue' ||
-              statusLower == 'concluído' ||
-              statusLower == 'concluido' ||
-              statusLower == 'finalizada' ||
-              statusLower == 'cancelado';
-
-          if (isFinalizado) {
-            concluidas.add(coleta);
-          } else {
-            // Apenas "A pegar" ou "Em andamento"
-            final dataAg = coleta.dataAgendamento;
-
-            if (dataAg.isBefore(hojeInicio)) {
-              atrasadas.add(coleta); // 🔴 Ficou para trás
-            } else if (dataAg.isAfter(hojeFim)) {
-              futuras.add(coleta); // 📅 Próximos dias
-            } else {
-              hoje.add(coleta); // 🟢 Hoje
+          for (var doc in rotaSnapshot.docs) {
+            final rota = RotaModel.fromFirestore(doc);
+            for (var parada in rota.paradas) {
+              clinicasDoEntregador.add(parada.clinicaId);
+              horariosPorClinica[parada.clinicaId] = parada.horarioPrevisto;
             }
           }
-        } catch (e) {
-          debugPrint("Erro ao ler coleta no direcionamento: $e");
-        }
-      }
 
-      // Ordenação: Emergências e horários mais antigos primeiro
-      int comparar(ChamadoColetaModel a, ChamadoColetaModel b) {
-        if (a.isEmergencia && !b.isEmergencia) return -1;
-        if (!a.isEmergencia && b.isEmergencia) return 1;
-        return a.dataAgendamento.compareTo(b.dataAgendamento);
-      }
+          mapaHorariosClinica.value = horariosPorClinica;
 
-      atrasadas.sort(comparar);
-      hoje.sort(comparar);
-      futuras.sort(comparar);
-      concluidas.sort((a, b) => b.dataAgendamento.compareTo(a.dataAgendamento));
+          // Se o entregador não tem rotas/clínicas associadas, limpa a tela
+          if (clinicasDoEntregador.isEmpty) {
+            coletasAtrasadas.value = [];
+            coletasHoje.value = [];
+            coletasFuturas.value = [];
+            coletasConcluidas.value = [];
+            isLoading.value = false;
+            return;
+          }
 
-      coletasAtrasadas.value = atrasadas;
-      coletasHoje.value = hoje;
-      coletasFuturas.value = futuras;
-      coletasConcluidas.value = concluidas;
-      isLoading.value = false;
-    });
+          // 2. BUSCAR APENAS AS COLETAS QUE PERTENCEM ÀS CLÍNICAS DA ROTA DELE
+          _subColetas?.cancel();
+          _subColetas = _db.collection('chamados_coleta').snapshots().listen((
+            coletaSnapshot,
+          ) {
+            final List<ChamadoColetaModel> atrasadas = [];
+            final List<ChamadoColetaModel> hoje = [];
+            final List<ChamadoColetaModel> futuras = [];
+            final List<ChamadoColetaModel> concluidas = [];
+
+            final agora = DateTime.now();
+            final hojeInicio = DateTime(agora.year, agora.month, agora.day);
+            final hojeFim = DateTime(
+              agora.year,
+              agora.month,
+              agora.day,
+              23,
+              59,
+              59,
+            );
+
+            for (var doc in coletaSnapshot.docs) {
+              try {
+                final coleta = ChamadoColetaModel.fromMap(
+                  doc.id,
+                  doc.data() as Map<String, dynamic>,
+                );
+
+                // 🎯 FILTRO ESTRITO: Pertence à Rota do Entregador ou está atribuído diretamente
+                final pertenceRuta =
+                    clinicasDoEntregador.contains(coleta.clinicaId) ||
+                    coleta.entregadorId == entregadorId;
+
+                if (!pertenceRuta) continue;
+
+                final statusLower = coleta.status.toLowerCase();
+                final isFinalizado =
+                    statusLower == 'entregue' ||
+                    statusLower == 'concluído' ||
+                    statusLower == 'concluido' ||
+                    statusLower == 'finalizada' ||
+                    statusLower == 'cancelado';
+
+                if (isFinalizado) {
+                  concluidas.add(coleta);
+                } else {
+                  final dataAg = coleta.dataAgendamento;
+
+                  if (dataAg.isBefore(hojeInicio)) {
+                    atrasadas.add(coleta);
+                  } else if (dataAg.isAfter(hojeFim)) {
+                    futuras.add(coleta);
+                  } else {
+                    hoje.add(coleta);
+                  }
+                }
+              } catch (e) {
+                debugPrint("Erro ao ler coleta: $e");
+              }
+            }
+
+            // 🎯 ORDENAÇÃO POR ANTIGUIDADE + TURNO / HORÁRIO PREVISTO DA PARADA
+            int compararColetas(ChamadoColetaModel a, ChamadoColetaModel b) {
+              // 1º Emergências têm prioridade absoluta
+              if (a.isEmergencia && !b.isEmergencia) return -1;
+              if (!a.isEmergencia && b.isEmergencia) return 1;
+
+              // 2º Ordenação pela Data de Agendamento (Mais antigas primeiro)
+              final compData = a.dataAgendamento.compareTo(b.dataAgendamento);
+              if (compData != 0) return compData;
+
+              // 3º Ordenação pelo Turno/Horário Previsto da Parada na Rota
+              final horarioA = horariosPorClinica[a.clinicaId] ?? '99:99';
+              final horarioB = horariosPorClinica[b.clinicaId] ?? '99:99';
+              return horarioA.compareTo(horarioB);
+            }
+
+            atrasadas.sort(compararColetas);
+            hoje.sort(compararColetas);
+            futuras.sort(compararColetas);
+            concluidas.sort(
+              (a, b) => b.dataAgendamento.compareTo(a.dataAgendamento),
+            );
+
+            coletasAtrasadas.value = atrasadas;
+            coletasHoje.value = hoje;
+            coletasFuturas.value = futuras;
+            coletasConcluidas.value = concluidas;
+            isLoading.value = false;
+          });
+        });
   }
 
   void dispose() {
-    _subscription?.cancel();
+    _subColetas?.cancel();
+    _subRota?.cancel();
     isLoading.dispose();
+    mapaHorariosClinica.dispose();
     coletasAtrasadas.dispose();
     coletasHoje.dispose();
     coletasFuturas.dispose();

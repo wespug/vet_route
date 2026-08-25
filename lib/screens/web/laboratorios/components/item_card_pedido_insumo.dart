@@ -263,6 +263,10 @@ class _ItemCardPedidoInsumoState extends State<ItemCardPedidoInsumo> {
     final dataPedido = controller.formatarData(data['dataSolicitacao']);
     final nomeEntregador = data['nomeEntregador']?.toString();
 
+    final bool isCancelado =
+        statusRaw.toLowerCase() == 'cancelado' ||
+        statusRaw.toLowerCase().contains('recusado');
+
     String ultimaObservacao = '';
     String dataAcao = '';
     String usuarioAcao = 'Operador do Laboratório';
@@ -274,6 +278,21 @@ class _ItemCardPedidoInsumoState extends State<ItemCardPedidoInsumo> {
       if (ultimoHist['usuario'] != null &&
           ultimoHist['usuario'].toString().isNotEmpty) {
         usuarioAcao = ultimoHist['usuario'].toString();
+      }
+    }
+
+    // Se o pedido foi cancelado, busca as credenciais de quem cancelou e a hora
+    if (isCancelado) {
+      if (data['usuarioCancelamento'] != null &&
+          data['usuarioCancelamento'].toString().isNotEmpty) {
+        usuarioAcao = data['usuarioCancelamento'].toString();
+      }
+      if (data['dataCancelamento'] != null) {
+        dataAcao = controller.formatarData(data['dataCancelamento']);
+      }
+      if (data['justificativaLab'] != null &&
+          data['justificativaLab'].toString().isNotEmpty) {
+        ultimaObservacao = data['justificativaLab'].toString();
       }
     }
 
@@ -309,9 +328,13 @@ class _ItemCardPedidoInsumoState extends State<ItemCardPedidoInsumo> {
                     children: [
                       Row(
                         children: [
-                          const Icon(
-                            Icons.assignment_outlined,
-                            color: Colors.orange,
+                          Icon(
+                            isCancelado
+                                ? Icons.cancel_outlined
+                                : Icons.assignment_outlined,
+                            color: isCancelado
+                                ? Colors.redAccent
+                                : Colors.orange,
                             size: 28,
                           ),
                           const SizedBox(width: 10),
@@ -628,10 +651,12 @@ class _ItemCardPedidoInsumoState extends State<ItemCardPedidoInsumo> {
                             children: [
                               Text(
                                 "Processado por: $usuarioAcao",
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 13,
-                                  color: Colors.indigo,
+                                  color: isCancelado
+                                      ? Colors.red.shade700
+                                      : Colors.indigo,
                                 ),
                               ),
                               if (dataAcao.isNotEmpty) ...[

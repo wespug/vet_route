@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:vet_route/controllers/chamado_coleta_controller.dart';
+import 'package:vet_route/controllers/pedido_insumo_controller.dart';
 import 'package:vet_route/models/clinica_model.dart';
-import 'package:vet_route/models/chamado_coleta_model.dart';
+import 'package:vet_route/models/item_logistica_model.dart';
 import 'package:vet_route/screens/web/clinicas/components/chamados_data_source.dart';
 import 'package:vet_route/screens/web/clinicas/modal/modal_pedir_insumos.dart';
 import 'package:vet_route/screens/web/clinicas/modal/modal_novo_chamado.dart';
@@ -72,7 +73,7 @@ class _GestaoChamadosViewState extends State<GestaoChamadosView>
               const SizedBox(height: 24),
               TextField(
                 decoration: InputDecoration(
-                  hintText: 'Buscar por laboratório ou status da coleta...',
+                  hintText: 'Buscar por código, laboratório, tipo ou status...',
                   prefixIcon: const Icon(Icons.search, color: Colors.indigo),
                   filled: true,
                   fillColor: Colors.white,
@@ -102,7 +103,7 @@ class _GestaoChamadosViewState extends State<GestaoChamadosView>
                 indicatorColor: Colors.indigo,
                 indicatorSize: TabBarIndicatorSize.tab,
                 tabs: [
-                  Tab(text: "Coletas Ativas & Agendadas"),
+                  Tab(text: "Coletas & Insumos Ativos"),
                   Tab(text: "Encerrados / Histórico"),
                 ],
               ),
@@ -110,8 +111,8 @@ class _GestaoChamadosViewState extends State<GestaoChamadosView>
               Expanded(
                 child: TabBarView(
                   children: [
-                    _buildListaChamados(isHistorico: false),
-                    _buildListaChamados(isHistorico: true),
+                    _buildListaItens(isHistorico: false),
+                    _buildListaItens(isHistorico: true),
                   ],
                 ),
               ),
@@ -134,7 +135,7 @@ class _GestaoChamadosViewState extends State<GestaoChamadosView>
           mainAxisSize: MainAxisSize.min,
           children: [
             const Text(
-              "Gestão de Coletas 📦",
+              "Gestão de Coletas & Insumos 📦",
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
@@ -157,7 +158,7 @@ class _GestaoChamadosViewState extends State<GestaoChamadosView>
                 context: context,
                 barrierDismissible: false,
                 builder: (_) => ModalPedirInsumos(
-                  controller: _controller,
+                  controller: PedidoInsumoController(),
                   clinicaContexto: widget.clinicaContexto,
                   usuarioLogado: _obterUsuarioLogado(),
                 ),
@@ -240,10 +241,10 @@ class _GestaoChamadosViewState extends State<GestaoChamadosView>
     );
   }
 
-  Widget _buildListaChamados({required bool isHistorico}) {
+  Widget _buildListaItens({required bool isHistorico}) {
     final listenableTarget = isHistorico
-        ? _controller.chamadosPassados
-        : _controller.chamadosHoje;
+        ? _controller.itensHistorico
+        : _controller.itensAtivos;
 
     return ValueListenableBuilder<bool>(
       valueListenable: _controller.isLoading,
@@ -254,41 +255,31 @@ class _GestaoChamadosViewState extends State<GestaoChamadosView>
           );
         }
 
-        return ValueListenableBuilder<List<ChamadoColetaModel>>(
+        return ValueListenableBuilder<List<ItemLogisticaModel>>(
           valueListenable: listenableTarget,
-          builder: (context, chamados, child) {
-            // 1. Filtragem por busca e garantia de separação por status
-            List<ChamadoColetaModel> chamadosFiltrados = chamados.where((c) {
-              final statusLower = c.status.toLowerCase();
-              final eEncerrado =
-                  statusLower == 'entregue' ||
-                  statusLower == 'concluído' ||
-                  statusLower == 'cancelado' ||
-                  statusLower == 'recusado' ||
-                  statusLower == 'finalizada';
-
-              // Filtra se deve aparecer na aba atual
-              if (isHistorico && !eEncerrado) return false;
-              if (!isHistorico && eEncerrado) return false;
-
-              // Filtra pelo termo buscado
+          builder: (context, itens, child) {
+            List<ItemLogisticaModel> itensFiltrados = itens.where((item) {
               final termo = _termoBusca.toLowerCase();
-              return c.laboratorioNome.toLowerCase().contains(termo) ||
-                  c.status.toLowerCase().contains(termo);
+              return item.laboratorioNome.toLowerCase().contains(termo) ||
+                  item.status.toLowerCase().contains(termo) ||
+                  item.codigo.toLowerCase().contains(termo) ||
+                  item.nomeTipoFormatado.toLowerCase().contains(termo);
             }).toList();
 
-            // 2. Lógica de Ordenação em Memória
             if (_sortColumnIndex != null) {
-              chamadosFiltrados.sort((a, b) {
+              itensFiltrados.sort((a, b) {
                 int comp = 0;
                 switch (_sortColumnIndex) {
-                  case 1:
+                  case 1: // Código
+                    comp = a.codigo.compareTo(b.codigo);
+                    break;
+                  case 2: // Laboratório
                     comp = a.laboratorioNome.compareTo(b.laboratorioNome);
                     break;
-                  case 2:
-                    comp = a.dataAgendamento.compareTo(b.dataAgendamento);
+                  case 3: // Data
+                    comp = a.dataCriacao.compareTo(b.dataCriacao);
                     break;
-                  case 3:
+                  case 4: // Status
                     comp = a.status.compareTo(b.status);
                     break;
                 }
@@ -296,7 +287,7 @@ class _GestaoChamadosViewState extends State<GestaoChamadosView>
               });
             }
 
-            if (chamadosFiltrados.isEmpty) {
+            if (itensFiltrados.isEmpty) {
               return Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -311,10 +302,10 @@ class _GestaoChamadosViewState extends State<GestaoChamadosView>
                     const SizedBox(height: 16),
                     Text(
                       _termoBusca.isNotEmpty
-                          ? "Nenhuma coleta encontrada para '$_termoBusca'."
+                          ? "Nenhum registro encontrado para '$_termoBusca'."
                           : (isHistorico
-                                ? "Nenhum histórico de coletas e pedidos."
-                                : "Nenhuma coleta ativa ou agendada."),
+                                ? "Nenhum histórico operacional encontrado."
+                                : "Nenhum pedido ou coleta ativa no momento."),
                       style: TextStyle(
                         fontSize: 15,
                         color: Colors.grey.shade500,
@@ -328,7 +319,7 @@ class _GestaoChamadosViewState extends State<GestaoChamadosView>
 
             final dataSource = ChamadosDataSource(
               context: context,
-              chamados: chamadosFiltrados,
+              itens: itensFiltrados,
               clinicaContexto: widget.clinicaContexto,
               usuarioLogado: _obterUsuarioLogado(),
             );
@@ -345,7 +336,7 @@ class _GestaoChamadosViewState extends State<GestaoChamadosView>
                   header: Text(
                     isHistorico
                         ? "Histórico Operacional / Encerrados"
-                        : "Painel de Coletas Ativas",
+                        : "Painel Unificado de Coletas & Insumos",
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -365,6 +356,13 @@ class _GestaoChamadosViewState extends State<GestaoChamadosView>
                         'Tipo',
                         style: TextStyle(fontWeight: FontWeight.bold),
                       ),
+                    ),
+                    DataColumn(
+                      label: const Text(
+                        'Código', // 💡 Nova coluna dedicada para o Código
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      onSort: _onSort,
                     ),
                     DataColumn(
                       label: const Text(

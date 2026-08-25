@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import 'package:vet_route/controllers/direcionamento_coletas_controller.dart';
-import 'package:vet_route/models/chamado_coleta_model.dart';
+import 'package:vet_route/models/coleta_model.dart';
+import 'package:vet_route/controllers/coleta_controller.dart';
+import 'package:vet_route/screens/widgets/coleta_card.dart';
+import 'package:vet_route/screens/widgets/coleta_segmented_control.dart';
 
 class DirecionamentoColetasView extends StatefulWidget {
   final String? entregadorId;
@@ -15,322 +18,260 @@ class DirecionamentoColetasView extends StatefulWidget {
 
 class _DirecionamentoColetasViewState extends State<DirecionamentoColetasView>
     with SingleTickerProviderStateMixin {
-  late DirecionamentoColetasController _controller;
   late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
-    _controller = DirecionamentoColetasController();
     _tabController = TabController(length: 2, vsync: this);
-    _controller.escutarColetasDoEntregador(entregadorId: widget.entregadorId);
+    _iniciarEscutaColetas();
+  }
+
+  @override
+  void didUpdateWidget(covariant DirecionamentoColetasView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.entregadorId != widget.entregadorId) {
+      _iniciarEscutaColetas();
+    }
   }
 
   @override
   void dispose() {
-    _controller.dispose();
     _tabController.dispose();
     super.dispose();
+  }
+
+  void _iniciarEscutaColetas() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final controller = Provider.of<ColetaController>(context, listen: false);
+      if (widget.entregadorId != null && widget.entregadorId!.isNotEmpty) {
+        controller.escutarColetasDoEntregador(widget.entregadorId!);
+      } else {
+        controller.escutarTodasColetasAtivas();
+      }
+    });
+  }
+
+  String _formatarDataCabecalho(String dataStr) {
+    try {
+      final data = DateTime.parse(dataStr);
+      final hoje = DateTime.now();
+      final ontem = hoje.subtract(const Duration(days: 1));
+
+      if (DateFormat('yyyy-MM-dd').format(hoje) == dataStr) {
+        return 'Hoje, ${DateFormat("dd 'de' MMMM", 'pt_BR').format(data)}';
+      } else if (DateFormat('yyyy-MM-dd').format(ontem) == dataStr) {
+        return 'Ontem, ${DateFormat("dd 'de' MMMM", 'pt_BR').format(data)}';
+      }
+
+      return DateFormat("EEEE, dd 'de' MMMM", 'pt_BR').format(data);
+    } catch (_) {
+      return dataStr;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
-      body: Column(
-        children: [
-          // BARRA SUPERIOR DE ABAS INTERNAS
-          Container(
-            color: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: TabBar(
-              controller: _tabController,
-              labelColor: Colors.deepOrange,
-              unselectedLabelColor: Colors.grey.shade600,
-              indicatorColor: Colors.deepOrange,
-              indicatorWeight: 3,
-              tabs: const [
-                Tab(
-                  icon: Icon(Icons.assignment_outlined, size: 20),
-                  text: "Agenda & Pendentes",
-                ),
-                Tab(
-                  icon: Icon(Icons.check_circle_outline, size: 20),
-                  text: "Coletas Concluídas",
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: ValueListenableBuilder<bool>(
-              valueListenable: _controller.isLoading,
-              builder: (context, loading, child) {
-                if (loading) {
-                  return const Center(
-                    child: CircularProgressIndicator(color: Colors.deepOrange),
-                  );
-                }
-
-                return TabBarView(
-                  controller: _tabController,
-                  children: [
-                    _buildAbaAgendaEPendentes(),
-                    _buildAbaConcluidas(),
-                  ],
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // 1️⃣ ABA AGENDA E PENDENTES (SEPARADO POR DIA)
-  Widget _buildAbaAgendaEPendentes() {
-    return ListenableBuilder(
-      listenable: Listenable.merge([
-        _controller.coletasAtrasadas,
-        _controller.coletasHoje,
-        _controller.coletasFuturas,
-      ]),
-      builder: (context, child) {
-        final atrasadas = _controller.coletasAtrasadas.value;
-        final hoje = _controller.coletasHoje.value;
-        final futuras = _controller.coletasFuturas.value;
-
-        if (atrasadas.isEmpty && hoje.isEmpty && futuras.isEmpty) {
-          return _buildEmptyState("Nenhuma coleta pendente no momento.");
-        }
-
-        return ListView(
-          padding: const EdgeInsets.all(24),
-          children: [
-            if (atrasadas.isNotEmpty)
-              _buildSecaoData(
-                titulo:
-                    "⚠️ Pendências de Dias Anteriores (${atrasadas.length})",
-                corHeader: Colors.red.shade700,
-                corFundoHeader: Colors.red.shade50,
-                coletas: atrasadas,
-              ),
-            if (hoje.isNotEmpty)
-              _buildSecaoData(
-                titulo: "🟢 Coletas para Hoje (${hoje.length})",
-                corHeader: Colors.green.shade800,
-                corFundoHeader: Colors.green.shade50,
-                coletas: hoje,
-              ),
-            if (futuras.isNotEmpty)
-              _buildSecaoData(
-                titulo: "📅 Próximos Dias (${futuras.length})",
-                corHeader: Colors.blue.shade800,
-                corFundoHeader: Colors.blue.shade50,
-                coletas: futuras,
-              ),
-          ],
-        );
-      },
-    );
-  }
-
-  // 2️⃣ ABA DE COLETAS CONCLUÍDAS
-  Widget _buildAbaConcluidas() {
-    return ValueListenableBuilder<List<ChamadoColetaModel>>(
-      valueListenable: _controller.coletasConcluidas,
-      builder: (context, concluidas, child) {
-        if (concluidas.isEmpty) {
-          return _buildEmptyState("Nenhuma coleta concluída registrada.");
-        }
-
-        return ListView.builder(
-          padding: const EdgeInsets.all(24),
-          itemCount: concluidas.length,
-          itemBuilder: (context, index) {
-            final item = concluidas[index];
-            return _buildCardColeta(item, isConcluida: true);
-          },
-        );
-      },
-    );
-  }
-
-  Widget _buildSecaoData({
-    required String titulo,
-    required Color corHeader,
-    required Color corFundoHeader,
-    required List<ChamadoColetaModel> coletas,
-  }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-            decoration: BoxDecoration(
-              color: corFundoHeader,
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(12),
-              ),
-            ),
-            child: Row(
-              children: [
-                Text(
-                  titulo,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: corHeader,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: coletas.length,
-            separatorBuilder: (_, __) =>
-                Divider(height: 1, color: Colors.grey.shade200),
-            itemBuilder: (context, index) {
-              return _buildCardColeta(coletas[index]);
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCardColeta(ChamadoColetaModel item, {bool isConcluida = false}) {
-    final formatadorData = DateFormat('dd/MM/yyyy HH:mm');
-
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: item.isEmergencia
-                  ? Colors.red.shade50
-                  : Colors.grey.shade100,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              item.isEmergencia
-                  ? Icons.warning_amber_rounded
-                  : Icons.local_shipping_outlined,
-              color: item.isEmergencia ? Colors.red : Colors.grey.shade700,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      item.clinicaNome,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    if (item.isEmergencia)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.red,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: const Text(
-                          "URGENTE",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  "Destino: ${item.laboratorioNome}",
-                  style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
-                ),
-                if (item.observacao.isNotEmpty)
-                  Text(
-                    "Obs: ${item.observacao}",
-                    style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
-                  ),
-              ],
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
+      backgroundColor: const Color(0xFFF6F8FA),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 28.0, vertical: 20.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                formatadorData.format(item.dataAgendamento),
-                style: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: isConcluida
-                      ? Colors.green.shade100
-                      : Colors.orange.shade100,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  item.status,
-                  style: TextStyle(
-                    color: isConcluida
-                        ? Colors.green.shade900
-                        : Colors.orange.shade900,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Central de Entregas',
+                        style: TextStyle(
+                          fontSize: 26,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.5,
+                          color: Color(0xFF1C1C1E),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        widget.entregadorId != null &&
+                                widget.entregadorId!.isNotEmpty
+                            ? "Rotas e Insumos do Motoboy"
+                            : "Visão Geral de Chamados",
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFF8E8E93),
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ),
+                    ],
                   ),
+                  Row(
+                    children: [
+                      _buildPillLegenda('Exames', const Color(0xFF007AFF)),
+                      const SizedBox(width: 8),
+                      _buildPillLegenda('Insumos', const Color(0xFF34C759)),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              ColetaSegmentedControl(tabController: _tabController),
+              const SizedBox(height: 20),
+
+              Expanded(
+                child: Consumer<ColetaController>(
+                  builder: (context, controller, child) {
+                    if (controller.carregando) {
+                      return const Center(
+                        child: CircularProgressIndicator(strokeWidth: 2.5),
+                      );
+                    }
+
+                    return TabBarView(
+                      controller: _tabController,
+                      children: [
+                        _buildListaAgrupada(
+                          controller.coletasAtivas,
+                          isFinalizados: false,
+                        ),
+                        _buildListaAgrupada(
+                          controller.coletasFinalizadas,
+                          isFinalizados: true,
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPillLegenda(String texto, Color cor) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: cor.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(color: cor, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            texto,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: cor,
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildEmptyState(String mensagem) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.inbox_outlined, size: 64, color: Colors.grey.shade400),
-          const SizedBox(height: 16),
-          Text(
-            mensagem,
-            style: TextStyle(fontSize: 15, color: Colors.grey.shade600),
-          ),
-        ],
-      ),
+  Widget _buildListaAgrupada(
+    List<Coleta> lista, {
+    required bool isFinalizados,
+  }) {
+    if (lista.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              isFinalizados ? Icons.archive_outlined : Icons.inbox_outlined,
+              size: 48,
+              color: const Color(0xFFC7C7CC),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              isFinalizados
+                  ? "Nenhum exame ou insumo recusado / finalizado."
+                  : "Nenhum chamado ativo no momento.",
+              style: const TextStyle(
+                color: Color(0xFF8E8E93),
+                fontSize: 15,
+                fontWeight: FontWeight.w400,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final controller = Provider.of<ColetaController>(context, listen: false);
+    final agrupados = controller.agruparEOrdenarColetas(lista);
+
+    return ListView.builder(
+      physics: const BouncingScrollPhysics(),
+      itemCount: agrupados.keys.length,
+      itemBuilder: (context, index) {
+        final chaveData = agrupados.keys.elementAt(index);
+        final itensDoDia = agrupados[chaveData]!;
+        final int qtdExames = itensDoDia.length;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    _formatarDataCabecalho(chaveData).toUpperCase(),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.8,
+                      color: Color(0xFF8E8E93),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE5E5EA),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      "$qtdExames ${qtdExames == 1 ? 'PEDIDO' : 'PEDIDOS'}",
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF636366),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            ...itensDoDia.map(
+              (coleta) => Padding(
+                padding: const EdgeInsets.only(bottom: 12.0),
+                child: ColetaCard(item: coleta, isFinalizados: isFinalizados),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

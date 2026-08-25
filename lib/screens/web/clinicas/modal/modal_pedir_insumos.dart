@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:vet_route/controllers/chamado_coleta_controller.dart';
+import 'package:vet_route/controllers/pedido_insumo_controller.dart';
 import 'package:vet_route/controllers/insumo_controller.dart';
 import 'package:vet_route/models/clinica_model.dart';
 import 'package:vet_route/models/insumo_model.dart';
+import 'package:vet_route/models/laboratorio_model.dart';
+import 'package:vet_route/models/endereco_model.dart';
 
 class ModalPedirInsumos extends StatefulWidget {
-  final ChamadoColetaController controller;
+  final PedidoInsumoController controller;
   final Clinica clinicaContexto;
   final String usuarioLogado;
 
@@ -26,6 +27,13 @@ class _ModalPedirInsumosState extends State<ModalPedirInsumos> {
   bool enviando = false;
   final Map<String, int> quantidadesSelecionadas = {};
   String? localLabIdSelecionado;
+
+  @override
+  void initState() {
+    super.initState();
+    // 🔹 Garante que os laboratórios serão carregados assim que a modal abrir
+    widget.controller.carregarLaboratorios();
+  }
 
   @override
   void dispose() {
@@ -65,35 +73,47 @@ class _ModalPedirInsumosState extends State<ModalPedirInsumos> {
               ),
             ),
             const SizedBox(height: 16),
-            ValueListenableBuilder<List<Map<String, dynamic>>>(
-              valueListenable: widget.controller.laboratorios,
-              builder: (context, laboratorios, child) {
-                return DropdownButtonFormField<String>(
-                  decoration: InputDecoration(
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    filled: true,
-                    fillColor: Colors.grey.shade50,
-                  ),
-                  items: laboratorios.map((item) {
-                    return DropdownMenuItem<String>(
-                      value: item['id'] as String,
-                      child: Text(
-                        item['nome'] as String? ?? 'Laboratório sem nome',
+            ValueListenableBuilder<bool>(
+              valueListenable: widget.controller.isLoadingLab,
+              builder: (context, isLoadingLab, child) {
+                if (isLoadingLab) {
+                  return const Center(
+                    child: LinearProgressIndicator(color: Colors.teal),
+                  );
+                }
+                return ValueListenableBuilder<List<Laboratorio>>(
+                  valueListenable: widget.controller.laboratorios,
+                  builder: (context, laboratorios, child) {
+                    return DropdownButtonFormField<String>(
+                      decoration: InputDecoration(
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        filled: true,
+                        fillColor: Colors.grey.shade50,
                       ),
+                      items: laboratorios.map((lab) {
+                        return DropdownMenuItem<String>(
+                          value: lab.id,
+                          child: Text(
+                            lab.nome.isNotEmpty
+                                ? lab.nome
+                                : 'Laboratório sem nome',
+                          ),
+                        );
+                      }).toList(),
+                      value: localLabIdSelecionado,
+                      hint: const Text("Selecione um laboratório"),
+                      onChanged: (val) {
+                        setState(() {
+                          localLabIdSelecionado = val;
+                          quantidadesSelecionadas.clear();
+                          if (val != null) {
+                            insumoController.carregarInsumos(val);
+                          }
+                        });
+                      },
                     );
-                  }).toList(),
-                  value: localLabIdSelecionado,
-                  hint: const Text("Selecione um laboratório"),
-                  onChanged: (val) {
-                    setState(() {
-                      localLabIdSelecionado = val;
-                      if (val != null) {
-                        quantidadesSelecionadas.clear();
-                        insumoController.carregarInsumos(val);
-                      }
-                    });
                   },
                 );
               },
@@ -133,7 +153,7 @@ class _ModalPedirInsumosState extends State<ModalPedirInsumos> {
                               itemBuilder: (context, index) {
                                 final insumo = insumos[index];
                                 final qtd =
-                                    quantidadesSelecionadas[insumo.id] ?? 0;
+                                    quantidadesSelecionadas[insumo.id!] ?? 0;
                                 return ListTile(
                                   title: Text(
                                     insumo.descricao,
@@ -245,39 +265,35 @@ class _ModalPedirInsumosState extends State<ModalPedirInsumos> {
 
                   try {
                     final listaLabs = widget.controller.laboratorios.value;
-                    final labEncontrado = listaLabs
-                        .cast<Map<String, dynamic>?>()
-                        .firstWhere(
-                          (l) => l != null && l['id'] == localLabIdSelecionado,
-                          orElse: () => null,
-                        );
+                    final labEncontrado = listaLabs.firstWhere(
+                      (l) => l.id == localLabIdSelecionado,
+                      orElse: () => Laboratorio(
+                        id: '',
+                        nome: 'Laboratório Parceiro',
+                        email: '',
+                        telefone: '',
+                        cnpj: '',
+                        endereco: Endereco(
+                          logradouro: '',
+                          numero: '',
+                          bairro: '',
+                          cidade: '',
+                          estado: '',
+                          cep: '',
+                        ),
+                      ),
+                    );
 
-                    final String nomeLaboratorio =
-                        labEncontrado?['nome'] as String? ??
-                        'Laboratório Parceiro';
+                    final sucesso = await widget.controller.criarPedido(
+                      clinicaId: widget.clinicaContexto.id!,
+                      clinicaNome: widget.clinicaContexto.nome,
+                      laboratorioId: localLabIdSelecionado!,
+                      laboratorioNome: labEncontrado.nome,
+                      usuarioSolicitante: widget.usuarioLogado,
+                      itens: insumosSelecionados,
+                    );
 
-                    await FirebaseFirestore.instance
-                        .collection('pedidos_insumos')
-                        .add({
-                          'clinicaId': widget.clinicaContexto.id,
-                          'clinicaNome': widget.clinicaContexto.nome,
-                          'laboratorioId': localLabIdSelecionado,
-                          'laboratorioNome': nomeLaboratorio,
-                          'usuarioSolicitante': widget.usuarioLogado,
-                          'status': 'Pendente',
-                          'dataSolicitacao': FieldValue.serverTimestamp(),
-                          'historico': [
-                            {
-                              'status': 'Pendente',
-                              'data': DateTime.now().toIso8601String(),
-                              'observacao':
-                                  'Pedido de insumos realizado por: ${widget.usuarioLogado}',
-                            },
-                          ],
-                          'itens': insumosSelecionados,
-                        });
-
-                    if (context.mounted) {
+                    if (sucesso && context.mounted) {
                       Navigator.pop(context);
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
@@ -287,7 +303,7 @@ class _ModalPedirInsumosState extends State<ModalPedirInsumos> {
                       );
                     }
                   } catch (e) {
-                    debugPrint("Erro ao salvar pedido WEB: $e");
+                    debugPrint("Erro ao salvar pedido de insumos WEB: $e");
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
