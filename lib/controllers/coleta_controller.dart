@@ -22,13 +22,15 @@ class ColetaController extends ChangeNotifier {
   StreamSubscription<List<Coleta>>? _coletasSubscription;
 
   // ===========================================================================
-  // GETTERS DE REGRAS DE NEGÓCIO E FILTRAGEM (MVC)
+  // 1. GETTERS DE REGRAS DE NEGÓCIO E FILTRAGEM (MVC)
   // ===========================================================================
 
   /// Determina se um item é finalizado, concluído, cancelado ou recusado
   bool isItemFinalizadoOuRecusado(Coleta item) {
     final st = item.status.trim().toLowerCase();
 
+    // IMPORTANTE: "Recusado" aqui é a recusa final pelo laboratório.
+    // Se o motoboy recusa, o status volta para "aguardando_entregador" e não cai nesta malha.
     return st.contains('recusad') ||
         st.contains('recusar') ||
         st.contains('cancel') ||
@@ -78,10 +80,38 @@ class ColetaController extends ChangeNotifier {
   }
 
   // ===========================================================================
-  // MÉTODOS DE STREAM E REPOSITÓRIO
+  // 2. MÉTODOS DE APRESENTAÇÃO (Injetados para manter a View limpa)
   // ===========================================================================
 
-  /// Escuta as coletas no radar em tempo real
+  /// Formata a data para os cabeçalhos da lista de entregas do Motoboy
+  String formatarDataCabecalho(String dataStr) {
+    try {
+      final data = DateTime.parse(dataStr);
+      final hoje = DateTime.now();
+      final ontem = hoje.subtract(const Duration(days: 1));
+
+      if (DateFormat('yyyy-MM-dd').format(hoje) == dataStr) {
+        return 'Hoje, ${DateFormat("dd 'de' MMMM", 'pt_BR').format(data)}';
+      } else if (DateFormat('yyyy-MM-dd').format(ontem) == dataStr) {
+        return 'Ontem, ${DateFormat("dd 'de' MMMM", 'pt_BR').format(data)}';
+      }
+
+      return DateFormat("EEEE, dd 'de' MMMM", 'pt_BR').format(data);
+    } catch (_) {
+      return dataStr;
+    }
+  }
+
+  /// Retorna o texto pluralizado corretamente para a View
+  String obterTextoQuantidade(int qtd) {
+    return "$qtd ${qtd == 1 ? 'PARADA' : 'PARADAS'}";
+  }
+
+  // ===========================================================================
+  // 3. MÉTODOS DE STREAM E REPOSITÓRIO
+  // ===========================================================================
+
+  /// Escuta as coletas ativas no radar em tempo real
   void escutarColetasNoRadar() {
     isLoading.value = true;
     notifyListeners();
@@ -128,23 +158,41 @@ class ColetaController extends ChangeNotifier {
         );
   }
 
-  /// Recusa uma coleta alterando seu status no banco para 'Recusado'
+  /// Ação do Motoboy ao recusar uma coleta designada a ele
   Future<void> recusarColeta(String coletaId) async {
     try {
-      await _repository.atualizarStatusColeta(coletaId, 'Recusado');
+      isLoading.value = true;
+      notifyListeners();
+
+      // 💡 Regra de Negócio: O status volta para "Aguardando Entregador"
+      // (Não podemos usar "Recusado" aqui senão some para o Laboratório como coleta morta)
+      // Futuramente, no repositório, garantiremos que ele zere o "entregadorId" também.
+      await _repository.atualizarStatusColeta(
+        coletaId,
+        'aguardando_entregador',
+      );
     } catch (e) {
       debugPrint('Erro ao recusar coleta ($coletaId): $e');
       rethrow;
+    } finally {
+      isLoading.value = false;
+      notifyListeners();
     }
   }
 
   /// Atualiza genericamente o status de uma coleta/insumo
   Future<void> atualizarStatusColeta(String coletaId, String novoStatus) async {
     try {
+      isLoading.value = true;
+      notifyListeners();
+
       await _repository.atualizarStatusColeta(coletaId, novoStatus);
     } catch (e) {
       debugPrint('Erro ao atualizar status da coleta ($coletaId): $e');
       rethrow;
+    } finally {
+      isLoading.value = false;
+      notifyListeners();
     }
   }
 

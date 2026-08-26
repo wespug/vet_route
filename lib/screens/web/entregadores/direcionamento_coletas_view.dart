@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 
 import 'package:vet_route/models/coleta_model.dart';
 import 'package:vet_route/controllers/coleta_controller.dart';
-import 'package:vet_route/screens/widgets/coleta_card.dart'; // Chamando o nosso novo Card Limpo!
+import 'package:vet_route/screens/widgets/coleta_card.dart';
 
 class DirecionamentoColetasView extends StatefulWidget {
   final String? entregadorId;
@@ -15,14 +16,12 @@ class DirecionamentoColetasView extends StatefulWidget {
       _DirecionamentoColetasViewState();
 }
 
-class _DirecionamentoColetasViewState extends State<DirecionamentoColetasView>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _DirecionamentoColetasViewState extends State<DirecionamentoColetasView> {
+  int _selectedSegment = 0; // 0 = A Fazer, 1 = Concluídas
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
     _iniciarEscutaColetas();
   }
 
@@ -32,12 +31,6 @@ class _DirecionamentoColetasViewState extends State<DirecionamentoColetasView>
     if (oldWidget.entregadorId != widget.entregadorId) {
       _iniciarEscutaColetas();
     }
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
   }
 
   void _iniciarEscutaColetas() {
@@ -54,167 +47,131 @@ class _DirecionamentoColetasViewState extends State<DirecionamentoColetasView>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F4F5),
-      body: Column(
-        children: [
-          // ==========================================
-          // HEADER PREMIUM WEB (Visão Despachante/Uber)
-          // ==========================================
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 32),
-            decoration: const BoxDecoration(
-              color: Color(0xFF1C1C1E),
-              borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(24),
-                bottomRight: Radius.circular(24),
-              ),
-            ),
-            child: Column(
+      backgroundColor: const Color(0xFFF2F2F7), // Cinza claro padrão do sistema
+      body: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ==========================================
+            // CABEÇALHO CLEAN CORPORATIVO
+            // ==========================================
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.deepOrange.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.deepOrange.shade400),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.circle,
-                            color: Colors.deepOrange,
-                            size: 12,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            widget.entregadorId != null &&
-                                    widget.entregadorId!.isNotEmpty
-                                ? "Status: Rota Ativa"
-                                : "Status: Visão Geral",
-                            style: const TextStyle(
-                              color: Colors.deepOrange,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const Icon(
-                      Icons.two_wheeler_rounded,
-                      color: Colors.white,
-                      size: 32,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    Row(
                       children: [
+                        const Icon(
+                          Icons.two_wheeler_rounded,
+                          color: Colors.indigo,
+                          size: 28,
+                        ),
+                        const SizedBox(width: 12),
                         const Text(
                           "Central de Entregas",
                           style: TextStyle(
-                            fontSize: 32,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
+                            fontSize: 26,
+                            fontWeight: FontWeight.w700,
                             letterSpacing: -0.5,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          "Acompanhe as paradas e gerencie as coletas em tempo real.",
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.grey.shade400,
+                            color: Colors.black87,
                           ),
                         ),
                       ],
                     ),
-                    // Legendas Limpas e Modernas
-                    Row(
-                      children: [
-                        _buildPillLegenda('Exames', const Color(0xFF007AFF)),
-                        const SizedBox(width: 12),
-                        _buildPillLegenda('Insumos', const Color(0xFF34C759)),
-                      ],
+                    const SizedBox(height: 6),
+                    Text(
+                      widget.entregadorId != null &&
+                              widget.entregadorId!.isNotEmpty
+                          ? "Acompanhe e gerencie a rota ativa do entregador."
+                          : "Visão geral de paradas e coletas do sistema.",
+                      style: TextStyle(
+                        fontSize: 15,
+                        color: Colors.grey.shade600,
+                        letterSpacing: -0.2,
+                      ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 32),
-
-                // ABAS (Tabs) com design Web
-                Container(
-                  height: 50,
-                  width: 400,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(25),
-                  ),
-                  child: TabBar(
-                    controller: _tabController,
-                    indicator: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(25),
-                    ),
-                    labelColor: Colors.black,
-                    unselectedLabelColor: Colors.grey.shade400,
-                    labelStyle: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
-                    tabs: const [
-                      Tab(text: "📍 A Fazer"),
-                      Tab(text: "✅ Concluídas"),
-                    ],
-                  ),
+                // Legendas de Cor
+                Row(
+                  children: [
+                    _buildPillLegenda('Exames', const Color(0xFF007AFF)),
+                    const SizedBox(width: 12),
+                    _buildPillLegenda('Insumos', const Color(0xFF34C759)),
+                  ],
                 ),
               ],
             ),
-          ),
+            const SizedBox(height: 32),
 
-          // ==========================================
-          // CORPO (GRID RESPONSIVO)
-          // ==========================================
-          Expanded(
-            child: Consumer<ColetaController>(
-              builder: (context, controller, child) {
-                if (controller.carregando) {
-                  return const Center(
-                    child: CircularProgressIndicator(color: Colors.deepOrange),
-                  );
-                }
-
-                return TabBarView(
-                  controller: _tabController,
-                  children: [
-                    _buildListaAgrupadaWeb(
-                      controller.coletasAtivas,
-                      controller,
-                      isFinalizados: false,
-                    ),
-                    _buildListaAgrupadaWeb(
-                      controller.coletasFinalizadas,
-                      controller,
-                      isFinalizados: true,
-                    ),
-                  ],
-                );
-              },
+            // ==========================================
+            // CONTROLE DE ABAS (Padrão Cupertino)
+            // ==========================================
+            SizedBox(
+              width: 400,
+              child: CupertinoSlidingSegmentedControl<int>(
+                backgroundColor: Colors.grey.shade300.withOpacity(0.5),
+                thumbColor: Colors.white,
+                groupValue: _selectedSegment,
+                padding: const EdgeInsets.all(4),
+                children: {
+                  0: _buildSegmentText("📍 Paradas em Aberto", 0),
+                  1: _buildSegmentText("✅ Concluídas / Recusadas", 1),
+                },
+                onValueChanged: (value) {
+                  if (value != null) {
+                    setState(() => _selectedSegment = value);
+                  }
+                },
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 24),
+
+            // ==========================================
+            // CORPO (GRID RESPONSIVO)
+            // ==========================================
+            Expanded(
+              child: Consumer<ColetaController>(
+                builder: (context, controller, child) {
+                  if (controller.carregando) {
+                    return const Center(
+                      child: CircularProgressIndicator(color: Colors.indigo),
+                    );
+                  }
+
+                  final listaAtiva = _selectedSegment == 0
+                      ? controller.coletasAtivas
+                      : controller.coletasFinalizadas;
+
+                  return _buildListaAgrupadaWeb(
+                    listaAtiva,
+                    controller,
+                    isFinalizados: _selectedSegment == 1,
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSegmentText(String texto, int index) {
+    final isSelected = _selectedSegment == index;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Text(
+        texto,
+        style: TextStyle(
+          fontSize: 14,
+          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+          color: isSelected ? Colors.black87 : Colors.grey.shade600,
+        ),
       ),
     );
   }
@@ -223,7 +180,7 @@ class _DirecionamentoColetasViewState extends State<DirecionamentoColetasView>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: cor.withOpacity(0.15),
+        color: cor.withOpacity(0.1),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: cor.withOpacity(0.3)),
       ),
@@ -238,10 +195,10 @@ class _DirecionamentoColetasViewState extends State<DirecionamentoColetasView>
           const SizedBox(width: 8),
           Text(
             texto,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: Colors.white,
+              color: cor,
             ),
           ),
         ],
@@ -263,18 +220,18 @@ class _DirecionamentoColetasViewState extends State<DirecionamentoColetasView>
               isFinalizados
                   ? Icons.check_circle_outline
                   : Icons.sports_motorsports_outlined,
-              size: 80,
+              size: 64,
               color: Colors.grey.shade300,
             ),
             const SizedBox(height: 16),
             Text(
               isFinalizados
                   ? "Nenhuma parada finalizada ainda."
-                  : "Pista limpa! Nenhuma parada na sua rota.",
+                  : "Nenhuma parada na rota atual.",
               style: TextStyle(
-                color: Colors.grey.shade600,
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
+                color: Colors.grey.shade500,
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
               ),
             ),
           ],
@@ -286,7 +243,7 @@ class _DirecionamentoColetasViewState extends State<DirecionamentoColetasView>
 
     return ListView.builder(
       physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 32),
+      padding: const EdgeInsets.only(bottom: 32),
       itemCount: agrupados.keys.length,
       itemBuilder: (context, index) {
         final chaveData = agrupados.keys.elementAt(index);
@@ -296,23 +253,23 @@ class _DirecionamentoColetasViewState extends State<DirecionamentoColetasView>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.only(bottom: 16, top: 8),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
                     controller.formatarDataCabecalho(chaveData).toUpperCase(),
                     style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.grey.shade600,
-                      letterSpacing: 0.8,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.grey.shade500,
+                      letterSpacing: 0.5,
                     ),
                   ),
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
-                      vertical: 6,
+                      vertical: 4,
                     ),
                     decoration: BoxDecoration(
                       color: Colors.grey.shade200,
@@ -322,7 +279,7 @@ class _DirecionamentoColetasViewState extends State<DirecionamentoColetasView>
                       controller.obterTextoQuantidade(itensDoDia.length),
                       style: const TextStyle(
                         fontSize: 12,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w700,
                         color: Colors.black54,
                       ),
                     ),
@@ -331,13 +288,13 @@ class _DirecionamentoColetasViewState extends State<DirecionamentoColetasView>
               ),
             ),
 
-            // Grid responsivo usando Wrap (não estica até o fim da tela, fica com blocos de largura fixa)
+            // Grid responsivo com Wrap
             Wrap(
               spacing: 16,
               runSpacing: 16,
               children: itensDoDia.map((coleta) {
                 return SizedBox(
-                  width: 420, // Largura padrão Web
+                  width: 420, // Mantém a largura consistente
                   child: ColetaCard(item: coleta, isFinalizados: isFinalizados),
                 );
               }).toList(),

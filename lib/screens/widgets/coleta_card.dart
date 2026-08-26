@@ -15,7 +15,7 @@ class ColetaCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 💡 Lógica visual "Burra": Apenas formatações para exibição
+    // Lógica visual básica
     final String horaFormatada = item.dataCriacao != null
         ? "${item.dataCriacao!.hour.toString().padLeft(2, '0')}:${item.dataCriacao!.minute.toString().padLeft(2, '0')}"
         : '--:--';
@@ -30,9 +30,16 @@ class ColetaCard extends StatelessWidget {
     final bool isRecusado =
         statusNorm.contains('recusad') || statusNorm.contains('cancel');
 
-    // Mágica da UX Logística: Se é insumo, sai do Lab pra Clínica. Se é Exame, sai da Clínica pro Lab.
     final String localOrigem = isInsumo ? labNome : item.nomeClinica;
     final String localDestino = isInsumo ? item.nomeClinica : labNome;
+
+    // 💡 PADRONIZAÇÃO DO CÓDIGO (Igual ao Kanban do Laboratório)
+    final String codigoOriginal = item.codigo.isNotEmpty
+        ? item.codigo
+        : (item.codigoAcompanhamento ?? item.id);
+    final String codigoFormatado = codigoOriginal.length >= 6
+        ? codigoOriginal.substring(0, 6).toUpperCase()
+        : codigoOriginal.toUpperCase();
 
     // Definição de Cores das Tags
     Color corBadge;
@@ -48,8 +55,8 @@ class ColetaCard extends StatelessWidget {
       corFundoBadge = const Color(0xFFE8F5E9);
       statusTexto = 'Concluída';
     } else if (statusNorm.contains('rota') || statusNorm.contains('caminho')) {
-      corBadge = Colors.deepOrange;
-      corFundoBadge = Colors.deepOrange.shade50;
+      corBadge = Colors.orange.shade800;
+      corFundoBadge = Colors.orange.shade50;
       statusTexto = 'Em Rota';
     } else {
       corBadge = Colors.indigo;
@@ -58,9 +65,7 @@ class ColetaCard extends StatelessWidget {
     }
 
     return Opacity(
-      opacity: isFinalizados
-          ? 0.65
-          : 1.0, // Reduz a opacidade de concluídos para dar foco aos abertos
+      opacity: isFinalizados ? 0.65 : 1.0,
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
@@ -70,7 +75,7 @@ class ColetaCard extends StatelessWidget {
               ? []
               : [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
+                    color: Colors.black.withOpacity(0.03),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),
@@ -122,7 +127,7 @@ class ColetaCard extends StatelessWidget {
                 ],
               ),
             ),
-            const Divider(height: 1, color: Color(0xFFF4F4F5), thickness: 1.5),
+            const Divider(height: 1, color: Color(0xFFF2F2F7), thickness: 1.5),
 
             // =====================================
             // TIMELINE DE ROTA
@@ -134,9 +139,11 @@ class ColetaCard extends StatelessWidget {
                 children: [
                   Column(
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.radio_button_checked,
-                        color: Colors.green,
+                        color: isInsumo
+                            ? const Color(0xFF34C759)
+                            : const Color(0xFF007AFF),
                         size: 18,
                       ),
                       Container(
@@ -226,11 +233,11 @@ class ColetaCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        "${isInsumo ? 'Insumos' : 'Exames'} • ID: #${item.codigo.isNotEmpty ? item.codigo : item.codigoAcompanhamento}",
+                        "${isInsumo ? 'Insumos' : 'Exames'} • ID: #$codigoFormatado", // 💡 ID Curto Oficial
                         style: TextStyle(
                           color: Colors.grey.shade700,
                           fontSize: 12,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ],
@@ -249,14 +256,17 @@ class ColetaCard extends StatelessWidget {
                               side: BorderSide(
                                 color: Colors.redAccent.shade100,
                               ),
-                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(8),
                               ),
                             ),
                             child: const Text(
                               "Recusar",
-                              style: TextStyle(fontWeight: FontWeight.w700),
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13,
+                              ),
                             ),
                           ),
                         ),
@@ -265,7 +275,6 @@ class ColetaCard extends StatelessWidget {
                           flex: 2,
                           child: ElevatedButton(
                             onPressed: () {
-                              // TODO: Lógica futura de aceitar/ver detalhes da rota
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
                                   content: Text(
@@ -275,9 +284,10 @@ class ColetaCard extends StatelessWidget {
                               );
                             },
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.black87,
+                              backgroundColor: Colors
+                                  .indigo, // 💡 Cor primária do sistema em vez de Preto
                               foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
                               elevation: 0,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(8),
@@ -285,7 +295,10 @@ class ColetaCard extends StatelessWidget {
                             ),
                             child: const Text(
                               "Iniciar Rota",
-                              style: TextStyle(fontWeight: FontWeight.w700),
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13,
+                              ),
                             ),
                           ),
                         ),
@@ -301,9 +314,6 @@ class ColetaCard extends StatelessWidget {
     );
   }
 
-  // ==========================================
-  // LÓGICA DO DIÁLOGO DE RECUSA (Delega para o Controller)
-  // ==========================================
   void _confirmarRecusa(BuildContext context, Coleta item) {
     showDialog(
       context: context,
@@ -315,7 +325,7 @@ class ColetaCard extends StatelessWidget {
           style: TextStyle(fontWeight: FontWeight.w800),
         ),
         content: const Text(
-          "Tem certeza que deseja recusar esta parada? Ela voltará para a fila de atribuição.",
+          "Tem certeza que deseja recusar esta parada? Ela voltará para a fila de atribuição do laboratório.",
         ),
         actions: [
           TextButton(
