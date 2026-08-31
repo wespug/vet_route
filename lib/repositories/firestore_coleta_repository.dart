@@ -57,19 +57,26 @@ class FirestoreColetaRepository implements ColetaRepository {
 
   @override
   Future<List<Coleta>> buscarColetasNoRadar() async {
-    // Traz a lista completa sem filtrar status no banco, deixando a separação de abas para o Controller
     final snapColetas = await _firestore.collection('coletas').get();
     final snapInsumos = await _firestore.collection('pedidos_insumos').get();
+    final snapChamados = await _firestore
+        .collection('chamados_coleta')
+        .get(); // 💡 ADICIONADO
 
     final coletas = snapColetas.docs.map((doc) => Coleta.fromFirestore(doc));
     final insumos = snapInsumos.docs.map((doc) => Coleta.fromFirestore(doc));
+    final chamados = snapChamados.docs.map((doc) => Coleta.fromFirestore(doc));
 
-    return [...coletas, ...insumos];
+    final mapaUnico = <String, Coleta>{};
+    for (var item in [...coletas, ...insumos, ...chamados]) {
+      mapaUnico[item.id] = item; // Remove duplicatas priorizando o último lido
+    }
+
+    return mapaUnico.values.toList();
   }
 
   @override
   Stream<List<Coleta>> streamColetasNoRadar() {
-    // Removido o filtro 'whereIn' de status para permitir que finalizados, recusados e cancelados venham na stream
     final streamColetas = _firestore
         .collection('coletas')
         .snapshots()
@@ -84,16 +91,35 @@ class FirestoreColetaRepository implements ColetaRepository {
           (snap) => snap.docs.map((doc) => Coleta.fromFirestore(doc)).toList(),
         );
 
-    return Rx.combineLatest2<List<Coleta>, List<Coleta>, List<Coleta>>(
-      streamColetas,
-      streamInsumos,
-      (coletas, insumos) => [...coletas, ...insumos],
-    );
+    // 💡 A PEÇA QUE FALTAVA NO RADAR GLOBAL
+    final streamChamados = _firestore
+        .collection('chamados_coleta')
+        .snapshots()
+        .map(
+          (snap) => snap.docs.map((doc) => Coleta.fromFirestore(doc)).toList(),
+        );
+
+    return Rx.combineLatest3<
+      List<Coleta>,
+      List<Coleta>,
+      List<Coleta>,
+      List<Coleta>
+    >(streamColetas, streamInsumos, streamChamados, (
+      coletas,
+      insumos,
+      chamados,
+    ) {
+      final mapaUnico = <String, Coleta>{};
+      for (var item in [...coletas, ...insumos, ...chamados]) {
+        mapaUnico[item.id] = item;
+      }
+      return mapaUnico.values.toList();
+    });
   }
 
   @override
   Stream<List<Coleta>> streamColetasPorEntregador(String entregadorId) {
-    // 1. Escuta a coleção 'coletas' verificando tanto 'entregadorId' quanto 'entregador.id'
+    // 1. Escuta a coleção 'coletas'
     final streamColetasRaiz = _firestore
         .collection('coletas')
         .where('entregadorId', isEqualTo: entregadorId)
@@ -110,7 +136,7 @@ class FirestoreColetaRepository implements ColetaRepository {
           (snap) => snap.docs.map((doc) => Coleta.fromFirestore(doc)).toList(),
         );
 
-    // 2. Escuta a coleção 'pedidos_insumos' verificando ambas as chaves de ID
+    // 2. Escuta a coleção 'pedidos_insumos'
     final streamInsumosRaiz = _firestore
         .collection('pedidos_insumos')
         .where('entregadorId', isEqualTo: entregadorId)
@@ -127,8 +153,18 @@ class FirestoreColetaRepository implements ColetaRepository {
           (snap) => snap.docs.map((doc) => Coleta.fromFirestore(doc)).toList(),
         );
 
-    // 3. Combina os 4 fluxos unificando em uma única lista sem duplicidades
-    return Rx.combineLatest4<
+    // 3. 💡 A PEÇA DE OURO: Escutando a tabela onde o laboratório injeta a corrida do motoboy!
+    final streamChamadosColeta = _firestore
+        .collection('chamados_coleta')
+        .where('entregadorId', isEqualTo: entregadorId)
+        .snapshots()
+        .map(
+          (snap) => snap.docs.map((doc) => Coleta.fromFirestore(doc)).toList(),
+        );
+
+    // Combina os 5 fluxos unificando em uma única lista
+    return Rx.combineLatest5<
+      List<Coleta>,
       List<Coleta>,
       List<Coleta>,
       List<Coleta>,
@@ -139,9 +175,10 @@ class FirestoreColetaRepository implements ColetaRepository {
       streamColetasAninhado,
       streamInsumosRaiz,
       streamInsumosAninhado,
-      (c1, c2, i1, i2) {
+      streamChamadosColeta, // Entra por último para os dados enriquecidos sobrescreverem se houver ID igual!
+      (c1, c2, i1, i2, chamados) {
         final mapaUnico = <String, Coleta>{};
-        for (var item in [...c1, ...c2, ...i1, ...i2]) {
+        for (var item in [...c1, ...c2, ...i1, ...i2, ...chamados]) {
           mapaUnico[item.id] = item;
         }
         return mapaUnico.values.toList();
@@ -157,21 +194,53 @@ class FirestoreColetaRepository implements ColetaRepository {
   @override
   Future<void> atualizarStatusColeta(String coletaId, String novoStatus) async {
     try {
+      // 1. Monta o pacote base de atualização
+      final Map<String, dynamic> dadosAtualizacao = {'status': novoStatus};
+
+      // 2. Se o status virou "aguardando", o motoboy recusou. Apaga o ID e o Nome dele.
+      if (novoStatus == 'aguardando_entregador' ||
+          novoStatus == 'aguardando_coleta') {
+        dadosAtualizacao['entregadorId'] = FieldValue.delete();
+        dadosAtualizacao['nomeEntregador'] = FieldValue.delete();
+        dadosAtualizacao['entregador'] = FieldValue.delete();
+      }
+
+      // 3. Varre as tabelas disparando a atualização
       final docColeta = await _firestore
           .collection('coletas')
           .doc(coletaId)
           .get();
-
       if (docColeta.exists) {
-        await _firestore.collection('coletas').doc(coletaId).update({
-          'status': novoStatus,
-          'dataAtualizacao': FieldValue.serverTimestamp(),
-        });
-      } else {
-        await _firestore.collection('pedidos_insumos').doc(coletaId).update({
-          'status': novoStatus,
-          'dataAtualizacao': FieldValue.serverTimestamp(),
-        });
+        dadosAtualizacao['dataAtualizacao'] = FieldValue.serverTimestamp();
+        await _firestore
+            .collection('coletas')
+            .doc(coletaId)
+            .update(dadosAtualizacao);
+      }
+
+      final docInsumo = await _firestore
+          .collection('pedidos_insumos')
+          .doc(coletaId)
+          .get();
+      if (docInsumo.exists) {
+        dadosAtualizacao['dataAtualizacao'] = FieldValue.serverTimestamp();
+        await _firestore
+            .collection('pedidos_insumos')
+            .doc(coletaId)
+            .update(dadosAtualizacao);
+      }
+
+      final docChamado = await _firestore
+          .collection('chamados_coleta')
+          .doc(coletaId)
+          .get();
+      if (docChamado.exists) {
+        dadosAtualizacao['atualizadoEm'] = FieldValue.serverTimestamp();
+        dadosAtualizacao.remove('dataAtualizacao');
+        await _firestore
+            .collection('chamados_coleta')
+            .doc(coletaId)
+            .update(dadosAtualizacao);
       }
     } catch (e) {
       debugPrint("❌ Erro ao atualizar status do pedido/coleta ($coletaId): $e");

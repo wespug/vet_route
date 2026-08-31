@@ -8,32 +8,51 @@ class Coleta {
   final String id;
   final Clinica clinicaOrigem;
   final Laboratorio laboratorioDestino;
-  final Entregador? entregador; // Nullable se estiver aguardando aceite
-  final String status; // Ex: 'Aguardando', 'Em Rota', 'Entregue'
+  final Entregador? entregador; // Objeto completo (se a rota antiga enviar)
+  final String? entregadorIdFlat; // 💡 Campo NoSQL Plano (Sem Gambiarra)
+  final String? entregadorNomeFlat; // 💡 Campo NoSQL Plano (Sem Gambiarra)
+  final String status;
   final bool isUrgente;
   final String? codigoAcompanhamento;
   final DateTime? dataSolicitacao;
+  final String? enderecoFlat;
 
   Coleta({
     required this.id,
     required this.clinicaOrigem,
     required this.laboratorioDestino,
     this.entregador,
+    this.entregadorIdFlat,
+    this.entregadorNomeFlat,
     this.status = 'Aguardando',
     this.isUrgente = false,
     this.codigoAcompanhamento,
     this.dataSolicitacao,
+    this.enderecoFlat,
   });
 
-  // 💡 Getters de conveniência para uso direto na View (evita erros de compilação)
   bool get isEmergencia => isUrgente;
-  String get nomeClinica => clinicaOrigem.nome;
+  String get nomeClinica =>
+      clinicaOrigem.nome.isNotEmpty ? clinicaOrigem.nome : 'Clínica Parceira';
   String get codigo => codigoAcompanhamento ?? id;
-  String get enderecoCompleto =>
-      '${clinicaOrigem.endereco.logradouro}, ${clinicaOrigem.endereco.numero} - ${clinicaOrigem.endereco.bairro}';
+
+  // 💡 GETTERS INTELIGENTES: Lê do objeto completo se existir, senão lê do campo plano!
+  String get idDoEntregador => entregador?.id ?? entregadorIdFlat ?? '';
+  String get nomeDoEntregador =>
+      entregador?.nome ?? entregadorNomeFlat ?? 'Aguardando Entregador';
+
+  String get enderecoCompleto {
+    if (enderecoFlat != null && enderecoFlat!.isNotEmpty) {
+      return enderecoFlat!;
+    }
+    if (clinicaOrigem.endereco.logradouro.isNotEmpty) {
+      return '${clinicaOrigem.endereco.logradouro}, ${clinicaOrigem.endereco.numero} - ${clinicaOrigem.endereco.bairro}';
+    }
+    return 'Endereço não cadastrado';
+  }
+
   DateTime? get dataCriacao => dataSolicitacao;
 
-  // 💡 Converte o objeto Coleta em Map para salvar no Firestore
   Map<String, dynamic> toMap() {
     return {
       'status': status,
@@ -42,35 +61,72 @@ class Coleta {
       'clinicaOrigem': clinicaOrigem.toMap(),
       'laboratorioDestino': laboratorioDestino.toMap(),
       'entregador': entregador?.toMap(),
+      'entregadorId': idDoEntregador,
+      'nomeEntregador': nomeDoEntregador,
       'dataSolicitacao': dataSolicitacao != null
           ? Timestamp.fromDate(dataSolicitacao!)
           : FieldValue.serverTimestamp(),
       'dataAtualizacao': FieldValue.serverTimestamp(),
+      'enderecoCompleto': enderecoFlat,
     };
   }
 
-  // 💡 Reconstrói o objeto Coleta a partir de um DocumentSnapshot do Firestore
   factory Coleta.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>? ?? {};
 
+    // 1. Mapeamento Inteligente da Clínica
     final Map<String, dynamic> clinicaData =
         data['clinicaOrigem'] as Map<String, dynamic>? ?? {};
+    final String clinicaId = clinicaData['id'] ?? data['clinicaId'] ?? '';
+    final String clinicaNome =
+        clinicaData['nome'] ?? data['clinicaNome'] ?? 'Clínica Parceira';
+
+    // 2. Mapeamento do Laboratório
     final Map<String, dynamic> labData =
         data['laboratorioDestino'] as Map<String, dynamic>? ?? {};
+    final String labId = labData['id'] ?? data['laboratorioId'] ?? '';
+    final String labNome =
+        labData['nome'] ?? data['laboratorioNome'] ?? 'Laboratório Parceiro';
+
+    // 3. Mapeamento do Entregador (SEM GAMBIARRAS)
+    // Lê o objeto real apenas se ele vier completo do banco.
+    final Map<String, dynamic>? entregadorMap =
+        data['entregador'] as Map<String, dynamic>?;
+    Entregador? objEntregador;
+
+    if (entregadorMap != null) {
+      try {
+        objEntregador = Entregador.fromMap(entregadorMap);
+      } catch (e) {
+        // Se a rota antiga mandar um objeto quebrado, não trava o app
+      }
+    }
+
+    // 4. Mapeamento de Datas
+    DateTime? dataParseada;
+    if (data['dataSolicitacao'] is Timestamp) {
+      dataParseada = (data['dataSolicitacao'] as Timestamp).toDate();
+    } else if (data['dataCriacao'] is Timestamp) {
+      dataParseada = (data['dataCriacao'] as Timestamp).toDate();
+    } else if (data['atualizadoEm'] is Timestamp) {
+      dataParseada = (data['atualizadoEm'] as Timestamp).toDate();
+    }
 
     return Coleta(
       id: doc.id,
       status: data['status'] ?? 'Aguardando',
       isUrgente: data['isUrgente'] ?? data['urgente'] ?? false,
       codigoAcompanhamento: data['codigoAcompanhamento'] ?? data['codigo'],
-      dataSolicitacao: data['dataSolicitacao'] is Timestamp
-          ? (data['dataSolicitacao'] as Timestamp).toDate()
-          : null,
+      dataSolicitacao: dataParseada,
+      enderecoFlat: data['enderecoCompleto'] ?? data['endereco'],
 
-      // Reconstrói a Clínica
+      entregador: objEntregador,
+      entregadorIdFlat: data['entregadorId'], // Guarda a string pura
+      entregadorNomeFlat: data['nomeEntregador'], // Guarda a string pura
+
       clinicaOrigem: Clinica(
-        id: clinicaData['id'] ?? '',
-        nome: clinicaData['nome'] ?? '',
+        id: clinicaId,
+        nome: clinicaNome,
         email: clinicaData['email'] ?? '',
         telefone: clinicaData['telefone'] ?? '',
         cnpj: clinicaData['cnpj'] ?? '',
@@ -79,10 +135,9 @@ class Coleta {
         ),
       ),
 
-      // Reconstrói o Laboratório
       laboratorioDestino: Laboratorio(
-        id: labData['id'] ?? '',
-        nome: labData['nome'] ?? '',
+        id: labId,
+        nome: labNome,
         email: labData['email'] ?? '',
         telefone: labData['telefone'] ?? '',
         cnpj: labData['cnpj'] ?? '',
@@ -90,11 +145,6 @@ class Coleta {
           labData['endereco'] as Map<String, dynamic>? ?? {},
         ),
       ),
-
-      // Trata o entregador condicionalmente
-      entregador: data['entregador'] != null
-          ? Entregador.fromMap(data['entregador'] as Map<String, dynamic>)
-          : null,
     );
   }
 }

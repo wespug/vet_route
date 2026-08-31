@@ -111,9 +111,11 @@ class ColetaController extends ChangeNotifier {
   // 3. MÉTODOS DE STREAM E REPOSITÓRIO
   // ===========================================================================
 
-  /// Escuta as coletas ativas no radar em tempo real
+  /// Escuta as coletas ativas no radar em tempo real (Visão Geral)
   void escutarColetasNoRadar() {
     isLoading.value = true;
+    coletasNoRadar.value =
+        []; // 💡 LIMPANDO O CACHE: Evita o vazamento visual de dados anteriores!
     notifyListeners();
     _coletasSubscription?.cancel();
 
@@ -139,6 +141,8 @@ class ColetaController extends ChangeNotifier {
   /// Escuta as coletas direcionadas a um entregador específico
   void escutarColetasDoEntregador(String entregadorId) {
     isLoading.value = true;
+    coletasNoRadar.value =
+        []; // 💡 LIMPANDO O CACHE: Garante que um motoboy novato abra a tela VAZIA.
     notifyListeners();
     _coletasSubscription?.cancel();
 
@@ -164,31 +168,18 @@ class ColetaController extends ChangeNotifier {
       isLoading.value = true;
       notifyListeners();
 
-      // 💡 Regra de Negócio: O status volta para "Aguardando Entregador"
-      // (Não podemos usar "Recusado" aqui senão some para o Laboratório como coleta morta)
-      // Futuramente, no repositório, garantiremos que ele zere o "entregadorId" também.
+      // 💡 Regra de Negócio: O status volta para "Aguardando Entregador".
       await _repository.atualizarStatusColeta(
         coletaId,
         'aguardando_entregador',
       );
+
+      // ALERTA DE REPOSITÓRIO:
+      // Se houver um método no seu _repository para desvincular o entregador
+      // (zerando o campo entregadorId e nomeEntregador), é essencial chamá-lo aqui
+      // para garantir que essa corrida não apareça mais para ELE.
     } catch (e) {
       debugPrint('Erro ao recusar coleta ($coletaId): $e');
-      rethrow;
-    } finally {
-      isLoading.value = false;
-      notifyListeners();
-    }
-  }
-
-  /// Atualiza genericamente o status de uma coleta/insumo
-  Future<void> atualizarStatusColeta(String coletaId, String novoStatus) async {
-    try {
-      isLoading.value = true;
-      notifyListeners();
-
-      await _repository.atualizarStatusColeta(coletaId, novoStatus);
-    } catch (e) {
-      debugPrint('Erro ao atualizar status da coleta ($coletaId): $e');
       rethrow;
     } finally {
       isLoading.value = false;
@@ -200,7 +191,9 @@ class ColetaController extends ChangeNotifier {
   Future<void> carregarColetas() async {
     try {
       isLoading.value = true;
+      coletasNoRadar.value = []; // Limpeza de cache no carregamento também
       notifyListeners();
+
       final lista = await _repository.buscarColetasNoRadar();
       coletasNoRadar.value = lista;
     } catch (e) {

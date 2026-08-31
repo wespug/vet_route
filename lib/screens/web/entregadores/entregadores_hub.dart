@@ -38,12 +38,18 @@ class _EntregadoresHubState extends State<EntregadoresHub> {
       case 'entregador_direcionamento_coletas':
       case 'coletas_entregador':
       case 'direcionar_coletas':
-        return const DirecionamentoColetasView();
+        // 💡 CORREÇÃO AQUI: Passando o ID do motoboy para abrir a catraca da segurança!
+        return DirecionamentoColetasView(
+          entregadorId: _entregadorSelecionado!.id,
+        );
 
       default:
         if (rotaSubmenu.contains('coleta') ||
             rotaSubmenu.contains('direciona')) {
-          return const DirecionamentoColetasView();
+          // 💡 CORREÇÃO AQUI TAMBÉM (Fallback)
+          return DirecionamentoColetasView(
+            entregadorId: _entregadorSelecionado!.id,
+          );
         }
 
         return _buildPlaceholder(

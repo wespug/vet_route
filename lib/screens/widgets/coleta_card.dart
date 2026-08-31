@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:vet_route/models/coleta_model.dart';
 import 'package:vet_route/controllers/coleta_controller.dart';
+import 'package:vet_route/screens/web/entregadores/components/modal_detalhes_coleta_motoboy.dart';
 
 class ColetaCard extends StatelessWidget {
   final Coleta item;
@@ -15,17 +16,19 @@ class ColetaCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Lógica visual básica
     final String horaFormatada = item.dataCriacao != null
         ? "${item.dataCriacao!.hour.toString().padLeft(2, '0')}:${item.dataCriacao!.minute.toString().padLeft(2, '0')}"
         : '--:--';
 
+    // 💡 CORREÇÃO: Removido o item.isInsumo inexistente. Baseado apenas na regra de string.
     final bool isInsumo =
-        item.codigo.startsWith('INS') ||
-        item.codigoAcompanhamento?.contains('INS') == true;
+        item.codigo.toUpperCase().contains('INS') ||
+        (item.codigoAcompanhamento?.toUpperCase().contains('INS') ?? false);
+
     final String labNome = item.laboratorioDestino.nome.isNotEmpty
         ? item.laboratorioDestino.nome
         : 'Laboratório Parceiro';
+
     final String statusNorm = item.status.toLowerCase();
     final bool isRecusado =
         statusNorm.contains('recusad') || statusNorm.contains('cancel');
@@ -33,7 +36,6 @@ class ColetaCard extends StatelessWidget {
     final String localOrigem = isInsumo ? labNome : item.nomeClinica;
     final String localDestino = isInsumo ? item.nomeClinica : labNome;
 
-    // 💡 PADRONIZAÇÃO DO CÓDIGO (Igual ao Kanban do Laboratório)
     final String codigoOriginal = item.codigo.isNotEmpty
         ? item.codigo
         : (item.codigoAcompanhamento ?? item.id);
@@ -41,7 +43,6 @@ class ColetaCard extends StatelessWidget {
         ? codigoOriginal.substring(0, 6).toUpperCase()
         : codigoOriginal.toUpperCase();
 
-    // Definição de Cores das Tags
     Color corBadge;
     Color corFundoBadge;
     String statusTexto;
@@ -84,9 +85,6 @@ class ColetaCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // =====================================
-            // TOPO: STATUS E HORA
-            // =====================================
             Padding(
               padding: const EdgeInsets.only(
                 left: 16,
@@ -129,9 +127,6 @@ class ColetaCard extends StatelessWidget {
             ),
             const Divider(height: 1, color: Color(0xFFF2F2F7), thickness: 1.5),
 
-            // =====================================
-            // TIMELINE DE ROTA
-            // =====================================
             Padding(
               padding: const EdgeInsets.all(16),
               child: Row(
@@ -208,9 +203,6 @@ class ColetaCard extends StatelessWidget {
               ),
             ),
 
-            // =====================================
-            // RODAPÉ: INFORMAÇÃO E BOTÕES (Se aberto)
-            // =====================================
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
@@ -223,21 +215,52 @@ class ColetaCard extends StatelessWidget {
               child: Column(
                 children: [
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Icon(
-                        isInsumo
-                            ? Icons.inventory_2_rounded
-                            : Icons.vaccines_rounded,
-                        size: 16,
-                        color: Colors.grey.shade600,
+                      Row(
+                        children: [
+                          Icon(
+                            isInsumo
+                                ? Icons.inventory_2_rounded
+                                : Icons.vaccines_rounded,
+                            size: 16,
+                            color: Colors.grey.shade600,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            "${isInsumo ? 'Insumo' : 'Exame'} • ID: #$codigoFormatado",
+                            style: TextStyle(
+                              color: Colors.grey.shade700,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 6),
-                      Text(
-                        "${isInsumo ? 'Insumos' : 'Exames'} • ID: #$codigoFormatado", // 💡 ID Curto Oficial
-                        style: TextStyle(
-                          color: Colors.grey.shade700,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
+                      InkWell(
+                        onTap: () {
+                          showDialog(
+                            context: context,
+                            builder: (_) => ModalDetalhesColetaMotoboy(
+                              item: item,
+                              isInsumo: isInsumo,
+                            ),
+                          );
+                        },
+                        borderRadius: BorderRadius.circular(4),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          child: Text(
+                            "Ver Detalhes",
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.indigo.shade600,
+                            ),
+                          ),
                         ),
                       ),
                     ],
@@ -284,8 +307,7 @@ class ColetaCard extends StatelessWidget {
                               );
                             },
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors
-                                  .indigo, // 💡 Cor primária do sistema em vez de Preto
+                              backgroundColor: Colors.indigo,
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(vertical: 14),
                               elevation: 0,

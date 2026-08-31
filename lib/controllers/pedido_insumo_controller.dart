@@ -268,7 +268,6 @@ class PedidoInsumoController extends ChangeNotifier {
     }
   }
 
-  // 💡 ATUALIZADO: Aceita os itens parciais para gravação!
   Future<ResultadoOperacao> processarDecisaoModal({
     required String pedidoId,
     required DecisaoAtendimento decisao,
@@ -296,7 +295,6 @@ class PedidoInsumoController extends ChangeNotifier {
           : 'Aprovado totalmente: $obs';
     }
 
-    // Grava as quantidades parciais no Firestore se fornecidas
     if (decisao == DecisaoAtendimento.aprovarParcial &&
         itensAtualizados != null) {
       try {
@@ -384,6 +382,7 @@ class PedidoInsumoController extends ChangeNotifier {
           .collection('chamados_coleta')
           .doc(idParaAtualizar);
 
+      // 💡 A MÁGICA AQUI: Injetando todos os dados vitais para a ColetaModel do motoboy não engasgar
       await docChamadoRef.set({
         'entregadorId': rotaEncontrada.entregadorId,
         'nomeEntregador': rotaEncontrada.nomeEntregador,
@@ -391,8 +390,29 @@ class PedidoInsumoController extends ChangeNotifier {
         'possuiInsumo': true,
         'pedidoInsumoId': pedidoId,
         'clinicaId': clinicaId,
-        'clinicaNome': pedidoData['clinicaNome'] ?? '',
+        'clinicaNome': pedidoData['clinicaNome'] ?? 'Clínica Parceira',
         'laboratorioId': laboratorioId,
+
+        // 💡 Campos injetados que a tela do motoboy exige:
+        'codigo':
+            pedidoData['codigo'] ??
+            pedidoData['codigoAcompanhamento'] ??
+            pedidoId.substring(0, 6).toUpperCase(),
+        'codigoAcompanhamento':
+            pedidoData['codigoAcompanhamento'] ??
+            pedidoData['codigo'] ??
+            pedidoId.substring(0, 6).toUpperCase(),
+        'tipo': 'Insumo',
+        'dataCriacao':
+            pedidoData['dataCriacao'] ?? FieldValue.serverTimestamp(),
+        'enderecoCompleto':
+            pedidoData['enderecoCompleto'] ??
+            pedidoData['endereco'] ??
+            'Endereço da Clínica não informado',
+        'laboratorioDestino': {
+          'id': laboratorioId,
+          'nome': pedidoData['laboratorioNome'] ?? 'Laboratório Parceiro',
+        },
         'atualizadoEm': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 

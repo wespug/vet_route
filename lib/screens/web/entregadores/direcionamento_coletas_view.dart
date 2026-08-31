@@ -8,8 +8,15 @@ import 'package:vet_route/screens/widgets/coleta_card.dart';
 
 class DirecionamentoColetasView extends StatefulWidget {
   final String? entregadorId;
+  final bool
+  isVisaoGeral; // 💡 Nova flag de segurança que impede o vazamento de dados
 
-  const DirecionamentoColetasView({super.key, this.entregadorId});
+  const DirecionamentoColetasView({
+    super.key,
+    this.entregadorId,
+    this.isVisaoGeral =
+        false, // Por padrão, assume que é a tela privada de um motoboy
+  });
 
   @override
   State<DirecionamentoColetasView> createState() =>
@@ -36,11 +43,15 @@ class _DirecionamentoColetasViewState extends State<DirecionamentoColetasView> {
   void _iniciarEscutaColetas() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final controller = Provider.of<ColetaController>(context, listen: false);
-      if (widget.entregadorId != null && widget.entregadorId!.isNotEmpty) {
-        controller.escutarColetasDoEntregador(widget.entregadorId!);
-      } else {
+
+      // 💡 A BLINDAGEM: Agora ela não adivinha mais nada.
+      if (widget.isVisaoGeral) {
         controller.escutarTodasColetasAtivas();
+      } else if (widget.entregadorId != null &&
+          widget.entregadorId!.isNotEmpty) {
+        controller.escutarColetasDoEntregador(widget.entregadorId!);
       }
+      // Se não for visão geral e o ID estiver vazio/nulo, ela simplesmente NÃO puxa nada (mantém a pista limpa).
     });
   }
 
@@ -84,10 +95,9 @@ class _DirecionamentoColetasViewState extends State<DirecionamentoColetasView> {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      widget.entregadorId != null &&
-                              widget.entregadorId!.isNotEmpty
-                          ? "Acompanhe e gerencie a rota ativa do entregador."
-                          : "Visão geral de paradas e coletas do sistema.",
+                      widget.isVisaoGeral
+                          ? "Visão geral de paradas e coletas do sistema."
+                          : "Acompanhe e gerencie a rota ativa do entregador.",
                       style: TextStyle(
                         fontSize: 15,
                         color: Colors.grey.shade600,
@@ -140,6 +150,17 @@ class _DirecionamentoColetasViewState extends State<DirecionamentoColetasView> {
                   if (controller.carregando) {
                     return const Center(
                       child: CircularProgressIndicator(color: Colors.indigo),
+                    );
+                  }
+
+                  // Se for o perfil de um motoboy novo e o ID demorou/está vazio, mostra a lista vazia.
+                  if (!widget.isVisaoGeral &&
+                      (widget.entregadorId == null ||
+                          widget.entregadorId!.isEmpty)) {
+                    return _buildListaAgrupadaWeb(
+                      [],
+                      controller,
+                      isFinalizados: _selectedSegment == 1,
                     );
                   }
 
