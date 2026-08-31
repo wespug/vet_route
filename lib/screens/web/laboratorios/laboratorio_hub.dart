@@ -11,7 +11,6 @@ import 'package:vet_route/screens/web/laboratorios/cadastro_insumo.dart';
 import 'package:vet_route/screens/web/laboratorios/usuarios_lab_view.dart';
 import 'cadastro_exame_hub.dart';
 import 'gestao_rotas_hub.dart';
-
 import 'package:vet_route/screens/web/laboratorios/gestao_exames_coleta_view.dart';
 
 class LaboratoriosHub extends StatefulWidget {
@@ -38,7 +37,6 @@ class _LaboratoriosHubState extends State<LaboratoriosHub>
     _verificarVinculoUsuario();
   }
 
-  // 🚀 REATIVIDADE AO CLIQUE DO MENU LATERAL (Idêntico à Clínica)
   @override
   void didUpdateWidget(LaboratoriosHub oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -102,13 +100,11 @@ class _LaboratoriosHubState extends State<LaboratoriosHub>
     }
   }
 
-  // 🧠 CONSTRUTOR DINÂMICO DE ABAS (LÊ DO FIRESTORE - Prefixo 'lab_')
   void _configurarAbasDinamicas() {
     _submenus = permissoesGlobais.submenusPermitidos
         .where((s) => s.isWeb && s.rota.startsWith('lab_'))
         .toList();
 
-    // Respeita a ordem de peso configurada no Admin
     _submenus.sort((a, b) => a.peso.compareTo(b.peso));
 
     if (_submenus.isNotEmpty) {
@@ -133,7 +129,6 @@ class _LaboratoriosHubState extends State<LaboratoriosHub>
     super.dispose();
   }
 
-  // 🔀 ROTEADOR INTERNO DAS ABAS DO LABORATÓRIO
   Widget _obterTelaParaRota(String rota) {
     if (_labSelecionado == null && rota != 'lista_laboratorios') {
       return const Center(
@@ -146,7 +141,7 @@ class _LaboratoriosHubState extends State<LaboratoriosHub>
 
     switch (rota) {
       case 'lab_dashboard':
-        return const LabDashboardView(); // 💡 Dashboard atual
+        return const LabDashboardView();
       case 'lab_adicionar_usuario':
       case 'lab_usuarios':
         return UsuariosLabView(
@@ -161,11 +156,9 @@ class _LaboratoriosHubState extends State<LaboratoriosHub>
         return GestaoRotasHub(labContexto: _labSelecionado!);
       case 'lab_pedidos_insumos':
         return GestaoPedidosInsumosHub(labContexto: _labSelecionado!);
-
-      // 💡 ROTA DA NOVA TELA INSERIDA AQUI:
       case 'lab_gestao_exames_coleta':
-        return const GestaoExamesColetaView();
-
+        // 💡 CORREÇÃO: Passando o contexto obrigatório para a tela nova!
+        return GestaoExamesColetaView(labContexto: _labSelecionado!);
       default:
         return _buildPlaceholder(rota);
     }
@@ -203,7 +196,6 @@ class _LaboratoriosHubState extends State<LaboratoriosHub>
       );
     }
 
-    // 1. MODO SUPER ADMIN (SELEÇÃO DE EMPRESA)
     if (_labSelecionado == null) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -237,17 +229,15 @@ class _LaboratoriosHubState extends State<LaboratoriosHub>
       );
     }
 
-    // 2. MODO HUB BLOQUEADO (SEM PERMISSÕES)
     if (_submenus.isEmpty) {
       return const Center(
         child: Text(
-          "Nenhum módulo de laboratório configurado para o seu perfil.",
+          "Nenhum módulo configurado para o seu perfil.",
           style: TextStyle(color: Colors.grey),
         ),
       );
     }
 
-    // 3. MODO HUB DINÂMICO (ABAS FUNCIONANDO IDÊNTICO À CLÍNICA)
     return Column(
       children: [
         _buildHeaderContexto(),
@@ -274,9 +264,7 @@ class _LaboratoriosHubState extends State<LaboratoriosHub>
         ),
         Expanded(
           child: Container(
-            color: const Color(
-              0xFFF5F7FA,
-            ), // Fundo clean idêntico ao da clínica
+            color: const Color(0xFFF5F7FA),
             child: TabBarView(
               controller: _tabController,
               children: _submenus
