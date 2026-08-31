@@ -20,21 +20,16 @@ class ColetaCard extends StatelessWidget {
         ? "${item.dataCriacao!.hour.toString().padLeft(2, '0')}:${item.dataCriacao!.minute.toString().padLeft(2, '0')}"
         : '--:--';
 
-    // 💡 CORREÇÃO: Removido o item.isInsumo inexistente. Baseado apenas na regra de string.
-    final bool isInsumo =
-        item.codigo.toUpperCase().contains('INS') ||
-        (item.codigoAcompanhamento?.toUpperCase().contains('INS') ?? false);
-
-    final String labNome = item.laboratorioDestino.nome.isNotEmpty
-        ? item.laboratorioDestino.nome
-        : 'Laboratório Parceiro';
+    // 💡 Usa a flag real do banco de dados, sem gambiarra de texto
+    final bool isInsumo = item.isInsumo;
 
     final String statusNorm = item.status.toLowerCase();
     final bool isRecusado =
         statusNorm.contains('recusad') || statusNorm.contains('cancel');
 
-    final String localOrigem = isInsumo ? labNome : item.nomeClinica;
-    final String localDestino = isInsumo ? item.nomeClinica : labNome;
+    // 💡 Consome a lógica visual direto da Model (Inversão automática de rota)
+    final String localOrigem = item.origemVisual;
+    final String localDestino = item.destinoVisual;
 
     final String codigoOriginal = item.codigo.isNotEmpty
         ? item.codigo
@@ -227,8 +222,9 @@ class ColetaCard extends StatelessWidget {
                             color: Colors.grey.shade600,
                           ),
                           const SizedBox(width: 6),
+                          // 💡 Ajuste da nomenclatura no rodapé do cartão
                           Text(
-                            "${isInsumo ? 'Insumo' : 'Exame'} • ID: #$codigoFormatado",
+                            "${isInsumo ? 'Pedido de Insumo' : 'Coleta de Exame'} • ID: #$codigoFormatado",
                             style: TextStyle(
                               color: Colors.grey.shade700,
                               fontSize: 12,

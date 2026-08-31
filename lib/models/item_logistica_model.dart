@@ -1,3 +1,4 @@
+// lib/models/item_logistica_model.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
@@ -66,44 +67,27 @@ class ItemLogisticaModel {
     this.usuarioCriador = '',
   });
 
-  // 💡 LABEL AMIGÁVEL: Separação definitiva entre Recusado e Cancelado
   String get textoStatus {
     final s = status.toLowerCase().trim();
     if (s.contains('separacao') ||
         s.contains('separação') ||
-        s.contains('aprovado')) {
+        s.contains('aprovado'))
       return 'Em Separação';
-    }
-    if (s.contains('aguardando')) {
-      return 'Aguardando Coleta';
-    }
-    if (s.contains('rota') ||
-        s.contains('transito') ||
-        s.contains('trânsito')) {
+    if (s.contains('aguardando')) return 'Aguardando Coleta';
+    if (s.contains('rota') || s.contains('transito') || s.contains('trânsito'))
       return 'Em Rota';
-    }
-    if (s.contains('recusad')) {
-      return 'Recusado pelo Lab';
-    }
-    if (s.contains('cancelado')) {
-      return 'Cancelado';
-    }
-    if (s.contains('entregue') || s.contains('conclu')) {
-      return 'Concluído';
-    }
-    if (s.contains('pendente')) {
-      return 'Pendente';
-    }
+    if (s.contains('recusad')) return 'Recusado pelo Lab';
+    if (s.contains('cancelado')) return 'Cancelado';
+    if (s.contains('entregue') || s.contains('conclu')) return 'Concluído';
+    if (s.contains('pendente')) return 'Pendente';
     return status.isNotEmpty
         ? (status[0].toUpperCase() + status.substring(1))
         : 'Desconhecido';
   }
 
-  // 💡 CORES DEFINITIVAS: Vermelho Escuro para Recusado e Padrão para Cancelado
   Color get corStatus {
     final s = status.toLowerCase().trim();
-    if (s.contains('recusad'))
-      return Colors.red.shade900; // Destaque extra para recusa
+    if (s.contains('recusad')) return Colors.red.shade900;
     if (s.contains('cancel')) return Colors.red.shade600;
     if (s.contains('entregue') || s.contains('conclu'))
       return Colors.green.shade700;
@@ -151,7 +135,6 @@ class ItemLogisticaModel {
   factory ItemLogisticaModel.fromChamadoColeta(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>? ?? {};
 
-    // 💡 PONTE DE DADOS: Lê tanto 'historicoLogs' (Clínica) quanto 'historico' (Lab)
     List<HistoricoStatusLog> logs = [];
     final rawLogs = data['historicoLogs'] ?? data['historico'];
     if (rawLogs != null) {
@@ -186,7 +169,6 @@ class ItemLogisticaModel {
   factory ItemLogisticaModel.fromPedidoInsumo(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>? ?? {};
 
-    // 💡 PONTE DE DADOS: Lê tanto 'historicoLogs' (Clínica) quanto 'historico' (Lab)
     List<HistoricoStatusLog> logs = [];
     final rawLogs = data['historicoLogs'] ?? data['historico'];
     if (rawLogs != null) {

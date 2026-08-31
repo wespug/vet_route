@@ -1,3 +1,4 @@
+// lib/controllers/chamado_coleta_controller.dart
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -15,14 +16,12 @@ class ChamadoColetaController {
       ValueNotifier<List<ItemLogisticaModel>>([]);
   final ValueNotifier<List<ItemLogisticaModel>> itensHistorico =
       ValueNotifier<List<ItemLogisticaModel>>([]);
-
   final ValueNotifier<List<Laboratorio>> laboratorios =
       ValueNotifier<List<Laboratorio>>([]);
 
   StreamSubscription<QuerySnapshot>? _coletasSub;
   StreamSubscription<QuerySnapshot>? _insumosSub;
 
-  /// Carrega e une em tempo real os chamados de exames e pedidos de insumo da clínica
   void carregarChamados(String clinicaId) {
     if (clinicaId.isEmpty) return;
 
@@ -36,7 +35,6 @@ class ChamadoColetaController {
     void processarEAtualizar() {
       final todos = [...listaColetas, ...listaInsumos];
 
-      // Ordena do mais recente para o mais antigo
       todos.sort((a, b) => b.dataCriacao.compareTo(a.dataCriacao));
 
       final List<ItemLogisticaModel> ativas = [];
@@ -64,44 +62,41 @@ class ChamadoColetaController {
       isLoading.value = false;
     }
 
-    // 1. Escuta Coletas / Exames
+    // 1. Escuta Coletas (Ignorando os fantasmas de insumo injetados)
     _coletasSub = _db
         .collection('chamados_coleta')
         .where('clinicaId', isEqualTo: clinicaId)
         .snapshots()
-        .listen(
-          (snapshot) {
-            listaColetas = snapshot.docs
-                .map<ItemLogisticaModel>(
-                  (doc) => ItemLogisticaModel.fromChamadoColeta(doc),
-                )
-                .toList();
-            processarEAtualizar();
-          },
-          onError: (e) {
-            debugPrint('❌ Erro coletas: $e');
-          },
-        );
+        .listen((snapshot) {
+          listaColetas = snapshot.docs
+              .where((doc) {
+                final data = doc.data() as Map<String, dynamic>? ?? {};
+                // 💡 FILTRO ANTI-FANTASMA: Ignora os clones criados pelo laboratório
+                final isEspelhoInsumo =
+                    data['possuiInsumo'] == true ||
+                    data['tipo']?.toString().toLowerCase() == 'insumo';
+                return !isEspelhoInsumo;
+              })
+              .map<ItemLogisticaModel>(
+                (doc) => ItemLogisticaModel.fromChamadoColeta(doc),
+              )
+              .toList();
+          processarEAtualizar();
+        }, onError: (e) => debugPrint('❌ Erro coletas: $e'));
 
-    // 2. Escuta Pedidos de Insumos
+    // 2. Escuta Pedidos de Insumos (A via original e correta)
     _insumosSub = _db
         .collection('pedidos_insumos')
         .where('clinicaId', isEqualTo: clinicaId)
         .snapshots()
-        .listen(
-          (snapshot) {
-            listaInsumos = snapshot.docs
-                .map((doc) => ItemLogisticaModel.fromPedidoInsumo(doc))
-                .toList();
-            processarEAtualizar();
-          },
-          onError: (e) {
-            debugPrint('❌ Erro insumos: $e');
-          },
-        );
+        .listen((snapshot) {
+          listaInsumos = snapshot.docs
+              .map((doc) => ItemLogisticaModel.fromPedidoInsumo(doc))
+              .toList();
+          processarEAtualizar();
+        }, onError: (e) => debugPrint('❌ Erro insumos: $e'));
   }
 
-  /// Carrega a lista de laboratórios
   Future<void> carregarLaboratorios() async {
     try {
       final snapshot = await _db.collection('laboratorios').get();
@@ -123,7 +118,6 @@ class ChamadoColetaController {
     }
   }
 
-  /// Método mantido para compatibilidade ao criar novos chamados legados
   Future<bool> criarChamado(ChamadoColetaModel chamado) async {
     try {
       isLoading.value = true;
@@ -147,20 +141,16 @@ class ChamadoColetaController {
     }
   }
 
-  /// Cancela um item de logística (Exame ou Insumo) e registra no histórico
   Future<void> cancelarItem(
     ItemLogisticaModel item,
     String usuarioLogado,
   ) async {
     try {
       isLoading.value = true;
-
-      // Resolve a coleção correta de forma simples e livre de erros de compilação
       final String colecao = item.isInsumo
           ? 'pedidos_insumos'
           : 'chamados_coleta';
 
-      // Cria o objeto de histórico diretamente como Map para evitar conflitos de importação
       final Map<String, dynamic> novoLog = {
         'status': 'Cancelado',
         'usuario': usuarioLogado.isNotEmpty ? usuarioLogado : 'Clínica',
@@ -168,7 +158,6 @@ class ChamadoColetaController {
         'observacao': 'Pedido cancelado pelo usuário através do painel',
       };
 
-      // Atualiza o documento no Firestore em tempo real
       await _db.collection(colecao).doc(item.id).update({
         'status': 'Cancelado',
         'historicoLogs': FieldValue.arrayUnion([novoLog]),

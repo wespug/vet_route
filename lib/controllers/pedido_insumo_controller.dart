@@ -268,6 +268,7 @@ class PedidoInsumoController extends ChangeNotifier {
     }
   }
 
+  // 💡 ATUALIZADO: Aceita os itens parciais para gravação!
   Future<ResultadoOperacao> processarDecisaoModal({
     required String pedidoId,
     required DecisaoAtendimento decisao,
@@ -295,6 +296,7 @@ class PedidoInsumoController extends ChangeNotifier {
           : 'Aprovado totalmente: $obs';
     }
 
+    // Grava as quantidades parciais no Firestore se fornecidas
     if (decisao == DecisaoAtendimento.aprovarParcial &&
         itensAtualizados != null) {
       try {
@@ -375,46 +377,19 @@ class PedidoInsumoController extends ChangeNotifier {
 
       if (!res.sucesso) return res;
 
-      final String idParaAtualizar = chamadoIdOriginal.isNotEmpty
-          ? chamadoIdOriginal
-          : pedidoId;
-      final docChamadoRef = _firestore
-          .collection('chamados_coleta')
-          .doc(idParaAtualizar);
-
-      // 💡 A MÁGICA AQUI: Injetando todos os dados vitais para a ColetaModel do motoboy não engasgar
-      await docChamadoRef.set({
-        'entregadorId': rotaEncontrada.entregadorId,
-        'nomeEntregador': rotaEncontrada.nomeEntregador,
-        'status': 'aguardando_coleta',
-        'possuiInsumo': true,
-        'pedidoInsumoId': pedidoId,
-        'clinicaId': clinicaId,
-        'clinicaNome': pedidoData['clinicaNome'] ?? 'Clínica Parceira',
-        'laboratorioId': laboratorioId,
-
-        // 💡 Campos injetados que a tela do motoboy exige:
-        'codigo':
-            pedidoData['codigo'] ??
-            pedidoData['codigoAcompanhamento'] ??
-            pedidoId.substring(0, 6).toUpperCase(),
-        'codigoAcompanhamento':
-            pedidoData['codigoAcompanhamento'] ??
-            pedidoData['codigo'] ??
-            pedidoId.substring(0, 6).toUpperCase(),
-        'tipo': 'Insumo',
-        'dataCriacao':
-            pedidoData['dataCriacao'] ?? FieldValue.serverTimestamp(),
-        'enderecoCompleto':
-            pedidoData['enderecoCompleto'] ??
-            pedidoData['endereco'] ??
-            'Endereço da Clínica não informado',
-        'laboratorioDestino': {
-          'id': laboratorioId,
-          'nome': pedidoData['laboratorioNome'] ?? 'Laboratório Parceiro',
-        },
-        'atualizadoEm': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      // 💡 CORREÇÃO: Não criamos mais documento fantasma!
+      // Se existir um chamado original vinculado, apenas atualizamos ele.
+      if (chamadoIdOriginal.isNotEmpty) {
+        await _firestore
+            .collection('chamados_coleta')
+            .doc(chamadoIdOriginal)
+            .update({
+              'entregadorId': rotaEncontrada.entregadorId,
+              'nomeEntregador': rotaEncontrada.nomeEntregador,
+              'status': 'aguardando_coleta',
+              'atualizadoEm': FieldValue.serverTimestamp(),
+            });
+      }
 
       return ResultadoOperacao(
         sucesso: true,

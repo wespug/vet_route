@@ -8,14 +8,17 @@ class Coleta {
   final String id;
   final Clinica clinicaOrigem;
   final Laboratorio laboratorioDestino;
-  final Entregador? entregador; // Objeto completo (se a rota antiga enviar)
-  final String? entregadorIdFlat; // 💡 Campo NoSQL Plano (Sem Gambiarra)
-  final String? entregadorNomeFlat; // 💡 Campo NoSQL Plano (Sem Gambiarra)
+  final Entregador? entregador;
+  final String? entregadorIdFlat;
+  final String? entregadorNomeFlat;
   final String status;
   final bool isUrgente;
+  final bool isInsumo;
   final String? codigoAcompanhamento;
   final DateTime? dataSolicitacao;
   final String? enderecoFlat;
+  final List<dynamic> itens;
+  final List<dynamic> historico; // 💡 A CHAVE DO RASTREIO LOGÍSTICO
 
   Coleta({
     required this.id,
@@ -26,9 +29,12 @@ class Coleta {
     this.entregadorNomeFlat,
     this.status = 'Aguardando',
     this.isUrgente = false,
+    this.isInsumo = false,
     this.codigoAcompanhamento,
     this.dataSolicitacao,
     this.enderecoFlat,
+    this.itens = const [],
+    this.historico = const [],
   });
 
   bool get isEmergencia => isUrgente;
@@ -36,7 +42,6 @@ class Coleta {
       clinicaOrigem.nome.isNotEmpty ? clinicaOrigem.nome : 'Clínica Parceira';
   String get codigo => codigoAcompanhamento ?? id;
 
-  // 💡 GETTERS INTELIGENTES: Lê do objeto completo se existir, senão lê do campo plano!
   String get idDoEntregador => entregador?.id ?? entregadorIdFlat ?? '';
   String get nomeDoEntregador =>
       entregador?.nome ?? entregadorNomeFlat ?? 'Aguardando Entregador';
@@ -53,10 +58,14 @@ class Coleta {
 
   DateTime? get dataCriacao => dataSolicitacao;
 
+  String get origemVisual => isInsumo ? laboratorioDestino.nome : nomeClinica;
+  String get destinoVisual => isInsumo ? nomeClinica : laboratorioDestino.nome;
+
   Map<String, dynamic> toMap() {
     return {
       'status': status,
       'isUrgente': isUrgente,
+      'isInsumo': isInsumo,
       'codigoAcompanhamento': codigoAcompanhamento,
       'clinicaOrigem': clinicaOrigem.toMap(),
       'laboratorioDestino': laboratorioDestino.toMap(),
@@ -68,28 +77,26 @@ class Coleta {
           : FieldValue.serverTimestamp(),
       'dataAtualizacao': FieldValue.serverTimestamp(),
       'enderecoCompleto': enderecoFlat,
+      'itens': itens,
+      'historico': historico,
     };
   }
 
   factory Coleta.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>? ?? {};
 
-    // 1. Mapeamento Inteligente da Clínica
     final Map<String, dynamic> clinicaData =
         data['clinicaOrigem'] as Map<String, dynamic>? ?? {};
     final String clinicaId = clinicaData['id'] ?? data['clinicaId'] ?? '';
     final String clinicaNome =
         clinicaData['nome'] ?? data['clinicaNome'] ?? 'Clínica Parceira';
 
-    // 2. Mapeamento do Laboratório
     final Map<String, dynamic> labData =
         data['laboratorioDestino'] as Map<String, dynamic>? ?? {};
     final String labId = labData['id'] ?? data['laboratorioId'] ?? '';
     final String labNome =
         labData['nome'] ?? data['laboratorioNome'] ?? 'Laboratório Parceiro';
 
-    // 3. Mapeamento do Entregador (SEM GAMBIARRAS)
-    // Lê o objeto real apenas se ele vier completo do banco.
     final Map<String, dynamic>? entregadorMap =
         data['entregador'] as Map<String, dynamic>?;
     Entregador? objEntregador;
@@ -97,12 +104,9 @@ class Coleta {
     if (entregadorMap != null) {
       try {
         objEntregador = Entregador.fromMap(entregadorMap);
-      } catch (e) {
-        // Se a rota antiga mandar um objeto quebrado, não trava o app
-      }
+      } catch (_) {}
     }
 
-    // 4. Mapeamento de Datas
     DateTime? dataParseada;
     if (data['dataSolicitacao'] is Timestamp) {
       dataParseada = (data['dataSolicitacao'] as Timestamp).toDate();
@@ -112,18 +116,35 @@ class Coleta {
       dataParseada = (data['atualizadoEm'] as Timestamp).toDate();
     }
 
+    final bool isCollectionInsumo =
+        doc.reference.parent.id == 'pedidos_insumos';
+    final bool hasItems = data.containsKey('itens');
+    final bool flagInsumo =
+        data['possuiInsumo'] == true ||
+        data['isInsumo'] == true ||
+        data['tipo']?.toString().toLowerCase() == 'insumo';
+
+    final itensList = (data['itens'] as List<dynamic>?) ?? [];
+
+    // 💡 Captura o histórico logístico (Cobre os dois formatos usados no banco)
+    final historicoList =
+        (data['historico'] as List<dynamic>?) ??
+        (data['historicoLogs'] as List<dynamic>?) ??
+        [];
+
     return Coleta(
       id: doc.id,
       status: data['status'] ?? 'Aguardando',
       isUrgente: data['isUrgente'] ?? data['urgente'] ?? false,
+      isInsumo: isCollectionInsumo || hasItems || flagInsumo,
       codigoAcompanhamento: data['codigoAcompanhamento'] ?? data['codigo'],
       dataSolicitacao: dataParseada,
       enderecoFlat: data['enderecoCompleto'] ?? data['endereco'],
-
       entregador: objEntregador,
-      entregadorIdFlat: data['entregadorId'], // Guarda a string pura
-      entregadorNomeFlat: data['nomeEntregador'], // Guarda a string pura
-
+      entregadorIdFlat: data['entregadorId'],
+      entregadorNomeFlat: data['nomeEntregador'],
+      itens: itensList,
+      historico: historicoList, // 💡 Injetado na Model
       clinicaOrigem: Clinica(
         id: clinicaId,
         nome: clinicaNome,
@@ -134,7 +155,6 @@ class Coleta {
           clinicaData['endereco'] as Map<String, dynamic>? ?? {},
         ),
       ),
-
       laboratorioDestino: Laboratorio(
         id: labId,
         nome: labNome,

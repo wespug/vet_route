@@ -27,8 +27,15 @@ class _ModalNovoChamadoState extends State<ModalNovoChamado> {
   DateTime dataSelecionada = DateTime.now();
   final TextEditingController observacaoController = TextEditingController();
 
-  // 💡 Controle de carregamento no botão para evitar cliques duplos
+  // Controle de carregamento no botão para evitar cliques duplos
   bool enviando = false;
+
+  @override
+  void dispose() {
+    // 💡 BLINDAGEM DE MEMÓRIA: Evita vazamento de memória ao fechar a modal
+    observacaoController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -250,13 +257,12 @@ class _ModalNovoChamadoState extends State<ModalNovoChamado> {
                       0,
                     );
 
-                    // 💡 Pega o usuário logado para carimbar o histórico
                     final user = FirebaseAuth.instance.currentUser;
                     final usuarioLogado = user?.displayName?.isNotEmpty == true
                         ? user!.displayName!
                         : (user?.email ?? 'Usuário da Clínica');
 
-                    // 💡 Gravação Limpa e Perfeita no Banco com Timestamps oficiais
+                    // 💡 Gravação Limpa e Perfeita no Banco
                     await FirebaseFirestore.instance
                         .collection('chamados_coleta')
                         .add({
@@ -268,19 +274,18 @@ class _ModalNovoChamadoState extends State<ModalNovoChamado> {
                           'status': 'Pendente',
                           'isUrgencia': widget.isEmergencia,
                           'isEmergencia': widget.isEmergencia,
-                          'dataCriacao':
-                              Timestamp.now(), // Formato estrito para não quebrar a tabela
+                          'dataCriacao': Timestamp.now(),
                           'dataAgendamento': Timestamp.fromDate(
                             momentoAgendado,
                           ),
-                          'observacao': observacaoController.text,
+                          'observacao': observacaoController.text.trim(),
                           'usuarioCriador': usuarioLogado,
                           'historicoLogs': [
                             {
                               'status': 'Pendente',
                               'usuario': usuarioLogado,
                               'data': Timestamp.now(),
-                              'observacao': 'Coleta agendada na plataforma',
+                              'observacao': 'Coleta solicitada na plataforma',
                             },
                           ],
                         });
