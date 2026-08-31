@@ -64,6 +64,8 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
     'lab_gestao_rotas': 'Gestão de Rotas Fixas',
     'clinica_dashboard': 'Dashboard da Clínica (Mobile)',
     'lab_pedidos_insumos': 'Gestão de Pedidos (Insumos)',
+    'lab_gestao_exames_coleta':
+        'Gestão de Exames p/ Coleta', // 💡 TELA NOVA AQUI!
   };
 
   @override
@@ -426,7 +428,7 @@ class _GestaoSubmenusHubState extends State<GestaoSubmenusHub> {
     }
   }
 
-  // 🛠️ NOVO WIDGET: TABELA TOTALMENTE DINÂMICA
+  // 🛠️ WIDGET: TABELA TOTALMENTE DINÂMICA
   Widget _buildTabelaAvancada() {
     // 1. APLICAR BUSCA (FILTRO)
     List<SubmenuItemModel> filtrados = _submenuController.submenus.where((sub) {

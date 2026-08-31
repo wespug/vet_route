@@ -9,9 +9,10 @@ import 'package:vet_route/screens/web/laboratorios/lista_laboratorio_view.dart';
 import 'package:vet_route/screens/web/laboratorios/lab_dashboard_view.dart';
 import 'package:vet_route/screens/web/laboratorios/cadastro_insumo.dart';
 import 'package:vet_route/screens/web/laboratorios/usuarios_lab_view.dart';
-import 'package:vet_route/screens/web/laboratorios/usuarios_lab_view.dart';
 import 'cadastro_exame_hub.dart';
 import 'gestao_rotas_hub.dart';
+
+import 'package:vet_route/screens/web/laboratorios/gestao_exames_coleta_view.dart';
 
 class LaboratoriosHub extends StatefulWidget {
   final String? rotaAbaAtiva;
@@ -160,6 +161,11 @@ class _LaboratoriosHubState extends State<LaboratoriosHub>
         return GestaoRotasHub(labContexto: _labSelecionado!);
       case 'lab_pedidos_insumos':
         return GestaoPedidosInsumosHub(labContexto: _labSelecionado!);
+
+      // 💡 ROTA DA NOVA TELA INSERIDA AQUI:
+      case 'lab_gestao_exames_coleta':
+        return const GestaoExamesColetaView();
+
       default:
         return _buildPlaceholder(rota);
     }
