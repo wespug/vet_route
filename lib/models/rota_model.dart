@@ -34,6 +34,7 @@ class RotaModel {
   final String entregadorId;
   final String nomeEntregador;
   final List<ParadaRota> paradas;
+  final List<int> diasOperacao; // 💡 NOVO: 1=Segunda, 2=Terça... 7=Domingo
   final bool ativa;
 
   RotaModel({
@@ -42,6 +43,7 @@ class RotaModel {
     required this.entregadorId,
     required this.nomeEntregador,
     required this.paradas,
+    this.diasOperacao = const [1, 2, 3, 4, 5], // Padrão de segurança: Seg-Sex
     this.ativa = true,
   });
 
@@ -51,6 +53,7 @@ class RotaModel {
       'entregadorId': entregadorId,
       'nomeEntregador': nomeEntregador,
       'paradas': paradas.map((p) => p.toMap()).toList(),
+      'diasOperacao': diasOperacao,
       'ativa': ativa,
       'dataCriacao': FieldValue.serverTimestamp(),
     };
@@ -68,6 +71,9 @@ class RotaModel {
               ?.map((p) => ParadaRota.fromMap(p as Map<String, dynamic>))
               .toList() ??
           [],
+      diasOperacao: data['diasOperacao'] != null
+          ? List<int>.from(data['diasOperacao'])
+          : [1, 2, 3, 4, 5],
       ativa: data['ativa'] ?? true,
     );
   }

@@ -16,18 +16,47 @@ class ColetaCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final String horaFormatada = item.dataCriacao != null
-        ? "${item.dataCriacao!.hour.toString().padLeft(2, '0')}:${item.dataCriacao!.minute.toString().padLeft(2, '0')}"
-        : '--:--';
+    String horaFormatada = '--:--';
+    bool isFuturo = false;
 
-    // 💡 Usa a flag real do banco de dados, sem gambiarra de texto
+    // 💡 TRAVA DE TEMPO: Analisa se o pedido é para o futuro
+    if (item.dataCriacao != null) {
+      final data = item.dataCriacao!;
+      final agora = DateTime.now();
+      final hoje = DateTime(agora.year, agora.month, agora.day);
+      final dataItem = DateTime(data.year, data.month, data.day);
+
+      isFuturo = dataItem.isAfter(hoje);
+
+      // Tratamento elegante para horários zerados
+      if (data.hour == 0 && data.minute == 0) {
+        horaFormatada = 'A definir';
+      } else {
+        horaFormatada =
+            "${data.hour.toString().padLeft(2, '0')}:${data.minute.toString().padLeft(2, '0')}";
+      }
+    }
+
     final bool isInsumo = item.isInsumo;
+    final bool isUrgencia = item.isEmergencia;
+
+    Color corTema;
+    Color corFundoTema;
+    if (isInsumo) {
+      corTema = Colors.teal;
+      corFundoTema = Colors.teal.shade50;
+    } else if (isUrgencia) {
+      corTema = Colors.redAccent.shade700;
+      corFundoTema = Colors.red.shade50;
+    } else {
+      corTema = Colors.indigo;
+      corFundoTema = Colors.indigo.shade50;
+    }
 
     final String statusNorm = item.status.toLowerCase();
     final bool isRecusado =
         statusNorm.contains('recusad') || statusNorm.contains('cancel');
 
-    // 💡 Consome a lógica visual direto da Model (Inversão automática de rota)
     final String localOrigem = item.origemVisual;
     final String localDestino = item.destinoVisual;
 
@@ -50,13 +79,18 @@ class ColetaCard extends StatelessWidget {
       corBadge = const Color(0xFF43A047);
       corFundoBadge = const Color(0xFFE8F5E9);
       statusTexto = 'Concluída';
+    } else if (isFuturo) {
+      // 💡 BADGE DO FUTURO: Destaca visualmente que não é para hoje
+      corBadge = Colors.deepPurple;
+      corFundoBadge = Colors.deepPurple.shade50;
+      statusTexto = 'Agendado';
     } else if (statusNorm.contains('rota') || statusNorm.contains('caminho')) {
       corBadge = Colors.orange.shade800;
       corFundoBadge = Colors.orange.shade50;
       statusTexto = 'Em Rota';
     } else {
-      corBadge = Colors.indigo;
-      corFundoBadge = Colors.indigo.shade50;
+      corBadge = corTema;
+      corFundoBadge = corFundoTema;
       statusTexto = 'Nova Parada';
     }
 
@@ -66,12 +100,17 @@ class ColetaCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.grey.shade200, width: 1.5),
+          border: Border.all(
+            color: isFinalizados
+                ? Colors.grey.shade200
+                : corTema.withOpacity(0.4),
+            width: 1.5,
+          ),
           boxShadow: isFinalizados
               ? []
               : [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.03),
+                    color: corTema.withOpacity(0.05),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),
@@ -109,13 +148,23 @@ class ColetaCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  Text(
-                    horaFormatada,
-                    style: TextStyle(
-                      color: Colors.grey.shade500,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
-                    ),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.access_time_rounded,
+                        size: 14,
+                        color: Colors.grey.shade400,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        horaFormatada,
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -131,9 +180,7 @@ class ColetaCard extends StatelessWidget {
                     children: [
                       Icon(
                         Icons.radio_button_checked,
-                        color: isInsumo
-                            ? const Color(0xFF34C759)
-                            : const Color(0xFF007AFF),
+                        color: corTema,
                         size: 18,
                       ),
                       Container(
@@ -201,10 +248,10 @@ class ColetaCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: Colors.grey.shade50,
+                color: corFundoTema,
                 borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(16),
-                  bottomRight: Radius.circular(16),
+                  bottomLeft: Radius.circular(14),
+                  bottomRight: Radius.circular(14),
                 ),
               ),
               child: Column(
@@ -217,18 +264,19 @@ class ColetaCard extends StatelessWidget {
                           Icon(
                             isInsumo
                                 ? Icons.inventory_2_rounded
-                                : Icons.vaccines_rounded,
+                                : (isUrgencia
+                                      ? Icons.flash_on_rounded
+                                      : Icons.vaccines_rounded),
                             size: 16,
-                            color: Colors.grey.shade600,
+                            color: corTema,
                           ),
                           const SizedBox(width: 6),
-                          // 💡 Ajuste da nomenclatura no rodapé do cartão
                           Text(
-                            "${isInsumo ? 'Pedido de Insumo' : 'Coleta de Exame'} • ID: #$codigoFormatado",
+                            "${isInsumo ? 'Pedido de Insumo' : (isUrgencia ? 'Coleta de Urgência' : 'Coleta de Exame')} • ID: #$codigoFormatado",
                             style: TextStyle(
-                              color: Colors.grey.shade700,
+                              color: corTema.withOpacity(0.9),
                               fontSize: 12,
-                              fontWeight: FontWeight.w700,
+                              fontWeight: FontWeight.w800,
                             ),
                           ),
                         ],
@@ -254,7 +302,7 @@ class ColetaCard extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
-                              color: Colors.indigo.shade600,
+                              color: corTema,
                             ),
                           ),
                         ),
@@ -272,8 +320,9 @@ class ColetaCard extends StatelessWidget {
                             onPressed: () => _confirmarRecusa(context, item),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: Colors.redAccent,
+                              backgroundColor: Colors.white,
                               side: BorderSide(
-                                color: Colors.redAccent.shade100,
+                                color: Colors.redAccent.shade200,
                               ),
                               padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(
@@ -283,7 +332,7 @@ class ColetaCard extends StatelessWidget {
                             child: const Text(
                               "Recusar",
                               style: TextStyle(
-                                fontWeight: FontWeight.w700,
+                                fontWeight: FontWeight.w800,
                                 fontSize: 13,
                               ),
                             ),
@@ -292,33 +341,66 @@ class ColetaCard extends StatelessWidget {
                         const SizedBox(width: 8),
                         Expanded(
                           flex: 2,
-                          child: ElevatedButton(
-                            onPressed: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    "Ação de iniciar rota em desenvolvimento.",
+                          child: isFuturo
+                              // 💡 BOTÃO BLOQUEADO: Substitui o 'Iniciar Rota' por um informativo inativo
+                              ? Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 13,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey.shade300,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.calendar_month_rounded,
+                                        size: 16,
+                                        color: Colors.grey.shade600,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        "Aguardando Data",
+                                        style: TextStyle(
+                                          color: Colors.grey.shade700,
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              : ElevatedButton(
+                                  onPressed: () {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          "Ação de iniciar rota em desenvolvimento.",
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: corTema,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 14,
+                                    ),
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    "Iniciar Rota",
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 13,
+                                    ),
                                   ),
                                 ),
-                              );
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.indigo,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                            child: const Text(
-                              "Iniciar Rota",
-                              style: TextStyle(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ),
                         ),
                       ],
                     ),

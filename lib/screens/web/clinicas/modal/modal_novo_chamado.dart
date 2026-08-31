@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:vet_route/controllers/chamado_coleta_controller.dart';
 import 'package:vet_route/models/clinica_model.dart';
@@ -27,12 +26,10 @@ class _ModalNovoChamadoState extends State<ModalNovoChamado> {
   DateTime dataSelecionada = DateTime.now();
   final TextEditingController observacaoController = TextEditingController();
 
-  // Controle de carregamento no botão para evitar cliques duplos
   bool enviando = false;
 
   @override
   void dispose() {
-    // 💡 BLINDAGEM DE MEMÓRIA: Evita vazamento de memória ao fechar a modal
     observacaoController.dispose();
     super.dispose();
   }
@@ -190,23 +187,23 @@ class _ModalNovoChamadoState extends State<ModalNovoChamado> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.amber.shade50,
+                  color: Colors.blue.shade50,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.amber.shade200),
+                  border: Border.all(color: Colors.blue.shade200),
                 ),
                 child: Row(
                   children: [
                     Icon(
-                      Icons.info_outline_rounded,
-                      color: Colors.amber.shade800,
+                      Icons.route_outlined,
+                      color: Colors.blue.shade800,
                       size: 20,
                     ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        "Após o agendamento, o laboratório irá confirmar o horário disponível.",
+                        "O sistema tentará localizar um motoboy disponível automaticamente ao confirmar. A data pode sofrer ajuste automático caso a rota opere em dias específicos.",
                         style: TextStyle(
-                          color: Colors.amber.shade900,
+                          color: Colors.blue.shade900,
                           fontSize: 13,
                           height: 1.3,
                         ),
@@ -234,87 +231,7 @@ class _ModalNovoChamadoState extends State<ModalNovoChamado> {
               borderRadius: BorderRadius.circular(8),
             ),
           ),
-          onPressed: enviando
-              ? null
-              : () async {
-                  if (_labIdSelecionado == null) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text("Selecione o Laboratório destino!"),
-                      ),
-                    );
-                    return;
-                  }
-
-                  setState(() => enviando = true);
-
-                  try {
-                    final momentoAgendado = DateTime(
-                      dataSelecionada.year,
-                      dataSelecionada.month,
-                      dataSelecionada.day,
-                      0,
-                      0,
-                    );
-
-                    final user = FirebaseAuth.instance.currentUser;
-                    final usuarioLogado = user?.displayName?.isNotEmpty == true
-                        ? user!.displayName!
-                        : (user?.email ?? 'Usuário da Clínica');
-
-                    // 💡 Gravação Limpa e Perfeita no Banco
-                    await FirebaseFirestore.instance
-                        .collection('chamados_coleta')
-                        .add({
-                          'clinicaId': widget.clinicaContexto.id,
-                          'clinicaNome': widget.clinicaContexto.nome,
-                          'laboratorioId': _labIdSelecionado,
-                          'laboratorioNome':
-                              _labNomeSelecionado ?? 'Laboratório',
-                          'status': 'Pendente',
-                          'isUrgencia': widget.isEmergencia,
-                          'isEmergencia': widget.isEmergencia,
-                          'dataCriacao': Timestamp.now(),
-                          'dataAgendamento': Timestamp.fromDate(
-                            momentoAgendado,
-                          ),
-                          'observacao': observacaoController.text.trim(),
-                          'usuarioCriador': usuarioLogado,
-                          'historicoLogs': [
-                            {
-                              'status': 'Pendente',
-                              'usuario': usuarioLogado,
-                              'data': Timestamp.now(),
-                              'observacao': 'Coleta solicitada na plataforma',
-                            },
-                          ],
-                        });
-
-                    if (context.mounted) {
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text("Coleta solicitada com sucesso!"),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
-                    }
-                  } catch (e) {
-                    debugPrint("Erro ao salvar coleta WEB: $e");
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text("Erro ao agendar coleta: $e"),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
-                  } finally {
-                    if (mounted) {
-                      setState(() => enviando = false);
-                    }
-                  }
-                },
+          onPressed: enviando ? null : _processarCriacaoERoteamento,
           child: enviando
               ? const SizedBox(
                   width: 16,
@@ -331,5 +248,66 @@ class _ModalNovoChamadoState extends State<ModalNovoChamado> {
         ),
       ],
     );
+  }
+
+  Future<void> _processarCriacaoERoteamento() async {
+    if (_labIdSelecionado == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Selecione o Laboratório destino!")),
+      );
+      return;
+    }
+
+    setState(() => enviando = true);
+
+    try {
+      final momentoAgendado = DateTime(
+        dataSelecionada.year,
+        dataSelecionada.month,
+        dataSelecionada.day,
+        0,
+        0,
+      );
+
+      final user = FirebaseAuth.instance.currentUser;
+      final usuarioLogado = user?.displayName?.isNotEmpty == true
+          ? user!.displayName!
+          : (user?.email ?? 'Usuário da Clínica');
+
+      // 💡 DELEGA TUDO PARA A CONTROLLER (MVC PURO)
+      final mensagemSucesso = await widget.controller
+          .agendarColetaComRoteamento(
+            clinicaId: widget.clinicaContexto.id,
+            clinicaNome: widget.clinicaContexto.nome,
+            laboratorioId: _labIdSelecionado!,
+            laboratorioNome: _labNomeSelecionado ?? 'Laboratório',
+            isEmergencia: widget.isEmergencia,
+            dataDesejada: momentoAgendado,
+            observacao: observacaoController.text.trim(),
+            usuarioLogado: usuarioLogado,
+          );
+
+      if (context.mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(mensagemSucesso),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Erro ao agendar coleta: $e"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => enviando = false);
+    }
   }
 }

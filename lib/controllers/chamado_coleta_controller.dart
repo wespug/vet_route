@@ -1,4 +1,3 @@
-// lib/controllers/chamado_coleta_controller.dart
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -71,7 +70,6 @@ class ChamadoColetaController {
           listaColetas = snapshot.docs
               .where((doc) {
                 final data = doc.data() as Map<String, dynamic>? ?? {};
-                // 💡 FILTRO ANTI-FANTASMA: Ignora os clones criados pelo laboratório
                 final isEspelhoInsumo =
                     data['possuiInsumo'] == true ||
                     data['tipo']?.toString().toLowerCase() == 'insumo';
@@ -84,7 +82,7 @@ class ChamadoColetaController {
           processarEAtualizar();
         }, onError: (e) => debugPrint('❌ Erro coletas: $e'));
 
-    // 2. Escuta Pedidos de Insumos (A via original e correta)
+    // 2. Escuta Pedidos de Insumos
     _insumosSub = _db
         .collection('pedidos_insumos')
         .where('clinicaId', isEqualTo: clinicaId)
@@ -165,6 +163,139 @@ class ChamadoColetaController {
       });
     } catch (e) {
       debugPrint('❌ Erro ao cancelar o item: $e');
+      rethrow;
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  // 💡 NOVO: Motor Central de Roteamento Preditivo (MVC)
+  Future<String> agendarColetaComRoteamento({
+    required String clinicaId,
+    required String clinicaNome,
+    required String laboratorioId,
+    required String laboratorioNome,
+    required bool isEmergencia,
+    required DateTime dataDesejada,
+    required String observacao,
+    required String usuarioLogado,
+  }) async {
+    try {
+      isLoading.value = true;
+
+      // Consulta direta baseada na coleção correta corrigida
+      final rotasSnapshot = await _db
+          .collection('rotas_fixas')
+          .where('laboratorioId', isEqualTo: laboratorioId)
+          .where('ativa', isEqualTo: true)
+          .get();
+
+      String? motoboyId;
+      String? motoboyNome;
+      List<int> diasOperacao = [1, 2, 3, 4, 5];
+
+      for (var doc in rotasSnapshot.docs) {
+        final rotaData = doc.data();
+        final paradas = (rotaData['paradas'] as List<dynamic>?) ?? [];
+
+        final atendeClinica = paradas.any((p) {
+          final pMap = p as Map<String, dynamic>;
+          final pClinicaId = (pMap['clinicaId'] ?? '').toString().trim();
+          return pClinicaId == clinicaId;
+        });
+
+        if (atendeClinica) {
+          motoboyId = rotaData['entregadorId'];
+          motoboyNome = rotaData['nomeEntregador'];
+          if (rotaData['diasOperacao'] != null) {
+            diasOperacao = List<int>.from(rotaData['diasOperacao']);
+          }
+          break;
+        }
+      }
+
+      if (motoboyId == null && rotasSnapshot.docs.isNotEmpty) {
+        final primeiraRota = rotasSnapshot.docs.first.data();
+        motoboyId = primeiraRota['entregadorId'];
+        motoboyNome = primeiraRota['nomeEntregador'];
+        if (primeiraRota['diasOperacao'] != null) {
+          diasOperacao = List<int>.from(primeiraRota['diasOperacao']);
+        }
+      }
+
+      DateTime dataAjustada = dataDesejada;
+      bool dataFoiAjustada = false;
+
+      if (motoboyId != null && diasOperacao.isNotEmpty) {
+        int limiteBusca = 0;
+        while (!diasOperacao.contains(dataAjustada.weekday) &&
+            limiteBusca < 14) {
+          dataAjustada = dataAjustada.add(const Duration(days: 1));
+          dataFoiAjustada = true;
+          limiteBusca++;
+        }
+      }
+
+      final bool temMotoboy = motoboyId != null && motoboyId.isNotEmpty;
+      final String statusInicial = temMotoboy
+          ? 'aguardando_coleta'
+          : 'Pendente';
+
+      String obsHistorico =
+          'Coleta agendada na plataforma. Aguardando disponibilidade de entregador.';
+
+      if (temMotoboy) {
+        if (dataFoiAjustada) {
+          final strNovaData =
+              "${dataAjustada.day.toString().padLeft(2, '0')}/${dataAjustada.month.toString().padLeft(2, '0')}";
+          obsHistorico =
+              'Coleta agendada. Data ajustada automaticamente para o próximo dia útil da rota ($strNovaData) do entregador $motoboyNome.';
+        } else {
+          obsHistorico =
+              'Coleta agendada. Rota automática atribuída para o entregador $motoboyNome.';
+        }
+      }
+
+      final payload = {
+        'clinicaId': clinicaId,
+        'clinicaNome': clinicaNome,
+        'laboratorioId': laboratorioId,
+        'laboratorioNome': laboratorioNome,
+        'status': statusInicial,
+        'isUrgencia': isEmergencia,
+        'isEmergencia': isEmergencia,
+        'tipo': 'Exame',
+        'possuiInsumo': false,
+        'dataCriacao': FieldValue.serverTimestamp(),
+        'dataAgendamento': Timestamp.fromDate(dataAjustada),
+        'observacao': observacao,
+        'usuarioCriador': usuarioLogado,
+        'historicoLogs': [
+          {
+            'status': statusInicial,
+            'usuario': usuarioLogado,
+            'data': Timestamp.now(),
+            'observacao': obsHistorico,
+          },
+        ],
+      };
+
+      if (temMotoboy) {
+        payload['entregadorId'] = motoboyId!;
+        payload['nomeEntregador'] = motoboyNome!;
+      }
+
+      await _db.collection('chamados_coleta').add(payload);
+
+      if (temMotoboy) {
+        return dataFoiAjustada
+            ? "Coleta confirmada para o próximo dia útil da rota."
+            : "Coleta despachada para o entregador!";
+      } else {
+        return "Coleta solicitada! Aguardando alocação de entregador.";
+      }
+    } catch (e) {
+      debugPrint("Erro no MVC de agendamento: $e");
       rethrow;
     } finally {
       isLoading.value = false;

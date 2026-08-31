@@ -18,7 +18,7 @@ class Coleta {
   final DateTime? dataSolicitacao;
   final String? enderecoFlat;
   final List<dynamic> itens;
-  final List<dynamic> historico; // 💡 A CHAVE DO RASTREIO LOGÍSTICO
+  final List<dynamic> historico;
 
   Coleta({
     required this.id,
@@ -108,7 +108,12 @@ class Coleta {
     }
 
     DateTime? dataParseada;
-    if (data['dataSolicitacao'] is Timestamp) {
+    // 💡 CORREÇÃO AQUI: Prioriza a leitura do agendamento futuro!
+    if (data['dataAgendamento'] is Timestamp) {
+      dataParseada = (data['dataAgendamento'] as Timestamp).toDate();
+    } else if (data['dataAgendamento'] is String) {
+      dataParseada = DateTime.tryParse(data['dataAgendamento']);
+    } else if (data['dataSolicitacao'] is Timestamp) {
       dataParseada = (data['dataSolicitacao'] as Timestamp).toDate();
     } else if (data['dataCriacao'] is Timestamp) {
       dataParseada = (data['dataCriacao'] as Timestamp).toDate();
@@ -125,8 +130,6 @@ class Coleta {
         data['tipo']?.toString().toLowerCase() == 'insumo';
 
     final itensList = (data['itens'] as List<dynamic>?) ?? [];
-
-    // 💡 Captura o histórico logístico (Cobre os dois formatos usados no banco)
     final historicoList =
         (data['historico'] as List<dynamic>?) ??
         (data['historicoLogs'] as List<dynamic>?) ??
@@ -144,7 +147,7 @@ class Coleta {
       entregadorIdFlat: data['entregadorId'],
       entregadorNomeFlat: data['nomeEntregador'],
       itens: itensList,
-      historico: historicoList, // 💡 Injetado na Model
+      historico: historicoList,
       clinicaOrigem: Clinica(
         id: clinicaId,
         nome: clinicaNome,

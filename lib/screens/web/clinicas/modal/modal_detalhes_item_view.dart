@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 import 'package:vet_route/models/clinica_model.dart';
 import 'package:vet_route/controllers/chamado_coleta_controller.dart';
 import 'package:vet_route/models/item_logistica_model.dart';
@@ -17,7 +19,6 @@ class ModalDetalhesItemView extends StatelessWidget {
     required this.controller,
   });
 
-  // 💡 TRAVA DE SEGURANÇA: Bloqueia o cancelamento se for recusado
   bool get _podeCancelar {
     final statusLower = item.status.toLowerCase();
     return !statusLower.contains('coletado') &&
@@ -26,7 +27,14 @@ class ModalDetalhesItemView extends StatelessWidget {
         !statusLower.contains('entregue') &&
         !statusLower.contains('concluido') &&
         !statusLower.contains('cancelado') &&
-        !statusLower.contains('recusado'); // Adicionado o bloqueio de Recusado
+        !statusLower.contains('recusado');
+  }
+
+  DateTime _parseData(dynamic val) {
+    if (val is Timestamp) return val.toDate();
+    if (val is String) return DateTime.tryParse(val) ?? DateTime.now();
+    if (val is DateTime) return val;
+    return DateTime.now();
   }
 
   @override
@@ -37,269 +45,487 @@ class ModalDetalhesItemView extends StatelessWidget {
         constraints: const BoxConstraints(maxWidth: 700, maxHeight: 850),
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Cabeçalho
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          child: StreamBuilder<DocumentSnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection(
+                  item.isInsumo ? 'pedidos_insumos' : 'chamados_coleta',
+                )
+                .doc(item.id)
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(
+                  child: CircularProgressIndicator(color: Colors.indigo),
+                );
+              }
+
+              if (!snapshot.hasData || !snapshot.data!.exists) {
+                return const Center(
+                  child: Text("Erro ao carregar dados em tempo real."),
+                );
+              }
+
+              final data = snapshot.data!.data() as Map<String, dynamic>;
+
+              // 💡 CORREÇÃO: clinicaContexto pertence à View, não ao 'item'
+              final String clinicaNome =
+                  data['clinicaNome'] ?? clinicaContexto.nome;
+              final String laboratorioNome =
+                  data['laboratorioNome'] ?? item.laboratorioNome;
+              final String? nomeEntregador = data['nomeEntregador']?.toString();
+              final String observacao = data['observacao']?.toString() ?? '';
+
+              final DateTime? dataAgendamento = data['dataAgendamento'] != null
+                  ? _parseData(data['dataAgendamento'])
+                  : null;
+              final String dataAgendamentoStr = dataAgendamento != null
+                  ? DateFormat('dd/MM/yyyy').format(dataAgendamento)
+                  : 'A definir';
+
+              // Histórico em Tempo Real
+              final List<dynamic> rawLogs =
+                  data['historicoLogs'] ?? data['historico'] ?? [];
+              final List<HistoricoStatusLog> logsRealTime = rawLogs
+                  .map(
+                    (e) => HistoricoStatusLog.fromMap(
+                      Map<String, dynamic>.from(e),
+                    ),
+                  )
+                  .toList();
+              logsRealTime.sort((a, b) => a.data.compareTo(b.data));
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Cabeçalho
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: Colors.indigo.shade50,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Icon(
-                          item.isInsumo
-                              ? Icons.inventory_2_rounded
-                              : Icons.local_shipping_rounded,
-                          color: Colors.indigo,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      Row(
                         children: [
-                          Text(
-                            "Detalhes do Item: #${item.codigo}",
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: Colors.indigo.shade50,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              item.isInsumo
+                                  ? Icons.inventory_2_rounded
+                                  : Icons.science_rounded,
+                              color: Colors.indigo,
                             ),
                           ),
-                          const SizedBox(height: 2),
-                          Text(
-                            "Destino: ${item.laboratorioNome}",
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.grey.shade600,
-                            ),
+                          const SizedBox(width: 12),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Detalhes do Item: #${item.codigo}",
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                item.isInsumo
+                                    ? "Pedido de Insumos"
+                                    : "Coleta de Exames",
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.grey.shade600,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
                           ),
                         ],
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.of(context).pop(),
                       ),
                     ],
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                ],
-              ),
-              const Divider(height: 32),
+                  const Divider(height: 32),
 
-              // Conteúdo com Rolagem
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Status e Tipo
-                      Row(
+                  // Conteúdo Rolável
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(
-                            child: _buildCardInfo(
-                              titulo: "Status Atual",
-                              valor: item.textoStatus,
-                              corValor: item.corStatus,
-                              icone: Icons.info_outline,
+                          // Status
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildCardInfo(
+                                  titulo: "Status Atual",
+                                  valor: item.textoStatus,
+                                  corValor: item.corStatus,
+                                  icone: Icons.info_outline,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: _buildCardInfo(
+                                  titulo: "Tipo de Operação",
+                                  valor: item.nomeTipoFormatado,
+                                  corValor: Colors.black87,
+                                  icone: Icons.category_rounded,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+
+                          // Rota: Origem e Destino
+                          const Text(
+                            "Trajeto Logístico",
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
                             ),
                           ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: _buildCardInfo(
-                              titulo: "Tipo de Operação",
-                              valor: item.nomeTipoFormatado,
-                              corValor: Colors.black87,
-                              icone: Icons.category_rounded,
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.grey.shade200),
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-
-                      // Se for Insumo, exibe a listagem de itens solicitados
-                      if (item.isInsumo && item.itensInsumo.isNotEmpty) ...[
-                        const Text(
-                          "Itens Solicitados",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade50,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.grey.shade200),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: item.itensInsumo.map((insumo) {
-                              final nomeInsumo =
-                                  insumo['descricao'] ??
-                                  insumo['nomeInsumo'] ??
-                                  insumo['nome'] ??
-                                  'Insumo';
-                              final qtd =
-                                  insumo['quantidade'] ??
-                                  insumo['quantidadeSolicitada'] ??
-                                  insumo['qtd'] ??
-                                  1;
-
-                              return Padding(
-                                padding: const EdgeInsets.only(bottom: 6),
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        "- $nomeInsumo",
-                                        style: const TextStyle(fontSize: 13),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Text(
-                                      "Qtd: $qtd",
-                                      style: const TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            }).toList(),
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                      ],
-
-                      // Rastreamento GPS
-                      const Text(
-                        "Rastreamento em Tempo Real",
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Container(
-                        height: 180,
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade100,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.grey.shade300),
-                        ),
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            Icon(
-                              Icons.map_rounded,
-                              size: 48,
-                              color: Colors.grey.shade400,
-                            ),
-                            Positioned(
-                              bottom: 12,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(20),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.1),
-                                      blurRadius: 4,
-                                    ),
-                                  ],
-                                ),
-                                child: const Row(
-                                  mainAxisSize: MainAxisSize.min,
+                            child: Column(
+                              children: [
+                                Row(
                                   children: [
                                     Icon(
-                                      Icons.radar,
-                                      size: 14,
-                                      color: Colors.indigo,
+                                      Icons.storefront_rounded,
+                                      color: Colors.indigo.shade400,
+                                      size: 22,
                                     ),
-                                    SizedBox(width: 6),
-                                    Text(
-                                      "Localização sincronizada via GPS",
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.indigo,
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          const Text(
+                                            "Origem da Coleta",
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: Colors.grey,
+                                            ),
+                                          ),
+                                          Text(
+                                            clinicaNome,
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ],
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.only(
+                                    left: 10.0,
+                                    top: 4,
+                                    bottom: 4,
+                                  ),
+                                  child: Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: Container(
+                                      width: 2,
+                                      height: 20,
+                                      color: Colors.grey.shade300,
+                                    ),
+                                  ),
+                                ),
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.business_rounded,
+                                      color: Colors.indigo.shade400,
+                                      size: 22,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          const Text(
+                                            "Destino da Entrega",
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: Colors.grey,
+                                            ),
+                                          ),
+                                          Text(
+                                            laboratorioNome,
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+
+                          // Alocação do Entregador
+                          if (nomeEntregador != null &&
+                              nomeEntregador.isNotEmpty)
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: Colors.green.shade50,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: Colors.green.shade200,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: Colors.green.shade100,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(
+                                      Icons.two_wheeler_rounded,
+                                      color: Colors.green.shade800,
+                                      size: 20,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          "Entregador Designado: $nomeEntregador",
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.green.shade900,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          "Agendado para: $dataAgendamentoStr",
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            color: Colors.green.shade800,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          else
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: Colors.amber.shade50,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: Colors.amber.shade200,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.schedule_rounded,
+                                    color: Colors.amber.shade800,
+                                    size: 24,
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          "Aguardando Entregador",
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.amber.shade900,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          "O sistema fará a alocação de rota assim que disponível.",
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.amber.shade900,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          const SizedBox(height: 20),
+
+                          // Material a ser Coletado (Para Exames)
+                          if (!item.isInsumo && observacao.isNotEmpty) ...[
+                            const Text(
+                              "Material a ser Coletado",
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF5F5F7),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                observacao,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  height: 1.4,
                                 ),
                               ),
                             ),
+                            const SizedBox(height: 20),
                           ],
-                        ),
-                      ),
-                      const SizedBox(height: 24),
 
-                      // Histórico de Logs Oficial
-                      const Text(
-                        "Histórico do Pedido",
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      _buildHistoricoLista(),
-                    ],
-                  ),
-                ),
-              ),
-              const Divider(height: 24),
+                          // Itens Insumo (Se Insumo)
+                          if (item.isInsumo && item.itensInsumo.isNotEmpty) ...[
+                            const Text(
+                              "Itens Solicitados",
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade50,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.grey.shade200),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: item.itensInsumo.map((insumo) {
+                                  final nomeInsumo =
+                                      insumo['descricao'] ??
+                                      insumo['nomeInsumo'] ??
+                                      insumo['nome'] ??
+                                      'Insumo';
+                                  final qtd =
+                                      insumo['quantidade'] ??
+                                      insumo['quantidadeSolicitada'] ??
+                                      insumo['qtd'] ??
+                                      1;
+                                  return Padding(
+                                    padding: const EdgeInsets.only(bottom: 6),
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            "- $nomeInsumo",
+                                            style: const TextStyle(
+                                              fontSize: 13,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        Text(
+                                          "Qtd: $qtd",
+                                          style: const TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                          ],
 
-              // Rodapé com Ações
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _podeCancelar
-                      ? TextButton.icon(
-                          onPressed: () => _confirmarCancelamento(context),
-                          icon: const Icon(
-                            Icons.cancel_outlined,
-                            color: Colors.red,
-                          ),
-                          label: const Text(
-                            "Cancelar Pedido",
+                          // Histórico
+                          const Text(
+                            "Histórico do Pedido",
                             style: TextStyle(
-                              color: Colors.red,
                               fontWeight: FontWeight.bold,
+                              fontSize: 14,
                             ),
                           ),
-                        )
-                      : const Text(
-                          "Cancelamento indisponível (já processado ou recusado)",
-                          style: TextStyle(fontSize: 12, color: Colors.grey),
-                        ),
-                  ElevatedButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.indigo,
-                      foregroundColor: Colors.white,
+                          const SizedBox(height: 16),
+                          _buildHistoricoLista(logsRealTime),
+                        ],
+                      ),
                     ),
-                    child: const Text("Fechar"),
+                  ),
+                  const Divider(height: 24),
+
+                  // Rodapé
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _podeCancelar
+                          ? TextButton.icon(
+                              onPressed: () => _confirmarCancelamento(context),
+                              icon: const Icon(
+                                Icons.cancel_outlined,
+                                color: Colors.red,
+                              ),
+                              label: const Text(
+                                "Cancelar Pedido",
+                                style: TextStyle(
+                                  color: Colors.red,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            )
+                          : const Text(
+                              "Cancelamento indisponível",
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
+                            ),
+                      ElevatedButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.indigo,
+                          foregroundColor: Colors.white,
+                        ),
+                        child: const Text("Fechar"),
+                      ),
+                    ],
                   ),
                 ],
-              ),
-            ],
+              );
+            },
           ),
         ),
       ),
@@ -349,8 +575,12 @@ class ModalDetalhesItemView extends StatelessWidget {
     );
   }
 
-  Widget _buildHistoricoLista() {
-    final logs = item.historicoCompletoEOrdenado;
+  Widget _buildHistoricoLista(List<HistoricoStatusLog> logs) {
+    if (logs.isEmpty)
+      return const Text(
+        "Nenhum histórico disponível.",
+        style: TextStyle(color: Colors.grey),
+      );
 
     return ListView.builder(
       shrinkWrap: true,
@@ -389,7 +619,7 @@ class ModalDetalhesItemView extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      log.status.toUpperCase(), // Destaque extra no status
+                      log.status.toUpperCase(),
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
@@ -412,9 +642,7 @@ class ModalDetalhesItemView extends StatelessWidget {
                           fontSize: 12,
                           fontStyle: FontStyle.italic,
                           color: log.status.toLowerCase().contains('recusad')
-                              ? Colors
-                                    .red
-                                    .shade700 // Destaca em vermelho a recusa
+                              ? Colors.red.shade700
                               : Colors.grey.shade600,
                         ),
                       ),
@@ -446,15 +674,13 @@ class ModalDetalhesItemView extends StatelessWidget {
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () async {
               Navigator.of(ctx).pop();
-
               try {
                 await controller.cancelarItem(item, usuarioLogado);
-
                 if (context.mounted) {
                   Navigator.of(context).pop();
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text("Solicitação cancelada com sucesso."),
+                      content: Text("Solicitação cancelada."),
                       backgroundColor: Colors.green,
                     ),
                   );
@@ -463,7 +689,7 @@ class ModalDetalhesItemView extends StatelessWidget {
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text("Erro ao cancelar: $e"),
+                      content: Text("Erro: $e"),
                       backgroundColor: Colors.red,
                     ),
                   );
