@@ -28,7 +28,6 @@ class ColetaCard extends StatelessWidget {
 
       isFuturo = dataItem.isAfter(hoje);
 
-      // Tratamento elegante para horários zerados
       if (data.hour == 0 && data.minute == 0) {
         horaFormatada = 'A definir';
       } else {
@@ -80,7 +79,6 @@ class ColetaCard extends StatelessWidget {
       corFundoBadge = const Color(0xFFE8F5E9);
       statusTexto = 'Concluída';
     } else if (isFuturo) {
-      // 💡 BADGE DO FUTURO: Destaca visualmente que não é para hoje
       corBadge = Colors.deepPurple;
       corFundoBadge = Colors.deepPurple.shade50;
       statusTexto = 'Agendado';
@@ -259,27 +257,32 @@ class ColetaCard extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        children: [
-                          Icon(
-                            isInsumo
-                                ? Icons.inventory_2_rounded
-                                : (isUrgencia
-                                      ? Icons.flash_on_rounded
-                                      : Icons.vaccines_rounded),
-                            size: 16,
-                            color: corTema,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            "${isInsumo ? 'Pedido de Insumo' : (isUrgencia ? 'Coleta de Urgência' : 'Coleta de Exame')} • ID: #$codigoFormatado",
-                            style: TextStyle(
-                              color: corTema.withOpacity(0.9),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w800,
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Icon(
+                              isInsumo
+                                  ? Icons.inventory_2_rounded
+                                  : (isUrgencia
+                                        ? Icons.flash_on_rounded
+                                        : Icons.vaccines_rounded),
+                              size: 16,
+                              color: corTema,
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                "${isInsumo ? 'Pedido de Insumo' : (isUrgencia ? 'Coleta de Urgência' : 'Coleta de Exame')} • ID: #$codigoFormatado",
+                                style: TextStyle(
+                                  color: corTema.withOpacity(0.9),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                       InkWell(
                         onTap: () {
@@ -342,7 +345,6 @@ class ColetaCard extends StatelessWidget {
                         Expanded(
                           flex: 2,
                           child: isFuturo
-                              // 💡 BOTÃO BLOQUEADO: Substitui o 'Iniciar Rota' por um informativo inativo
                               ? Container(
                                   padding: const EdgeInsets.symmetric(
                                     vertical: 13,
