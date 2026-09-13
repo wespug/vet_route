@@ -122,7 +122,7 @@ class _LoginScreenState extends State<LoginScreen> with LoggerMixin {
                 const Icon(Icons.pets, size: 64, color: Colors.indigo),
                 const SizedBox(height: 24),
                 const Text(
-                  'Acesso Vet Route',
+                  'Acesso Vet Route!!',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 24,
@@ -203,12 +203,30 @@ class _LoginScreenState extends State<LoginScreen> with LoggerMixin {
                     ),
                     ActionChip(
                       label: const Text(
-                        'Clinica',
+                        'Adm Lab',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                      backgroundColor: const Color.fromARGB(255, 100, 77, 218),
+                      onPressed: () =>
+                          _preencherTeste('aa1@gmail.com', '123456'),
+                    ),
+                    ActionChip(
+                      label: const Text(
+                        'Adm Clinica',
                         style: TextStyle(fontSize: 12),
                       ),
                       backgroundColor: Colors.green.shade100,
                       onPressed: () =>
-                          _preencherTeste('clinica@gmail.com', '12345678'),
+                          _preencherTeste('ua1@gmail.com', '123456'),
+                    ),
+                    ActionChip(
+                      label: const Text(
+                        'Entregador',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                      backgroundColor: const Color.fromARGB(255, 231, 124, 24),
+                      onPressed: () =>
+                          _preencherTeste('bb@gmail.com', '123456'),
                     ),
                     ActionChip(
                       label: const Text(

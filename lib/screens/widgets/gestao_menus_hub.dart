@@ -45,8 +45,9 @@ class _GestaoMenusHubState extends State<GestaoMenusHub> {
     'gestao_menus': 'Gestão de Menus',
     'gestao_submenus': 'Gestão de Submenus',
     'gestao_usuarios': 'Gestão de Usuários',
-    'tela_teste_mobile': 'App Entregador (Teste Móvel)',
-    'tela_teste_clinica_mobile': 'App Clínica (Teste Móvel)',
+    'clinica_dashboard': 'App Clínica (Mobile)',
+    'lab_dashboard': 'App Laboratório (Mobile)',
+    'entregador_dashboard': 'App Entregador (Mobile)',
   };
 
   @override

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // 💡 Importação adicionada
+import 'package:firebase_core/firebase_core.dart'; // 💡 Importação adicionada
 import '../models/entregador_model.dart';
 import '../models/perfil_usuario.dart';
 import '../repositories/firestore_coleta_repository.dart';
@@ -24,7 +26,7 @@ class EntregadorController {
   EntregadorController([this._repository]);
 
   // =========================================================================
-  // 🟢 MÉTODOS DE ADMINISTRAÇÃO WEB (CRUD NO FIRESTORE)
+  // 🟢 MÉTODOS DE ADMINISTRAÇÃO WEB (CRUD NO FIRESTORE + AUTH)
   // =========================================================================
 
   Future<void> carregarEntregadores() async {
@@ -51,11 +53,37 @@ class EntregadorController {
   Future<bool> salvarEntregador(Entregador entregador) async {
     isLoading.value = true;
     try {
-      await _db.collection('usuarios').add(entregador.toMap());
+      // 💡 1. Cria a conta no Firebase Authentication de forma isolada
+      FirebaseApp appSecundario = await Firebase.initializeApp(
+        name: 'CriadorMotoboyAdmin',
+        options: Firebase.app().options,
+      );
+
+      UserCredential credencial =
+          await FirebaseAuth.instanceFor(
+            app: appSecundario,
+          ).createUserWithEmailAndPassword(
+            email: entregador.email,
+            password:
+                entregador.senha ?? '123456', // Usa a senha digitada no form
+          );
+
+      final novoUid = credencial.user!.uid;
+
+      // 💡 2. Salva no banco de dados vinculando ao UID oficial do Auth
+      await _db.collection('usuarios').doc(novoUid).set({
+        ...entregador.toMap(),
+        'id': novoUid,
+        'ativo': true,
+      });
+
+      await appSecundario
+          .delete(); // Limpa a instância para não deslogar o painel
+
       await carregarEntregadores();
       return true;
     } catch (e) {
-      debugPrint('Erro ao salvar entregador: $e');
+      debugPrint('Erro ao salvar entregador no Auth/DB: $e');
       return false;
     } finally {
       isLoading.value = false;

@@ -10,6 +10,9 @@ class Entregador {
   final String telefone;
   final Veiculo? veiculo;
   final Endereco endereco;
+  final String? senha;
+  final String?
+  perfilId; // 💡 NOVO: Vínculo dinâmico com a matriz de permissões
 
   Entregador({
     this.id,
@@ -18,6 +21,8 @@ class Entregador {
     required this.telefone,
     this.veiculo,
     required this.endereco,
+    this.senha,
+    this.perfilId,
   });
 
   Map<String, dynamic> toMap() {
@@ -26,19 +31,20 @@ class Entregador {
       'email': email,
       'telefone': telefone,
       'veiculo': veiculo?.toMap(),
-      'perfil': PerfilUsuario.entregadores.toFirestoreString,
+      'perfilId': perfilId, // 💡 Gravando o perfil real no Firebase
+      'perfil': PerfilUsuario.entregadores.toFirestoreString, // Fallback legado
       'endereco': endereco.toMap(),
       'dataCadastro': FieldValue.serverTimestamp(),
     };
   }
 
-  // 💡 O fromMap voltou para salvar a vida da classe ColetaModel!
   factory Entregador.fromMap(Map<String, dynamic> map, {String? id}) {
     return Entregador(
       id: id,
       nome: map['nome'] ?? '',
       email: map['email'] ?? '',
       telefone: map['telefone'] ?? '',
+      perfilId: map['perfilId'],
       veiculo: map['veiculo'] != null
           ? Veiculo.fromMap(map['veiculo'] as Map<String, dynamic>)
           : null,

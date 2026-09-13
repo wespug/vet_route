@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:vet_route/models/entregador_model.dart';
 import 'package:vet_route/models/endereco_model.dart';
 import 'package:vet_route/models/veiculo_model.dart';
 import 'package:vet_route/controllers/entregador_controller.dart';
+import 'package:vet_route/controllers/perfil_controller.dart'; // 💡 Importação Adicionada
 
 class ListaEntregadoresView extends StatefulWidget {
   final ValueChanged<Entregador> onEntregadorSelected;
@@ -15,17 +17,21 @@ class ListaEntregadoresView extends StatefulWidget {
 
 class _ListaEntregadoresViewState extends State<ListaEntregadoresView> {
   late final EntregadorController _controller;
+  final PerfilController _perfilController =
+      PerfilController(); // 💡 Controladora de Perfis
 
   @override
   void initState() {
     super.initState();
     _controller = EntregadorController();
     _controller.carregarEntregadores();
+    _perfilController.carregarPerfis(); // 💡 Busca perfis no boot
   }
 
   @override
   void dispose() {
     _controller.dispose();
+    _perfilController.dispose();
     super.dispose();
   }
 
@@ -51,7 +57,7 @@ class _ListaEntregadoresViewState extends State<ListaEntregadoresView> {
                 onPressed: () => _abrirModalFormulario(context),
                 icon: const Icon(Icons.sports_motorsports_rounded),
                 label: const Text(
-                  "Novo Motoboy",
+                  "Novo Entregador",
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
                 style: ElevatedButton.styleFrom(
@@ -83,7 +89,7 @@ class _ListaEntregadoresViewState extends State<ListaEntregadoresView> {
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          "Nenhum motoboy cadastrado.",
+                          "Nenhum entregador cadastrado.",
                           style: TextStyle(
                             color: Colors.grey.shade500,
                             fontSize: 16,
@@ -108,7 +114,7 @@ class _ListaEntregadoresViewState extends State<ListaEntregadoresView> {
                       columns: const [
                         DataColumn(
                           label: Text(
-                            'Motoboy',
+                            'Entregador',
                             style: TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ),
@@ -192,7 +198,7 @@ class _ListaEntregadoresViewState extends State<ListaEntregadoresView> {
                   Icons.visibility_outlined,
                   color: Colors.deepOrange,
                 ),
-                tooltip: "Painel do Motoboy",
+                tooltip: "Painel do Entregador",
                 onPressed: () => widget.onEntregadorSelected(entregador),
               ),
               IconButton(
@@ -208,7 +214,7 @@ class _ListaEntregadoresViewState extends State<ListaEntregadoresView> {
                   Icons.delete_outline_rounded,
                   color: Colors.redAccent,
                 ),
-                tooltip: "Remover Motoboy",
+                tooltip: "Remover Entregador",
                 onPressed: () => _confirmarExclusao(entregador),
               ),
             ],
@@ -224,7 +230,6 @@ class _ListaEntregadoresViewState extends State<ListaEntregadoresView> {
   }) {
     final bool isEdicao = entregadorEdicao != null;
 
-    // Controladores do Motoboy
     final nomeController = TextEditingController(
       text: entregadorEdicao?.nome ?? '',
     );
@@ -234,8 +239,8 @@ class _ListaEntregadoresViewState extends State<ListaEntregadoresView> {
     final telefoneController = TextEditingController(
       text: entregadorEdicao?.telefone ?? '',
     );
+    final senhaController = TextEditingController();
 
-    // Controladores do Veículo
     final placaController = TextEditingController(
       text: entregadorEdicao?.veiculo?.placa ?? '',
     );
@@ -246,7 +251,6 @@ class _ListaEntregadoresViewState extends State<ListaEntregadoresView> {
       text: entregadorEdicao?.veiculo?.cor ?? '',
     );
 
-    // Controladores de Endereço
     final cepController = TextEditingController(
       text: entregadorEdicao?.endereco.cep ?? '',
     );
@@ -262,6 +266,9 @@ class _ListaEntregadoresViewState extends State<ListaEntregadoresView> {
     final estadoController = TextEditingController(
       text: entregadorEdicao?.endereco.estado ?? '',
     );
+
+    String? idPerfilSelecionado =
+        entregadorEdicao?.perfilId; // 💡 Armazena Perfil
 
     showDialog(
       context: context,
@@ -283,7 +290,7 @@ class _ListaEntregadoresViewState extends State<ListaEntregadoresView> {
                     color: Colors.deepOrange,
                   ),
                   const SizedBox(width: 10),
-                  Text(isEdicao ? "Editar Motoboy" : "Novo Motoboy"),
+                  Text(isEdicao ? "Editar Entregador" : "Novo Entregador"),
                 ],
               ),
               content: SizedBox(
@@ -323,11 +330,128 @@ class _ListaEntregadoresViewState extends State<ListaEntregadoresView> {
                         ],
                       ),
                       const SizedBox(height: 12),
+
                       TextField(
                         controller: emailController,
-                        decoration: const InputDecoration(
+                        readOnly: isEdicao,
+                        decoration: InputDecoration(
                           labelText: "E-mail de Login",
+                          filled: isEdicao,
+                          fillColor: isEdicao ? Colors.grey.shade100 : null,
+                          suffixIcon: isEdicao
+                              ? IconButton(
+                                  icon: const Icon(
+                                    Icons.copy_rounded,
+                                    color: Colors.deepOrange,
+                                  ),
+                                  tooltip: "Copiar E-mail",
+                                  onPressed: () {
+                                    Clipboard.setData(
+                                      ClipboardData(text: emailController.text),
+                                    );
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          "E-mail copiado com sucesso!",
+                                        ),
+                                        backgroundColor: Colors.deepOrange,
+                                      ),
+                                    );
+                                  },
+                                )
+                              : null,
                         ),
+                      ),
+
+                      const SizedBox(height: 12),
+                      // 💡 SENHA E PERFIL OPERACIONAL LADO A LADO
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: senhaController,
+                              obscureText: true,
+                              decoration: InputDecoration(
+                                labelText: isEdicao
+                                    ? "Nova Senha (Opcional)"
+                                    : "Senha Inicial (Mín. 6 caracteres)",
+                                prefixIcon: const Icon(Icons.lock_outline),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: StatefulBuilder(
+                              builder: (context, setModalState) {
+                                return ListenableBuilder(
+                                  listenable: _perfilController,
+                                  builder: (context, child) {
+                                    final chaveNormalizada = 'entregador';
+                                    final palavrasChave = chaveNormalizada
+                                        .split(RegExp(r'[^a-z0-9]'))
+                                        .where((p) => p.length >= 3)
+                                        .toList();
+
+                                    final perfisPermitidos = _perfilController
+                                        .perfis
+                                        .where((perfil) {
+                                          return perfil.exibirEm.any((
+                                            permissao,
+                                          ) {
+                                            final permNorm = permissao
+                                                .toString()
+                                                .toLowerCase()
+                                                .trim();
+                                            if (permNorm.contains(
+                                                  chaveNormalizada,
+                                                ) ||
+                                                chaveNormalizada.contains(
+                                                  permNorm,
+                                                ))
+                                              return true;
+                                            for (String palavra
+                                                in palavrasChave) {
+                                              if (permNorm.contains(palavra) ||
+                                                  palavra.contains(permNorm))
+                                                return true;
+                                            }
+                                            return false;
+                                          });
+                                        })
+                                        .toList();
+
+                                    if (idPerfilSelecionado != null &&
+                                        !perfisPermitidos.any(
+                                          (p) => p.id == idPerfilSelecionado,
+                                        )) {
+                                      idPerfilSelecionado = null;
+                                    }
+
+                                    return DropdownButtonFormField<String>(
+                                      value: idPerfilSelecionado,
+                                      decoration: const InputDecoration(
+                                        labelText: "Perfil Operacional",
+                                        prefixIcon: Icon(
+                                          Icons.gpp_good_outlined,
+                                        ),
+                                      ),
+                                      items: perfisPermitidos.map((perfil) {
+                                        return DropdownMenuItem<String>(
+                                          value: perfil.id,
+                                          child: Text(perfil.nome),
+                                        );
+                                      }).toList(),
+                                      onChanged: (val) => setModalState(
+                                        () => idPerfilSelecionado = val,
+                                      ),
+                                    );
+                                  },
+                                );
+                              },
+                            ),
+                          ),
+                        ],
                       ),
 
                       const Padding(
@@ -464,13 +588,51 @@ class _ListaEntregadoresViewState extends State<ListaEntregadoresView> {
                             return;
                           }
 
+                          if (idPerfilSelecionado == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  "Selecione um Perfil Operacional.",
+                                ),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                            return;
+                          }
+
+                          if (!isEdicao && senhaController.text.length < 6) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  "A senha inicial deve ter no mínimo 6 caracteres.",
+                                ),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                            return;
+                          }
+
+                          if (isEdicao &&
+                              senhaController.text.isNotEmpty &&
+                              senhaController.text.length < 6) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  "A nova senha deve ter no mínimo 6 caracteres.",
+                                ),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                            return;
+                          }
+
                           final veiculoInstancia =
                               placaController.text.isNotEmpty
                               ? Veiculo(
                                   placa: placaController.text.trim(),
                                   modelo: modeloController.text.trim(),
                                   cor: corController.text.trim(),
-                                  tipo: 'Moto', // Padrão MVP
+                                  tipo: 'Moto',
                                 )
                               : null;
 
@@ -490,6 +652,11 @@ class _ListaEntregadoresViewState extends State<ListaEntregadoresView> {
                             telefone: telefoneController.text.trim(),
                             veiculo: veiculoInstancia,
                             endereco: enderecoInstancia,
+                            senha: senhaController.text.trim().isNotEmpty
+                                ? senhaController.text.trim()
+                                : null,
+                            perfilId:
+                                idPerfilSelecionado, // 💡 Anexado e salvo!
                           );
 
                           bool sucesso = false;
@@ -510,8 +677,8 @@ class _ListaEntregadoresViewState extends State<ListaEntregadoresView> {
                               SnackBar(
                                 content: Text(
                                   isEdicao
-                                      ? "Atualizado!"
-                                      : "Motoboy cadastrado!",
+                                      ? "Atualizado com sucesso!"
+                                      : "Entregador cadastrado com sucesso!",
                                 ),
                                 backgroundColor: Colors.green,
                               ),
@@ -560,7 +727,7 @@ class _ListaEntregadoresViewState extends State<ListaEntregadoresView> {
             children: [
               Icon(Icons.warning_amber_rounded, color: Colors.redAccent),
               SizedBox(width: 10),
-              Text("Remover Motoboy?"),
+              Text("Remover Entregador?"),
             ],
           ),
           content: Text(
@@ -580,8 +747,9 @@ class _ListaEntregadoresViewState extends State<ListaEntregadoresView> {
               ),
               onPressed: () async {
                 Navigator.pop(context);
-                if (entregador.id != null)
+                if (entregador.id != null) {
                   await _controller.deletarEntregador(entregador.id!);
+                }
               },
               child: const Text(
                 "Excluir",

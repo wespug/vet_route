@@ -9,8 +9,13 @@ import 'package:vet_route/controllers/permissoes_controller.dart';
 import 'package:vet_route/models/clinica_model.dart';
 import 'package:vet_route/models/endereco_model.dart';
 
-// 🛡️ IMPORTAÇÃO DA DASHBOARD
-import 'package:vet_route/screens/mobile/clinica_dashboard_mobile_screen.dart';
+// 🛡️ IMPORTAÇÕES DAS TELAS ESTRUTURAIS MOBILE (Passo Simples)
+import 'package:vet_route/screens/mobile/clinica_mobile_scr.dart';
+import 'package:vet_route/screens/mobile/laboratorio_mobile_scr.dart';
+import 'package:vet_route/screens/mobile/entregador_mobile_scr.dart';
+
+// (A dashboard complexa está comentada temporariamente para focar na base visual)
+// import 'package:vet_route/screens/mobile/clinica_dashboard_mobile_screen.dart';
 
 class MobileChassi extends StatefulWidget {
   const MobileChassi({super.key});
@@ -186,62 +191,14 @@ class _MobileChassiState extends State<MobileChassi> {
   Widget _obterTelaDestinoMobile(String chaveRota, String titulo) {
     switch (chaveRota) {
       case 'clinica_dashboard':
-        // 🛡️ PROTEÇÃO: Se a clínica não existir ou der erro de vinculo, mostramos ecrã amigável
-        if (_falhaDeVinculo) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(32.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.link_off_rounded,
-                    size: 64,
-                    color: Colors.red.shade300,
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    "Utilizador sem Vínculo",
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1F2959),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    "A sua conta não tem uma clínica associada.\nPor favor, associe a clínica no painel Web através da 'Gestão de Utilizadores'.",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey, height: 1.4),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }
+        return const ClinicaMobileScr();
 
-        // Se ainda está nulo mas não deu falha, é porque está a carregar
-        if (_clinicaContexto == null) {
-          return const Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                CircularProgressIndicator(color: Color(0xFF1F2959)),
-                SizedBox(height: 16),
-                Text(
-                  "A montar contexto logístico...",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey, fontSize: 12),
-                ),
-              ],
-            ),
-          );
-        }
+      case 'lab_dashboard':
+        return const LaboratorioMobileScr();
 
-        return ClinicaDashboardMobileScreen(
-          clinicaContexto: _clinicaContexto!,
-          rotaQueChamou: chaveRota,
-        );
+      case 'entregador_dashboard':
+        return const EntregadorMobileScr();
+
       default:
         return Container(
           color: const Color(0xFFF8F9FA),

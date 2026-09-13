@@ -494,7 +494,6 @@ class _UsuariosLabViewState extends State<UsuariosLabView> {
                           ),
                         ),
 
-                        // Controles de Paginação sem Operadores Complexos (...)
                         if (totalPages > 1) const SizedBox(height: 12),
                         if (totalPages > 1)
                           Row(
@@ -682,10 +681,14 @@ class _UsuariosLabViewState extends State<UsuariosLabView> {
                         ListenableBuilder(
                           listenable: _perfilController,
                           builder: (context, child) {
-                            // 💡 100% DINÂMICO E ABSTRATO (Refatoração Definitiva):
+                            // 💡 O FILTRO DE TOKENIZADOR SEMÂNTICO (O mais inteligente e dinâmico - Padrão da Clínica)
                             final chaveNormalizada = widget.chavePermissao
                                 .toLowerCase()
                                 .trim();
+                            final palavrasChave = chaveNormalizada
+                                .split(RegExp(r'[^a-z0-9]'))
+                                .where((p) => p.length >= 3)
+                                .toList();
 
                             final perfisPermitidosParaLab = _perfilController
                                 .perfis
@@ -695,34 +698,26 @@ class _UsuariosLabViewState extends State<UsuariosLabView> {
                                         .toString()
                                         .toLowerCase()
                                         .trim();
-                                    return permNorm.contains(
-                                          chaveNormalizada,
-                                        ) ||
-                                        chaveNormalizada.contains(permNorm);
+
+                                    // 1ª Tentativa: Match direto ou contido um no outro
+                                    if (permNorm.contains(chaveNormalizada) ||
+                                        chaveNormalizada.contains(permNorm)) {
+                                      return true;
+                                    }
+
+                                    // 2ª Tentativa: Análise Semântica Dinâmica (Procura raiz comum)
+                                    for (String palavra in palavrasChave) {
+                                      if (permNorm.contains(palavra) ||
+                                          palavra.contains(permNorm)) {
+                                        return true;
+                                      }
+                                    }
+
+                                    return false;
                                   });
                                 })
                                 .toList();
 
-                            // 🛠️ DIAGNÓSTICO TÁTICO DE CONSOLE:
-                            if (perfisPermitidosParaLab.isEmpty &&
-                                _perfilController.perfis.isNotEmpty) {
-                              debugPrint(
-                                "====== 🔎 LOG TECH LEAD VET ROUTE ======",
-                              );
-                              debugPrint(
-                                "A View recebeu chavePermissao mestre: '$chaveNormalizada'",
-                              );
-                              for (var p in _perfilController.perfis) {
-                                debugPrint(
-                                  "Perfil cadastrado no Firebase: '${p.nome}' | Array exibirEm dele contém: ${p.exibirEm}",
-                                );
-                              }
-                              debugPrint(
-                                "=========================================",
-                              );
-                            }
-
-                            // 💡 Prevenção de Crise: Se o perfil sumir do mapa, limpa a seleção para evitar tela vermelha.
                             if (idPerfilSelecionado != null &&
                                 !perfisPermitidosParaLab.any(
                                   (p) => p.id == idPerfilSelecionado,
