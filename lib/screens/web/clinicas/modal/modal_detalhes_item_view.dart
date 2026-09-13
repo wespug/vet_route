@@ -67,13 +67,20 @@ class ModalDetalhesItemView extends StatelessWidget {
 
               final data = snapshot.data!.data() as Map<String, dynamic>;
 
-              // 💡 CORREÇÃO: clinicaContexto pertence à View, não ao 'item'
               final String clinicaNome =
                   data['clinicaNome'] ?? clinicaContexto.nome;
               final String laboratorioNome =
                   data['laboratorioNome'] ?? item.laboratorioNome;
               final String? nomeEntregador = data['nomeEntregador']?.toString();
               final String observacao = data['observacao']?.toString() ?? '';
+
+              // 💡 Extração universal do veículo e placa
+              final bool isAppExterno = data['isTransporteExterno'] ?? false;
+              final String? veiculo =
+                  data['veiculo']?.toString() ??
+                  data['veiculoExterno']?.toString();
+              final String? placa =
+                  data['placa']?.toString() ?? data['placaExterna']?.toString();
 
               final DateTime? dataAgendamento = data['dataAgendamento'] != null
                   ? _parseData(data['dataAgendamento'])
@@ -82,7 +89,6 @@ class ModalDetalhesItemView extends StatelessWidget {
                   ? DateFormat('dd/MM/yyyy').format(dataAgendamento)
                   : 'A definir';
 
-              // Histórico em Tempo Real
               final List<dynamic> rawLogs =
                   data['historicoLogs'] ?? data['historico'] ?? [];
               final List<HistoricoStatusLog> logsRealTime = rawLogs
@@ -97,7 +103,6 @@ class ModalDetalhesItemView extends StatelessWidget {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Cabeçalho
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -150,13 +155,11 @@ class ModalDetalhesItemView extends StatelessWidget {
                   ),
                   const Divider(height: 32),
 
-                  // Conteúdo Rolável
                   Expanded(
                     child: SingleChildScrollView(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Status
                           Row(
                             children: [
                               Expanded(
@@ -180,7 +183,6 @@ class ModalDetalhesItemView extends StatelessWidget {
                           ),
                           const SizedBox(height: 20),
 
-                          // Rota: Origem e Destino
                           const Text(
                             "Trajeto Logístico",
                             style: TextStyle(
@@ -282,16 +284,20 @@ class ModalDetalhesItemView extends StatelessWidget {
                           ),
                           const SizedBox(height: 20),
 
-                          // Alocação do Entregador
+                          // 💡 ALOCAÇÃO DO ENTREGADOR: CAIXA DINÂMICA
                           if (nomeEntregador != null &&
                               nomeEntregador.isNotEmpty)
                             Container(
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
-                                color: Colors.green.shade50,
+                                color: isAppExterno
+                                    ? Colors.purple.shade50
+                                    : Colors.green.shade50,
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
-                                  color: Colors.green.shade200,
+                                  color: isAppExterno
+                                      ? Colors.purple.shade200
+                                      : Colors.green.shade200,
                                 ),
                               ),
                               child: Row(
@@ -299,12 +305,18 @@ class ModalDetalhesItemView extends StatelessWidget {
                                   Container(
                                     padding: const EdgeInsets.all(8),
                                     decoration: BoxDecoration(
-                                      color: Colors.green.shade100,
+                                      color: isAppExterno
+                                          ? Colors.purple.shade100
+                                          : Colors.green.shade100,
                                       shape: BoxShape.circle,
                                     ),
                                     child: Icon(
-                                      Icons.two_wheeler_rounded,
-                                      color: Colors.green.shade800,
+                                      isAppExterno
+                                          ? Icons.local_taxi_rounded
+                                          : Icons.two_wheeler_rounded,
+                                      color: isAppExterno
+                                          ? Colors.purple.shade800
+                                          : Colors.green.shade800,
                                       size: 20,
                                     ),
                                   ),
@@ -314,19 +326,86 @@ class ModalDetalhesItemView extends StatelessWidget {
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
                                       children: [
+                                        Row(
+                                          children: [
+                                            Text(
+                                              "Entregador Designado",
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: isAppExterno
+                                                    ? Colors.purple.shade700
+                                                    : Colors.green.shade700,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            if (isAppExterno) ...[
+                                              const SizedBox(width: 8),
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 6,
+                                                      vertical: 2,
+                                                    ),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.purple.shade700,
+                                                  borderRadius:
+                                                      BorderRadius.circular(4),
+                                                ),
+                                                child: const Text(
+                                                  "APP EXTERNO",
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 9,
+                                                    fontWeight: FontWeight.bold,
+                                                    letterSpacing: 0.5,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ],
+                                        ),
+                                        const SizedBox(height: 2),
                                         Text(
-                                          "Entregador Designado: $nomeEntregador",
+                                          nomeEntregador,
                                           style: TextStyle(
                                             fontWeight: FontWeight.bold,
-                                            color: Colors.green.shade900,
+                                            fontSize: 15,
+                                            color: isAppExterno
+                                                ? Colors.purple.shade900
+                                                : Colors.green.shade900,
+                                          ),
+                                        ),
+                                        // 💡 Quebra explícita forçada para Veículo e Placa, sem restrição de "if not null"
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          "Veículo: ${veiculo != null && veiculo.isNotEmpty ? veiculo : 'Não informado'}",
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            color: isAppExterno
+                                                ? Colors.purple.shade800
+                                                : Colors.green.shade800,
+                                            fontWeight: FontWeight.w600,
                                           ),
                                         ),
                                         const SizedBox(height: 2),
                                         Text(
+                                          "Placa: ${placa != null && placa.isNotEmpty ? placa : 'Não informada'}",
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            color: isAppExterno
+                                                ? Colors.purple.shade800
+                                                : Colors.green.shade800,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Text(
                                           "Agendado para: $dataAgendamentoStr",
                                           style: TextStyle(
                                             fontSize: 13,
-                                            color: Colors.green.shade800,
+                                            color: isAppExterno
+                                                ? Colors.purple.shade700
+                                                : Colors.green.shade800,
                                           ),
                                         ),
                                       ],
@@ -381,7 +460,6 @@ class ModalDetalhesItemView extends StatelessWidget {
                             ),
                           const SizedBox(height: 20),
 
-                          // Material a ser Coletado (Para Exames)
                           if (!item.isInsumo && observacao.isNotEmpty) ...[
                             const Text(
                               "Material a ser Coletado",
@@ -409,7 +487,6 @@ class ModalDetalhesItemView extends StatelessWidget {
                             const SizedBox(height: 20),
                           ],
 
-                          // Itens Insumo (Se Insumo)
                           if (item.isInsumo && item.itensInsumo.isNotEmpty) ...[
                             const Text(
                               "Itens Solicitados",
@@ -471,7 +548,6 @@ class ModalDetalhesItemView extends StatelessWidget {
                             const SizedBox(height: 20),
                           ],
 
-                          // Histórico
                           const Text(
                             "Histórico do Pedido",
                             style: TextStyle(
@@ -487,7 +563,6 @@ class ModalDetalhesItemView extends StatelessWidget {
                   ),
                   const Divider(height: 24),
 
-                  // Rodapé
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -576,11 +651,12 @@ class ModalDetalhesItemView extends StatelessWidget {
   }
 
   Widget _buildHistoricoLista(List<HistoricoStatusLog> logs) {
-    if (logs.isEmpty)
+    if (logs.isEmpty) {
       return const Text(
         "Nenhum histórico disponível.",
         style: TextStyle(color: Colors.grey),
       );
+    }
 
     return ListView.builder(
       shrinkWrap: true,

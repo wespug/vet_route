@@ -79,30 +79,52 @@ class GestaoExamesColetaView extends StatelessWidget {
           );
         }
 
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildColunaKanban(
-              "Aguardando Coleta",
-              Icons.pending_actions_rounded,
-              Colors.orange,
-              controller.aguardando,
-            ),
-            const SizedBox(width: 16),
-            _buildColunaKanban(
-              "Em Rota p/ Lab",
-              Icons.two_wheeler_rounded,
-              Colors.blue,
-              controller.emRota,
-            ),
-            const SizedBox(width: 16),
-            _buildColunaKanban(
-              "Recebidos Hoje",
-              Icons.check_circle_outline,
-              Colors.green,
-              controller.recebidosHoje,
-            ),
-          ],
+        // 💡 PADRÃO DE ELITE: Layout responsivo seguro com LayoutBuilder
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            // Se o espaço for menor que 1100px, ativamos o scroll horizontal
+            final bool isTelaPequena = constraints.maxWidth < 1100;
+
+            Widget kanbanRow = Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildColunaKanban(
+                  "Aguardando Coleta",
+                  Icons.pending_actions_rounded,
+                  Colors.orange,
+                  controller.aguardando,
+                  isTelaPequena,
+                ),
+                const SizedBox(width: 16),
+                _buildColunaKanban(
+                  "Em Rota p/ Lab",
+                  Icons.two_wheeler_rounded,
+                  Colors.blue,
+                  controller.emRota,
+                  isTelaPequena,
+                ),
+                const SizedBox(width: 16),
+                _buildColunaKanban(
+                  "Recebidos Hoje",
+                  Icons.check_circle_outline,
+                  Colors.green,
+                  controller.recebidosHoje,
+                  isTelaPequena,
+                ),
+              ],
+            );
+
+            // 💡 Envolve em um Scroll para não amassar os cards em telas menores
+            if (isTelaPequena) {
+              return SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                child: kanbanRow,
+              );
+            }
+
+            return kanbanRow;
+          },
         );
       },
     );
@@ -113,71 +135,75 @@ class GestaoExamesColetaView extends StatelessWidget {
     IconData icone,
     MaterialColor cor,
     List itens,
+    bool isTelaPequena,
   ) {
-    return Expanded(
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.shade300),
-        ),
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(12),
+    // 💡 O SEGREDO: Se for tela pequena, fixa a largura em 340 pixels para proteger o cartão.
+    Widget containerColuna = Container(
+      width: isTelaPequena ? 340 : null,
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(12),
+              ),
+              border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+            ),
+            child: Row(
+              children: [
+                Icon(icone, color: cor.shade600, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    titulo,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
                 ),
-                border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
-              ),
-              child: Row(
-                children: [
-                  Icon(icone, color: cor.shade600, size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      titulo,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: cor.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    "${itens.length}",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: cor.shade800,
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: cor.shade50,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      "${itens.length}",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: cor.shade800,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
-            Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.all(12),
-                itemCount: itens.length,
-                itemBuilder: (context, index) {
-                  return ItemCardExameKanban(coleta: itens[index]);
-                },
-              ),
+          ),
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.all(12),
+              itemCount: itens.length,
+              itemBuilder: (context, index) {
+                return ItemCardExameKanban(coleta: itens[index]);
+              },
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
+
+    // Se NÃO for tela pequena, precisamos do Expanded para dividir o espaço horizontalmente
+    return isTelaPequena ? containerColuna : Expanded(child: containerColuna);
   }
 
   Widget _buildHistoricoList() {

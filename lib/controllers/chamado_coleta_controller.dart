@@ -61,7 +61,6 @@ class ChamadoColetaController {
       isLoading.value = false;
     }
 
-    // 1. Escuta Coletas (Ignorando os fantasmas de insumo injetados)
     _coletasSub = _db
         .collection('chamados_coleta')
         .where('clinicaId', isEqualTo: clinicaId)
@@ -82,7 +81,6 @@ class ChamadoColetaController {
           processarEAtualizar();
         }, onError: (e) => debugPrint('❌ Erro coletas: $e'));
 
-    // 2. Escuta Pedidos de Insumos
     _insumosSub = _db
         .collection('pedidos_insumos')
         .where('clinicaId', isEqualTo: clinicaId)
@@ -169,7 +167,6 @@ class ChamadoColetaController {
     }
   }
 
-  // 💡 NOVO: Motor Central de Roteamento Preditivo (MVC)
   Future<String> agendarColetaComRoteamento({
     required String clinicaId,
     required String clinicaNome,
@@ -183,7 +180,36 @@ class ChamadoColetaController {
     try {
       isLoading.value = true;
 
-      // Consulta direta baseada na coleção correta corrigida
+      // 💡 TRAVA DE URGÊNCIA: Aborta a roteirização fixa e envia direto para o Lab
+      if (isEmergencia) {
+        final payloadUrgencia = {
+          'clinicaId': clinicaId,
+          'clinicaNome': clinicaNome,
+          'laboratorioId': laboratorioId,
+          'laboratorioNome': laboratorioNome,
+          'status': 'aguardando_coleta',
+          'isUrgencia': true,
+          'isEmergencia': true,
+          'tipo': 'Exame',
+          'possuiInsumo': false,
+          'dataCriacao': FieldValue.serverTimestamp(),
+          'dataAgendamento': FieldValue.serverTimestamp(),
+          'observacao': observacao,
+          'usuarioCriador': usuarioLogado,
+          'historicoLogs': [
+            {
+              'status': 'aguardando_coleta',
+              'usuario': usuarioLogado,
+              'data': Timestamp.now(),
+              'observacao':
+                  'Coleta de Urgência solicitada. Aguardando despacho expresso pelo laboratório.',
+            },
+          ],
+        };
+        await _db.collection('chamados_coleta').add(payloadUrgencia);
+        return "Urgência acionada! O laboratório fará o despacho do transporte.";
+      }
+
       final rotasSnapshot = await _db
           .collection('rotas_fixas')
           .where('laboratorioId', isEqualTo: laboratorioId)

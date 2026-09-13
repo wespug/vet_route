@@ -157,7 +157,6 @@ class _LaboratoriosHubState extends State<LaboratoriosHub>
       case 'lab_pedidos_insumos':
         return GestaoPedidosInsumosHub(labContexto: _labSelecionado!);
       case 'lab_gestao_exames_coleta':
-        // 💡 CORREÇÃO: Passando o contexto obrigatório para a tela nova!
         return GestaoExamesColetaView(labContexto: _labSelecionado!);
       default:
         return _buildPlaceholder(rota);

@@ -9,14 +9,12 @@ class Coleta {
   final Clinica clinicaOrigem;
   final Laboratorio laboratorioDestino;
   final Entregador? entregador;
-  final String? entregadorIdFlat;
-  final String? entregadorNomeFlat;
   final String status;
   final bool isUrgente;
-  final bool isInsumo;
   final String? codigoAcompanhamento;
   final DateTime? dataSolicitacao;
-  final String? enderecoFlat;
+  final bool isInsumo;
+  final String? nomeLaboratorioOrigemTexto;
   final List<dynamic> itens;
   final List<dynamic> historico;
 
@@ -25,129 +23,107 @@ class Coleta {
     required this.clinicaOrigem,
     required this.laboratorioDestino,
     this.entregador,
-    this.entregadorIdFlat,
-    this.entregadorNomeFlat,
     this.status = 'Aguardando',
     this.isUrgente = false,
-    this.isInsumo = false,
     this.codigoAcompanhamento,
     this.dataSolicitacao,
-    this.enderecoFlat,
+    this.isInsumo = false,
+    this.nomeLaboratorioOrigemTexto,
     this.itens = const [],
     this.historico = const [],
   });
 
   bool get isEmergencia => isUrgente;
-  String get nomeClinica =>
-      clinicaOrigem.nome.isNotEmpty ? clinicaOrigem.nome : 'Clínica Parceira';
+
+  // 💡 CORRIGIDO: Nomes ajustados para origemVisual e destinoVisual
+  String get origemVisual => isInsumo
+      ? (laboratorioDestino.nome.isNotEmpty
+            ? laboratorioDestino.nome
+            : (nomeLaboratorioOrigemTexto ?? 'Laboratório'))
+      : (clinicaOrigem.nome.isNotEmpty
+            ? clinicaOrigem.nome
+            : 'Clínica não informada');
+
+  String get destinoVisual => isInsumo
+      ? (clinicaOrigem.nome.isNotEmpty
+            ? clinicaOrigem.nome
+            : 'Clínica não informada')
+      : (laboratorioDestino.nome.isNotEmpty
+            ? laboratorioDestino.nome
+            : 'Laboratório não informado');
+
+  String get nomeClinica => clinicaOrigem.nome;
   String get codigo => codigoAcompanhamento ?? id;
-
-  String get idDoEntregador => entregador?.id ?? entregadorIdFlat ?? '';
-  String get nomeDoEntregador =>
-      entregador?.nome ?? entregadorNomeFlat ?? 'Aguardando Entregador';
-
-  String get enderecoCompleto {
-    if (enderecoFlat != null && enderecoFlat!.isNotEmpty) {
-      return enderecoFlat!;
-    }
-    if (clinicaOrigem.endereco.logradouro.isNotEmpty) {
-      return '${clinicaOrigem.endereco.logradouro}, ${clinicaOrigem.endereco.numero} - ${clinicaOrigem.endereco.bairro}';
-    }
-    return 'Endereço não cadastrado';
-  }
-
   DateTime? get dataCriacao => dataSolicitacao;
 
-  String get origemVisual => isInsumo ? laboratorioDestino.nome : nomeClinica;
-  String get destinoVisual => isInsumo ? nomeClinica : laboratorioDestino.nome;
+  String get idDoEntregador => entregador?.id ?? '';
+  String get nomeDoEntregador => entregador?.nome ?? 'Aguardando Entregador';
 
+  // 💡 CORRIGIDO: Método toMap() adicionado para suportar o Repository
   Map<String, dynamic> toMap() {
     return {
       'status': status,
       'isUrgente': isUrgente,
       'isInsumo': isInsumo,
       'codigoAcompanhamento': codigoAcompanhamento,
+      'nomeLaboratorioOrigemTexto': nomeLaboratorioOrigemTexto,
+      'itens': itens,
+      'historico': historico,
       'clinicaOrigem': clinicaOrigem.toMap(),
       'laboratorioDestino': laboratorioDestino.toMap(),
       'entregador': entregador?.toMap(),
-      'entregadorId': idDoEntregador,
-      'nomeEntregador': nomeDoEntregador,
       'dataSolicitacao': dataSolicitacao != null
           ? Timestamp.fromDate(dataSolicitacao!)
           : FieldValue.serverTimestamp(),
-      'dataAtualizacao': FieldValue.serverTimestamp(),
-      'enderecoCompleto': enderecoFlat,
-      'itens': itens,
-      'historico': historico,
     };
   }
 
   factory Coleta.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>? ?? {};
+    final String collectionName = doc.reference.parent.path;
+
+    final bool ehInsumo =
+        collectionName.contains('pedidos_insumos') ||
+        (data['codigoAcompanhamento'] != null &&
+            data['codigoAcompanhamento'].toString().contains('INS')) ||
+        data['itens'] != null ||
+        data['possuiInsumo'] == true ||
+        data['tipo']?.toString().toLowerCase() == 'insumo';
 
     final Map<String, dynamic> clinicaData =
         data['clinicaOrigem'] as Map<String, dynamic>? ?? {};
-    final String clinicaId = clinicaData['id'] ?? data['clinicaId'] ?? '';
-    final String clinicaNome =
-        clinicaData['nome'] ?? data['clinicaNome'] ?? 'Clínica Parceira';
-
     final Map<String, dynamic> labData =
         data['laboratorioDestino'] as Map<String, dynamic>? ?? {};
-    final String labId = labData['id'] ?? data['laboratorioId'] ?? '';
-    final String labNome =
-        labData['nome'] ?? data['laboratorioNome'] ?? 'Laboratório Parceiro';
 
-    final Map<String, dynamic>? entregadorMap =
-        data['entregador'] as Map<String, dynamic>?;
-    Entregador? objEntregador;
+    String clinicaNome = clinicaData['nome'] ?? data['clinicaNome'] ?? '';
+    String clinicaId = clinicaData['id'] ?? data['clinicaId'] ?? '';
 
-    if (entregadorMap != null) {
-      try {
-        objEntregador = Entregador.fromMap(entregadorMap);
-      } catch (_) {}
-    }
-
-    DateTime? dataParseada;
-    // 💡 CORREÇÃO AQUI: Prioriza a leitura do agendamento futuro!
-    if (data['dataAgendamento'] is Timestamp) {
-      dataParseada = (data['dataAgendamento'] as Timestamp).toDate();
-    } else if (data['dataAgendamento'] is String) {
-      dataParseada = DateTime.tryParse(data['dataAgendamento']);
-    } else if (data['dataSolicitacao'] is Timestamp) {
-      dataParseada = (data['dataSolicitacao'] as Timestamp).toDate();
-    } else if (data['dataCriacao'] is Timestamp) {
-      dataParseada = (data['dataCriacao'] as Timestamp).toDate();
-    } else if (data['atualizadoEm'] is Timestamp) {
-      dataParseada = (data['atualizadoEm'] as Timestamp).toDate();
-    }
-
-    final bool isCollectionInsumo =
-        doc.reference.parent.id == 'pedidos_insumos';
-    final bool hasItems = data.containsKey('itens');
-    final bool flagInsumo =
-        data['possuiInsumo'] == true ||
-        data['isInsumo'] == true ||
-        data['tipo']?.toString().toLowerCase() == 'insumo';
-
-    final itensList = (data['itens'] as List<dynamic>?) ?? [];
-    final historicoList =
-        (data['historico'] as List<dynamic>?) ??
-        (data['historicoLogs'] as List<dynamic>?) ??
-        [];
+    final bool flagUrgencia =
+        data['isEmergencia'] == true ||
+        data['isUrgencia'] == true ||
+        data['isUrgente'] == true ||
+        data['urgente'] == true;
 
     return Coleta(
       id: doc.id,
       status: data['status'] ?? 'Aguardando',
-      isUrgente: data['isUrgente'] ?? data['urgente'] ?? false,
-      isInsumo: isCollectionInsumo || hasItems || flagInsumo,
-      codigoAcompanhamento: data['codigoAcompanhamento'] ?? data['codigo'],
-      dataSolicitacao: dataParseada,
-      enderecoFlat: data['enderecoCompleto'] ?? data['endereco'],
-      entregador: objEntregador,
-      entregadorIdFlat: data['entregadorId'],
-      entregadorNomeFlat: data['nomeEntregador'],
-      itens: itensList,
-      historico: historicoList,
+      isUrgente: flagUrgencia,
+      codigoAcompanhamento:
+          data['codigoAcompanhamento'] ?? data['codigo'] ?? data['id'],
+      isInsumo: ehInsumo,
+      nomeLaboratorioOrigemTexto:
+          data['laboratorioNome'] ?? data['laboratorioId'],
+      dataSolicitacao: data['dataSolicitacao'] is Timestamp
+          ? (data['dataSolicitacao'] as Timestamp).toDate()
+          : (data['dataCriacao'] is Timestamp
+                ? (data['dataCriacao'] as Timestamp).toDate()
+                : null),
+      itens: (data['itens'] as List<dynamic>?) ?? [],
+      historico:
+          (data['historico'] as List<dynamic>?) ??
+          (data['historicoLogs'] as List<dynamic>?) ??
+          [],
+
       clinicaOrigem: Clinica(
         id: clinicaId,
         nome: clinicaNome,
@@ -158,9 +134,10 @@ class Coleta {
           clinicaData['endereco'] as Map<String, dynamic>? ?? {},
         ),
       ),
+
       laboratorioDestino: Laboratorio(
-        id: labId,
-        nome: labNome,
+        id: labData['id'] ?? data['laboratorioId'] ?? '',
+        nome: labData['nome'] ?? data['laboratorioNome'] ?? '',
         email: labData['email'] ?? '',
         telefone: labData['telefone'] ?? '',
         cnpj: labData['cnpj'] ?? '',
@@ -168,6 +145,12 @@ class Coleta {
           labData['endereco'] as Map<String, dynamic>? ?? {},
         ),
       ),
+
+      entregador:
+          data['entregador'] != null &&
+              data['entregador'] is Map<String, dynamic>
+          ? Entregador.fromMap(data['entregador'] as Map<String, dynamic>)
+          : null,
     );
   }
 }

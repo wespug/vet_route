@@ -11,11 +11,18 @@ class GestaoExamesLabController extends ChangeNotifier {
   List<Coleta> emRota = [];
   List<Coleta> recebidosHoje = [];
   List<Coleta> historico = [];
+
+  // Nova lista para alimentar o Dropdown da View
+  List<Map<String, String>> motoboysParceiros = [];
+
   bool isLoading = true;
 
   void iniciarEscuta(String laboratorioId) {
     isLoading = true;
     notifyListeners();
+
+    // Dispara a busca de motoboys paralelamente à escuta de exames
+    _carregarMotoboysParceiros(laboratorioId);
 
     _sub?.cancel();
     _sub = _db
@@ -36,7 +43,6 @@ class GestaoExamesLabController extends ChangeNotifier {
               final coleta = Coleta.fromFirestore(doc);
               final statusLower = coleta.status.toLowerCase();
 
-              // Base de tempo para saber se chegou "hoje"
               final dataReferencia = coleta.dataCriacao ?? hoje;
               final isMesmoDia =
                   dataReferencia.year == hoje.year &&
@@ -73,14 +79,19 @@ class GestaoExamesLabController extends ChangeNotifier {
               }
             }
 
-            // Ordena do mais recente para o mais antigo
-            int sortByDate(Coleta a, Coleta b) =>
-                (b.dataCriacao ?? hoje).compareTo(a.dataCriacao ?? hoje);
+            int sortKanban(Coleta a, Coleta b) {
+              if (a.isEmergencia && !b.isEmergencia) return -1;
+              if (!a.isEmergencia && b.isEmergencia) return 1;
 
-            tempAguardando.sort(sortByDate);
-            tempEmRota.sort(sortByDate);
-            tempRecebidosHoje.sort(sortByDate);
-            tempHistorico.sort(sortByDate);
+              final dataA = a.dataCriacao ?? hoje;
+              final dataB = b.dataCriacao ?? hoje;
+              return dataB.compareTo(dataA);
+            }
+
+            tempAguardando.sort(sortKanban);
+            tempEmRota.sort(sortKanban);
+            tempRecebidosHoje.sort(sortKanban);
+            tempHistorico.sort(sortKanban);
 
             aguardando = tempAguardando;
             emRota = tempEmRota;
@@ -96,6 +107,87 @@ class GestaoExamesLabController extends ChangeNotifier {
             notifyListeners();
           },
         );
+  }
+
+  // 💡 Lógica isolada na controladora para buscar motoboys vinculados ao Laboratório
+  Future<void> _carregarMotoboysParceiros(String laboratorioId) async {
+    try {
+      final rotasSnapshot = await _db
+          .collection('rotas_fixas')
+          .where('laboratorioId', isEqualTo: laboratorioId)
+          .where('ativa', isEqualTo: true)
+          .get();
+
+      final Map<String, String> motoboysUnicos = {};
+
+      for (var doc in rotasSnapshot.docs) {
+        final data = doc.data();
+        final entregadorId = data['entregadorId']?.toString();
+        final nomeEntregador = data['nomeEntregador']?.toString();
+
+        if (entregadorId != null && nomeEntregador != null) {
+          motoboysUnicos[entregadorId] = nomeEntregador;
+        }
+      }
+
+      motoboysParceiros = motoboysUnicos.entries
+          .map((e) => {'id': e.key, 'nome': e.value})
+          .toList();
+
+      notifyListeners();
+    } catch (e) {
+      debugPrint("Erro ao buscar rotas fixas para o laboratório: $e");
+    }
+  }
+
+  Future<void> despacharColetaUrgencia({
+    required String coletaId,
+    required String tipoTransporte,
+    required String nomeEntregador,
+    String? entregadorId,
+    String? veiculo,
+    String? placa,
+  }) async {
+    try {
+      isLoading = true;
+      notifyListeners();
+
+      final isExterno = tipoTransporte == 'externo';
+      final obs = isExterno
+          ? 'Despacho Expresso via App. Motorista: $nomeEntregador. Veículo: $veiculo ($placa).'
+          : 'Despachado para o motoboy parceiro: $nomeEntregador.';
+
+      final updatePayload = {
+        'status': 'em_rota',
+        'nomeEntregador': nomeEntregador,
+        'veiculoExterno': veiculo,
+        'placaExterna': placa,
+        'isTransporteExterno': isExterno,
+        'historicoLogs': FieldValue.arrayUnion([
+          {
+            'status': 'em_rota',
+            'data': Timestamp.now(),
+            'observacao': obs,
+            'usuario': 'Laboratório',
+          },
+        ]),
+      };
+
+      if (entregadorId != null && entregadorId.isNotEmpty) {
+        updatePayload['entregadorId'] = entregadorId;
+      }
+
+      await _db
+          .collection('chamados_coleta')
+          .doc(coletaId)
+          .update(updatePayload);
+    } catch (e) {
+      debugPrint("Erro ao despachar urgência: $e");
+      rethrow;
+    } finally {
+      isLoading = false;
+      notifyListeners();
+    }
   }
 
   @override
