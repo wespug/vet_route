@@ -75,6 +75,7 @@ class GestaoExamesLabController extends ChangeNotifier {
               } else if (isEmRota) {
                 tempEmRota.add(coleta);
               } else {
+                // 💡 Qualquer status como 'pendente', 'aguardando_coleta' ou 'indo_coletar' cai aqui
                 tempAguardando.add(coleta);
               }
             }
@@ -158,14 +159,14 @@ class GestaoExamesLabController extends ChangeNotifier {
           : 'Despachado para o motoboy parceiro: $nomeEntregador.';
 
       final updatePayload = {
-        'status': 'em_rota',
+        'status': 'indo_coletar', // 💡 Mudança para o novo status
         'nomeEntregador': nomeEntregador,
         'veiculoExterno': veiculo,
         'placaExterna': placa,
         'isTransporteExterno': isExterno,
         'historicoLogs': FieldValue.arrayUnion([
           {
-            'status': 'em_rota',
+            'status': 'indo_coletar', // 💡 Mudança para o novo status no log
             'data': Timestamp.now(),
             'observacao': obs,
             'usuario': 'Laboratório',
