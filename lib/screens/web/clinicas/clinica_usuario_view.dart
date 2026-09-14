@@ -417,14 +417,42 @@ class _UsuariosClinicaViewState extends State<UsuariosClinicaView> {
                         ),
                         const SizedBox(height: 16),
 
+                        // 💡 E-MAIL COM BOTÃO DE COPIAR NA EDIÇÃO
                         TextFormField(
                           controller: emailController,
-                          enabled: !isEdicao,
+                          readOnly:
+                              isEdicao, // Trava a digitação mas permite cliques nos botões internos
                           decoration: InputDecoration(
                             labelText: "E-mail de Login",
                             prefixIcon: const Icon(Icons.alternate_email),
                             filled: isEdicao,
                             fillColor: isEdicao ? Colors.grey.shade100 : null,
+                            suffixIcon: isEdicao
+                                ? IconButton(
+                                    icon: const Icon(
+                                      Icons.copy_rounded,
+                                      color: Colors.teal,
+                                    ),
+                                    tooltip: "Copiar E-mail",
+                                    onPressed: () {
+                                      Clipboard.setData(
+                                        ClipboardData(
+                                          text: emailController.text,
+                                        ),
+                                      );
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            "E-mail copiado com sucesso!",
+                                          ),
+                                          backgroundColor: Colors.teal,
+                                        ),
+                                      );
+                                    },
+                                  )
+                                : null,
                           ),
                           validator: (v) => (v == null || v.isEmpty)
                               ? "Campo obrigatório"
@@ -450,12 +478,9 @@ class _UsuariosClinicaViewState extends State<UsuariosClinicaView> {
                         ListenableBuilder(
                           listenable: _perfilController,
                           builder: (context, child) {
-                            // 💡 O FILTRO DE TOKENIZADOR SEMÂNTICO (O mais inteligente e dinâmico)
-                            // Remove espaços, converte pra minúscula e quebra a string em pedaços usando _ ou espaços.
                             final chaveNormalizada = widget.chavePermissao
                                 .toLowerCase()
                                 .trim();
-                            // Guarda apenas palavras relevantes (ex: "clinica", "dashboard")
                             final palavrasChave = chaveNormalizada
                                 .split(RegExp(r'[^a-z0-9]'))
                                 .where((p) => p.length >= 3)
@@ -469,14 +494,11 @@ class _UsuariosClinicaViewState extends State<UsuariosClinicaView> {
                                         .toLowerCase()
                                         .trim();
 
-                                    // 1ª Tentativa: Match direto ou contido um no outro
                                     if (permNorm.contains(chaveNormalizada) ||
                                         chaveNormalizada.contains(permNorm)) {
                                       return true;
                                     }
 
-                                    // 2ª Tentativa: Análise Semântica Dinâmica (Procura raiz comum)
-                                    // Com isso, 'clinicas' dá match automático com 'clinica_detalhe' sem precisar hardcode!
                                     for (String palavra in palavrasChave) {
                                       if (permNorm.contains(palavra) ||
                                           palavra.contains(permNorm)) {
@@ -488,7 +510,6 @@ class _UsuariosClinicaViewState extends State<UsuariosClinicaView> {
                                   });
                                 }).toList();
 
-                            // LOG TÁTICO: Caso continue zerado, imprime no painel para investigarmos.
                             if (perfisPermitidosParaClinica.isEmpty &&
                                 _perfilController.perfis.isNotEmpty) {
                               debugPrint(

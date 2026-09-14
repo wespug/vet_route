@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // 💡 Importação para usar o Clipboard
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -649,14 +650,42 @@ class _UsuariosLabViewState extends State<UsuariosLabView> {
                         ),
                         const SizedBox(height: 16),
 
+                        // 💡 E-MAIL COM BOTÃO DE COPIAR NA EDIÇÃO
                         TextFormField(
                           controller: emailController,
-                          enabled: !isEdicao,
+                          readOnly:
+                              isEdicao, // Trava a digitação mas permite cliques nos botões internos
                           decoration: InputDecoration(
                             labelText: "E-mail de Login",
                             prefixIcon: const Icon(Icons.alternate_email),
                             filled: isEdicao,
                             fillColor: isEdicao ? Colors.grey.shade100 : null,
+                            suffixIcon: isEdicao
+                                ? IconButton(
+                                    icon: const Icon(
+                                      Icons.copy_rounded,
+                                      color: Colors.indigo,
+                                    ),
+                                    tooltip: "Copiar E-mail",
+                                    onPressed: () {
+                                      Clipboard.setData(
+                                        ClipboardData(
+                                          text: emailController.text,
+                                        ),
+                                      );
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            "E-mail copiado com sucesso!",
+                                          ),
+                                          backgroundColor: Colors.indigo,
+                                        ),
+                                      );
+                                    },
+                                  )
+                                : null,
                           ),
                           validator: (v) => (v == null || v.isEmpty)
                               ? "Campo obrigatório"
@@ -681,7 +710,6 @@ class _UsuariosLabViewState extends State<UsuariosLabView> {
                         ListenableBuilder(
                           listenable: _perfilController,
                           builder: (context, child) {
-                            // 💡 O FILTRO DE TOKENIZADOR SEMÂNTICO (O mais inteligente e dinâmico - Padrão da Clínica)
                             final chaveNormalizada = widget.chavePermissao
                                 .toLowerCase()
                                 .trim();
@@ -699,13 +727,11 @@ class _UsuariosLabViewState extends State<UsuariosLabView> {
                                         .toLowerCase()
                                         .trim();
 
-                                    // 1ª Tentativa: Match direto ou contido um no outro
                                     if (permNorm.contains(chaveNormalizada) ||
                                         chaveNormalizada.contains(permNorm)) {
                                       return true;
                                     }
 
-                                    // 2ª Tentativa: Análise Semântica Dinâmica (Procura raiz comum)
                                     for (String palavra in palavrasChave) {
                                       if (permNorm.contains(palavra) ||
                                           palavra.contains(permNorm)) {
@@ -838,13 +864,14 @@ class _UsuariosLabViewState extends State<UsuariosLabView> {
                               );
                             }
                           } catch (e) {
-                            if (context.mounted)
+                            if (context.mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: Text("Falha: $e"),
                                   backgroundColor: Colors.red,
                                 ),
                               );
+                            }
                           } finally {
                             setModalState(() => salvando = false);
                           }

@@ -208,7 +208,7 @@ class _LoginScreenState extends State<LoginScreen> with LoggerMixin {
                       ),
                       backgroundColor: const Color.fromARGB(255, 100, 77, 218),
                       onPressed: () =>
-                          _preencherTeste('aa1@gmail.com', '123456'),
+                          _preencherTeste('admLabLawrence@gmail.com', '123456'),
                     ),
                     ActionChip(
                       label: const Text(
@@ -228,16 +228,7 @@ class _LoginScreenState extends State<LoginScreen> with LoggerMixin {
                       ),
                       backgroundColor: const Color.fromARGB(255, 231, 124, 24),
                       onPressed: () =>
-                          _preencherTeste('bb@gmail.com', '123456'),
-                    ),
-                    ActionChip(
-                      label: const Text(
-                        'Atendente',
-                        style: TextStyle(fontSize: 12),
-                      ),
-                      backgroundColor: Colors.indigo.shade100,
-                      onPressed: () =>
-                          _preencherTeste('atendente1@gmail.com', '12345678'),
+                          _preencherTeste('motoa@gmail.com', '123456'),
                     ),
                   ],
                 ),

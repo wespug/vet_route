@@ -16,6 +16,7 @@ import 'package:vet_route/screens/widgets/gestao_usuarios_hub.dart';
 class AdminChassi extends StatelessWidget {
   final Widget conteudo;
   final String titulo;
+
   const AdminChassi({super.key, required this.conteudo, required this.titulo});
 
   @override
@@ -34,17 +35,8 @@ class _AdminChassiStateful extends StatefulWidget {
 }
 
 class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
-  String _tituloAtual = "Painel Administrativo";
   String _rotaAtivaId = "";
   Widget? _mioloCustomizado;
-
-  // Contextos selecionados para auditoria administrativa
-  String? _idClinicaSelecionada;
-  String? _idLabSelecionado;
-
-  List<Map<String, dynamic>> _listaClinicasDisponiveis = [];
-  List<Map<String, dynamic>> _listaLabsDisponiveis = [];
-  bool _carregandoEmpresas = true;
 
   final List<String> _menusAbertosIds = [];
 
@@ -68,32 +60,11 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
   @override
   void initState() {
     super.initState();
-    _tituloAtual = widget.titulo;
     _carregarContextosIniciais();
   }
 
   Future<void> _carregarContextosIniciais() async {
-    setState(() => _carregandoEmpresas = true);
     try {
-      final snapClinicas = await FirebaseFirestore.instance
-          .collection('clinicas')
-          .get();
-      final snapLabs = await FirebaseFirestore.instance
-          .collection('laboratorios')
-          .get();
-
-      _listaClinicasDisponiveis = snapClinicas.docs
-          .map((d) => {'id': d.id, 'nome': d.data()['nome'] ?? 'Sem Nome'})
-          .toList();
-      _listaLabsDisponiveis = snapLabs.docs
-          .map((d) => {'id': d.id, 'nome': d.data()['nome'] ?? 'Sem Nome'})
-          .toList();
-
-      if (_listaClinicasDisponiveis.isNotEmpty)
-        _idClinicaSelecionada = _listaClinicasDisponiveis.first['id'];
-      if (_listaLabsDisponiveis.isNotEmpty)
-        _idLabSelecionado = _listaLabsDisponiveis.first['id'];
-
       final uid = FirebaseAuth.instance.currentUser?.uid;
       if (uid != null) {
         final userDoc = await FirebaseFirestore.instance
@@ -107,32 +78,22 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
       }
     } catch (e) {
       debugPrint("Erro ao carregar contextos no Chassi: $e");
-    } finally {
-      setState(() => _carregandoEmpresas = false);
     }
   }
 
   // =========================================================================
-  // 🚀 O ROTEADOR CENTRAL DA WEB - 100% DINÂMICO SEM SWITCH ENGESSADO
+  // 🚀 O ROTEADOR CENTRAL DA WEB - 100% DINÂMICO E DESACOPLADO
   // =========================================================================
   Widget _obterTelaDestino(String chaveRota) {
-    debugPrint(
-      "🚀 Chassi Web requisitando Rota: '$chaveRota'",
-    ); // 🔎 DEBUG PARA VOCÊ VER A STRING QUE CHEGA
+    debugPrint("🚀 Chassi Web requisitando Rota: '$chaveRota'");
 
     // 1. ROTEAMENTO DINÂMICO DOS HUBS DE OPERAÇÃO
     if (chaveRota.startsWith('clinica_')) {
-      return ClinicasHub(
-        key: ValueKey('clinica_$_idClinicaSelecionada'),
-        rotaAbaAtiva: chaveRota,
-      );
+      return ClinicasHub(rotaAbaAtiva: chaveRota);
     }
 
     if (chaveRota.startsWith('lab_')) {
-      return LaboratoriosHub(
-        key: ValueKey('lab_$_idLabSelecionado'),
-        rotaAbaAtiva: chaveRota,
-      );
+      return LaboratoriosHub(rotaAbaAtiva: chaveRota);
     }
 
     if (chaveRota.startsWith('entregador_')) {
@@ -140,9 +101,7 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
     }
 
     // 2. ROTEAMENTO INTELIGENTE DE ADMINISTRAÇÃO E CONFIGURAÇÕES
-    // Basta a rota do banco conter uma dessas palavras-chave para abrir a tela certa!
     final rotaLower = chaveRota.toLowerCase();
-
     if (rotaLower.contains('submenu')) return const GestaoSubmenusHub();
     if (rotaLower.contains('menu')) return const GestaoMenusHub();
     if (rotaLower.contains('perfi') || rotaLower.contains('perfil'))
@@ -175,42 +134,16 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
     );
   }
 
-  void _executarNavegacao(String titulo, String chaveRota, String idAtivo) {
+  void _executarNavegacao(String chaveRota, String idAtivo) {
     setState(() {
-      _tituloAtual = titulo;
       _rotaAtivaId = idAtivo;
       _mioloCustomizado = _obterTelaDestino(chaveRota);
     });
   }
 
-  void _recarregarRotaAtual() {
-    if (_rotaAtivaId.isEmpty) return;
-
-    String rotaEncontrada = "";
-
-    var menuMatch = permissoesGlobais.menusPermitidos.where(
-      (m) => m.id == _rotaAtivaId,
-    );
-    if (menuMatch.isNotEmpty) {
-      rotaEncontrada = menuMatch.first.rota;
-    } else {
-      var subMatch = permissoesGlobais.submenusPermitidos.where(
-        (s) => s.id == _rotaAtivaId,
-      );
-      if (subMatch.isNotEmpty) {
-        rotaEncontrada = subMatch.first.rota;
-      }
-    }
-
-    if (rotaEncontrada.isNotEmpty) {
-      setState(() => _mioloCustomizado = _obterTelaDestino(rotaEncontrada));
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     const corSidebarDark = Color(0xFF10163A);
-    const corPrimariaSaaS = Color(0xFF1F2959);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
@@ -231,16 +164,9 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
 
           // ─── ÁREA DE CONTEÚDO PRINCIPAL (DIREITA) ───
           Expanded(
-            child: Column(
-              children: [
-                _buildBarraSuperiorContexto(corPrimariaSaaS),
-                Expanded(
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 200),
-                    child: _mioloCustomizado ?? widget.conteudo,
-                  ),
-                ),
-              ],
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              child: _mioloCustomizado ?? widget.conteudo,
             ),
           ),
         ],
@@ -328,14 +254,12 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
                     data: Theme.of(
                       context,
                     ).copyWith(hoverColor: Colors.white.withOpacity(0.04)),
-                    // 💡 SUBSTITUÍDO CONTAINER POR MATERIAL AQUI
                     child: Material(
                       color: menuSelecionado
                           ? const Color(0xFF1F2959)
                           : Colors.transparent,
                       borderRadius: BorderRadius.circular(10),
-                      clipBehavior: Clip
-                          .antiAlias, // Mantém o ripple dentro do botão arredondado
+                      clipBehavior: Clip.antiAlias,
                       child: ListTile(
                         dense: true,
                         horizontalTitleGap: 12,
@@ -372,7 +296,7 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
                               ),
                         onTap: () {
                           if (submenus.isEmpty) {
-                            _executarNavegacao(menu.titulo, menu.rota, menu.id);
+                            _executarNavegacao(menu.rota, menu.id);
                           } else {
                             setState(
                               () => estaAberto
@@ -392,7 +316,6 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
                           final bool subSelecionado = _rotaAtivaId == sub.id;
                           return Padding(
                             padding: const EdgeInsets.only(left: 14, bottom: 2),
-                            // 💡 SUBSTITUÍDO CONTAINER POR MATERIAL AQUI TAMBÉM
                             child: Material(
                               color: subSelecionado
                                   ? Colors.white.withOpacity(0.06)
@@ -424,11 +347,8 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
                                         : FontWeight.w400,
                                   ),
                                 ),
-                                onTap: () => _executarNavegacao(
-                                  sub.titulo,
-                                  sub.rota,
-                                  sub.id,
-                                ),
+                                onTap: () =>
+                                    _executarNavegacao(sub.rota, sub.id),
                               ),
                             ),
                           );
@@ -452,7 +372,6 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
           top: BorderSide(color: Colors.white.withOpacity(0.04), width: 1),
         ),
       ),
-      // 💡 ADICIONADO O SHIELD MATERIAL AQUI NO FOOTER
       child: Material(
         color: Colors.transparent,
         clipBehavior: Clip.antiAlias,
@@ -478,100 +397,13 @@ class _AdminChassiStatefulState extends State<_AdminChassiStateful> {
           ),
           onTap: () async {
             await AuthService().logout();
-            if (mounted)
+            if (mounted) {
               Navigator.of(
                 context,
               ).pushNamedAndRemoveUntil('/login', (route) => false);
+            }
           },
         ),
-      ),
-    );
-  }
-
-  Widget _buildBarraSuperiorContexto(Color corTema) {
-    return Container(
-      height: 70,
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(bottom: BorderSide(color: Color(0xFFE9ECEF), width: 1)),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            _tituloAtual.toUpperCase(),
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w800,
-              color: corTema,
-              letterSpacing: 1.5,
-            ),
-          ),
-          if (!_carregandoEmpresas)
-            Row(
-              children: [
-                // 🏥 CONTEXTO: CLÍNICA AUDITADA
-                if (_listaClinicasDisponiveis.isNotEmpty) ...[
-                  const Icon(Icons.store_rounded, size: 16, color: Colors.grey),
-                  const SizedBox(width: 8),
-                  DropdownButton<String>(
-                    value: _idClinicaSelecionada,
-                    underline: const SizedBox(),
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: corTema,
-                    ),
-                    items: _listaClinicasDisponiveis
-                        .map(
-                          (c) => DropdownMenuItem(
-                            value: c['id'] as String,
-                            child: Text(c['nome'] as String),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (val) {
-                      setState(() => _idClinicaSelecionada = val);
-                      _recarregarRotaAtual();
-                    },
-                  ),
-                  const SizedBox(width: 24),
-                ],
-
-                // 🧪 CONTEXTO: LABORATÓRIO AUDITADO
-                if (_listaLabsDisponiveis.isNotEmpty) ...[
-                  const Icon(
-                    Icons.science_rounded,
-                    size: 16,
-                    color: Colors.grey,
-                  ),
-                  const SizedBox(width: 8),
-                  DropdownButton<String>(
-                    value: _idLabSelecionado,
-                    underline: const SizedBox(),
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: corTema,
-                    ),
-                    items: _listaLabsDisponiveis
-                        .map(
-                          (l) => DropdownMenuItem(
-                            value: l['id'] as String,
-                            child: Text(l['nome'] as String),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (val) {
-                      setState(() => _idLabSelecionado = val);
-                      _recarregarRotaAtual();
-                    },
-                  ),
-                ],
-              ],
-            ),
-        ],
       ),
     );
   }
