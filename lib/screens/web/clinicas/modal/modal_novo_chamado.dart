@@ -50,169 +50,180 @@ class _ModalNovoChamadoState extends State<ModalNovoChamado> {
             color: widget.isEmergencia ? Colors.redAccent : Colors.indigo,
           ),
           const SizedBox(width: 10),
-          Text(
-            widget.isEmergencia
-                ? "Solicitar Coleta de Urgência"
-                : "Agendar Nova Coleta",
-            style: const TextStyle(fontWeight: FontWeight.bold),
+          Expanded(
+            child: Text(
+              widget.isEmergencia
+                  ? "Solicitar Coleta de Urgência"
+                  : "Agendar Nova Coleta",
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
         ],
       ),
-      content: SizedBox(
-        width: 450,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                "1. Selecione o Laboratório Destino",
-                style: TextStyle(
-                  color: Colors.black87,
-                  fontWeight: FontWeight.bold,
+      // 💡 CORREÇÃO DE LAYOUT: Responsividade híbrida (Mobile/Web)
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 450),
+        child: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "1. Selecione o Laboratório Destino",
+                  style: TextStyle(
+                    color: Colors.black87,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              ValueListenableBuilder<List<Laboratorio>>(
-                valueListenable: widget.controller.laboratorios,
-                builder: (context, laboratorios, child) {
-                  if (laboratorios.isEmpty) {
-                    return const Text(
-                      "⚠️ Nenhum laboratório cadastrado.",
-                      style: TextStyle(color: Colors.redAccent),
-                    );
-                  }
-                  return DropdownButtonFormField<String>(
-                    decoration: InputDecoration(
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      filled: true,
-                      fillColor: Colors.grey.shade50,
-                    ),
-                    items: laboratorios.map((lab) {
-                      return DropdownMenuItem<String>(
-                        value: lab.id,
-                        child: Text(
-                          lab.nome.isNotEmpty
-                              ? lab.nome
-                              : 'Laboratório sem nome',
-                        ),
+                const SizedBox(height: 8),
+                ValueListenableBuilder<List<Laboratorio>>(
+                  valueListenable: widget.controller.laboratorios,
+                  builder: (context, laboratorios, child) {
+                    if (laboratorios.isEmpty) {
+                      return const Text(
+                        "⚠️ Nenhum laboratório cadastrado.",
+                        style: TextStyle(color: Colors.redAccent),
                       );
-                    }).toList(),
-                    value: _labIdSelecionado,
-                    hint: const Text("Selecione um laboratório"),
-                    onChanged: (val) {
-                      setState(() {
-                        _labIdSelecionado = val;
-                        if (val != null) {
-                          final labSelecionado = laboratorios.firstWhere(
-                            (l) => l.id == val,
-                          );
-                          _labNomeSelecionado = labSelecionado.nome;
-                        }
-                      });
-                    },
-                  );
-                },
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                "2. Descreva o material a ser coletado",
-                style: TextStyle(
-                  color: Colors.black87,
-                  fontWeight: FontWeight.bold,
+                    }
+                    return DropdownButtonFormField<String>(
+                      isExpanded:
+                          true, // 💡 CORREÇÃO: Garante que não empurre os ícones para fora da tela
+                      decoration: InputDecoration(
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        filled: true,
+                        fillColor: Colors.grey.shade50,
+                      ),
+                      items: laboratorios.map((lab) {
+                        return DropdownMenuItem<String>(
+                          value: lab.id,
+                          child: Text(
+                            lab.nome.isNotEmpty
+                                ? lab.nome
+                                : 'Laboratório sem nome',
+                            overflow: TextOverflow
+                                .ellipsis, // 💡 CORREÇÃO: Trunca nomes muito longos
+                          ),
+                        );
+                      }).toList(),
+                      value: _labIdSelecionado,
+                      hint: const Text("Selecione um laboratório"),
+                      onChanged: (val) {
+                        setState(() {
+                          _labIdSelecionado = val;
+                          if (val != null) {
+                            final labSelecionado = laboratorios.firstWhere(
+                              (l) => l.id == val,
+                            );
+                            _labNomeSelecionado = labSelecionado.nome;
+                          }
+                        });
+                      },
+                    );
+                  },
                 ),
-              ),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: observacaoController,
-                maxLines: 2,
-                decoration: InputDecoration(
-                  hintText:
-                      "Ex: 2 tubos de sangue (hemograma), 1 frasco de urina...",
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+                const SizedBox(height: 24),
+                const Text(
+                  "2. Descreva o material a ser coletado",
+                  style: TextStyle(
+                    color: Colors.black87,
+                    fontWeight: FontWeight.bold,
                   ),
-                  filled: true,
-                  fillColor: Colors.grey.shade50,
                 ),
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                "3. Data Desejada para Coleta",
-                style: TextStyle(
-                  color: Colors.black87,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              InkWell(
-                onTap: () async {
-                  final pickedDate = await showDatePicker(
-                    context: context,
-                    initialDate: dataSelecionada,
-                    firstDate: DateTime.now(),
-                    lastDate: DateTime(2100),
-                  );
-                  if (pickedDate != null) {
-                    setState(() => dataSelecionada = pickedDate);
-                  }
-                },
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 16,
-                    horizontal: 12,
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: observacaoController,
+                  maxLines: 2,
+                  decoration: InputDecoration(
+                    hintText:
+                        "Ex: 2 tubos de sangue (hemograma), 1 frasco de urina...",
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    filled: true,
+                    fillColor: Colors.grey.shade50,
                   ),
+                ),
+                const SizedBox(height: 24),
+                const Text(
+                  "3. Data Desejada para Coleta",
+                  style: TextStyle(
+                    color: Colors.black87,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                InkWell(
+                  onTap: () async {
+                    final pickedDate = await showDatePicker(
+                      context: context,
+                      initialDate: dataSelecionada,
+                      firstDate: DateTime.now(),
+                      lastDate: DateTime(2100),
+                    );
+                    if (pickedDate != null) {
+                      setState(() => dataSelecionada = pickedDate);
+                    }
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 16,
+                      horizontal: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      border: Border.all(color: Colors.grey.shade300),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.calendar_month_rounded,
+                          color: Colors.indigo.shade400,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(strData, style: const TextStyle(fontSize: 15)),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    border: Border.all(color: Colors.grey.shade300),
+                    color: Colors.blue.shade50,
                     borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.blue.shade200),
                   ),
                   child: Row(
                     children: [
                       Icon(
-                        Icons.calendar_month_rounded,
-                        color: Colors.indigo.shade400,
+                        Icons.route_outlined,
+                        color: Colors.blue.shade800,
                         size: 20,
                       ),
                       const SizedBox(width: 8),
-                      Text(strData, style: const TextStyle(fontSize: 15)),
+                      Expanded(
+                        child: Text(
+                          "O sistema tentará localizar um motoboy disponível automaticamente ao confirmar. A data pode sofrer ajuste automático caso a rota opere em dias específicos.",
+                          style: TextStyle(
+                            color: Colors.blue.shade900,
+                            fontSize: 13,
+                            height: 1.3,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.blue.shade200),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.route_outlined,
-                      color: Colors.blue.shade800,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        "O sistema tentará localizar um motoboy disponível automaticamente ao confirmar. A data pode sofrer ajuste automático caso a rota opere em dias específicos.",
-                        style: TextStyle(
-                          color: Colors.blue.shade900,
-                          fontSize: 13,
-                          height: 1.3,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -274,7 +285,6 @@ class _ModalNovoChamadoState extends State<ModalNovoChamado> {
           ? user!.displayName!
           : (user?.email ?? 'Usuário da Clínica');
 
-      // 💡 DELEGA TUDO PARA A CONTROLLER (MVC PURO)
       final mensagemSucesso = await widget.controller
           .agendarColetaComRoteamento(
             clinicaId: widget.clinicaContexto.id,
