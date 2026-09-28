@@ -44,6 +44,8 @@ class Coleta {
             ? clinicaOrigem.nome
             : 'Clínica não informada');
 
+  // 💡 CORRIGIDO: Nomes ajustados para origemVisual e destinoVisual
+
   String get destinoVisual => isInsumo
       ? (clinicaOrigem.nome.isNotEmpty
             ? clinicaOrigem.nome
@@ -51,6 +53,22 @@ class Coleta {
       : (laboratorioDestino.nome.isNotEmpty
             ? laboratorioDestino.nome
             : 'Laboratório não informado');
+
+  String get enderecoOrigemVisual => isInsumo
+      ? (laboratorioDestino.endereco.logradouro.isNotEmpty
+            ? laboratorioDestino.endereco.logradouro
+            : 'Sem endereço do Laboratorio Origem')
+      : (clinicaOrigem.endereco.logradouro.isNotEmpty
+            ? clinicaOrigem.endereco.logradouro
+            : "Sem endereço da Clinica Origem");
+
+  String get enderecoDestinoVisual => isInsumo
+      ? (clinicaOrigem.endereco.logradouro.isNotEmpty
+            ? clinicaOrigem.endereco.logradouro
+            : "Sem endereço da Clinica Destino")
+      : (laboratorioDestino.endereco.logradouro.isNotEmpty
+            ? laboratorioDestino.endereco.logradouro
+            : 'Sem endereço do Laboratorio Destino');
 
   String get nomeClinica => clinicaOrigem.nome;
   String get codigo => codigoAcompanhamento ?? id;
@@ -130,8 +148,9 @@ class Coleta {
         email: clinicaData['email'] ?? '',
         telefone: clinicaData['telefone'] ?? '',
         cnpj: clinicaData['cnpj'] ?? '',
+        // 💡 BLINDAGEM DE TIPAGEM: Conversão segura do mapa aninhado
         endereco: Endereco.fromMap(
-          clinicaData['endereco'] as Map<String, dynamic>? ?? {},
+          Map.from(clinicaData['endereco'] as Map? ?? {}),
         ),
       ),
 
@@ -141,9 +160,8 @@ class Coleta {
         email: labData['email'] ?? '',
         telefone: labData['telefone'] ?? '',
         cnpj: labData['cnpj'] ?? '',
-        endereco: Endereco.fromMap(
-          labData['endereco'] as Map<String, dynamic>? ?? {},
-        ),
+        // 💡 BLINDAGEM DE TIPAGEM: Conversão segura do mapa aninhado
+        endereco: Endereco.fromMap(Map.from(labData['endereco'] as Map? ?? {})),
       ),
 
       entregador:
