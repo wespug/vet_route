@@ -21,6 +21,7 @@ class ModalNovoChamado extends StatefulWidget {
 }
 
 class _ModalNovoChamadoState extends State<ModalNovoChamado> {
+  Laboratorio? _labSelecionado;
   String? _labIdSelecionado;
   String? _labNomeSelecionado;
   DateTime dataSelecionada = DateTime.now();
@@ -112,6 +113,7 @@ class _ModalNovoChamadoState extends State<ModalNovoChamado> {
                       }).toList(),
                       value: _labIdSelecionado,
                       hint: const Text("Selecione um laboratório"),
+
                       onChanged: (val) {
                         setState(() {
                           _labIdSelecionado = val;
@@ -120,6 +122,7 @@ class _ModalNovoChamadoState extends State<ModalNovoChamado> {
                               (l) => l.id == val,
                             );
                             _labNomeSelecionado = labSelecionado.nome;
+                            _labSelecionado = labSelecionado;
                           }
                         });
                       },
@@ -262,7 +265,7 @@ class _ModalNovoChamadoState extends State<ModalNovoChamado> {
   }
 
   Future<void> _processarCriacaoERoteamento() async {
-    if (_labIdSelecionado == null) {
+    if (_labIdSelecionado == null || _labSelecionado == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Selecione o Laboratório destino!")),
       );
@@ -287,10 +290,8 @@ class _ModalNovoChamadoState extends State<ModalNovoChamado> {
 
       final mensagemSucesso = await widget.controller
           .agendarColetaComRoteamento(
-            clinicaId: widget.clinicaContexto.id,
-            clinicaNome: widget.clinicaContexto.nome,
-            laboratorioId: _labIdSelecionado!,
-            laboratorioNome: _labNomeSelecionado ?? 'Laboratório',
+            clinica: widget.clinicaContexto, // Objeto Clínica
+            laboratorio: _labSelecionado!, // Objeto Laboratório
             isEmergencia: widget.isEmergencia,
             dataDesejada: momentoAgendado,
             observacao: observacaoController.text.trim(),

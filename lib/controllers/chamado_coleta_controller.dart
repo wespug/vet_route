@@ -7,6 +7,9 @@ import 'package:vet_route/models/endereco_model.dart';
 import 'package:vet_route/models/item_logistica_model.dart';
 import 'package:vet_route/models/laboratorio_model.dart';
 
+import 'package:vet_route/models/clinica_model.dart';
+import 'package:vet_route/models/laboratorio_model.dart';
+
 class ChamadoColetaController {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
@@ -167,11 +170,10 @@ class ChamadoColetaController {
     }
   }
 
-  Future<String> agendarColetaComRoteamento({
-    required String clinicaId,
-    required String clinicaNome,
-    required String laboratorioId,
-    required String laboratorioNome,
+  Future agendarColetaComRoteamento({
+    required Clinica clinica, // 💡 Agora recebe o objeto Clinica completo
+    required Laboratorio
+    laboratorio, // 💡 Agora recebe o objeto Laboratorio completo
     required bool isEmergencia,
     required DateTime dataDesejada,
     required String observacao,
@@ -183,10 +185,14 @@ class ChamadoColetaController {
       // 💡 TRAVA DE URGÊNCIA: Aborta a roteirização fixa e envia direto para o Lab
       if (isEmergencia) {
         final payloadUrgencia = {
-          'clinicaId': clinicaId,
-          'clinicaNome': clinicaNome,
-          'laboratorioId': laboratorioId,
-          'laboratorioNome': laboratorioNome,
+          'clinicaId': clinica.id, // Acessando via objeto
+          'clinicaNome': clinica.nome, // Acessando via objeto
+          'laboratorioId': laboratorio.id, // Acessando via objeto
+          'laboratorioNome': laboratorio.nome, // Acessando via objeto
+          // 💡 INJEÇÃO DOS ENDEREÇOS (Urgência)
+          'clinicaOrigem': clinica.toMap(),
+          'laboratorioDestino': laboratorio.toMap(),
+
           'status': 'aguardando_coleta',
           'isUrgencia': true,
           'isEmergencia': true,
@@ -212,29 +218,32 @@ class ChamadoColetaController {
 
       final rotasSnapshot = await _db
           .collection('rotas_fixas')
-          .where('laboratorioId', isEqualTo: laboratorioId)
+          .where(
+            'laboratorioId',
+            isEqualTo: laboratorio.id,
+          ) // Acessando via objeto
           .where('ativa', isEqualTo: true)
           .get();
 
       String? motoboyId;
       String? motoboyNome;
-      List<int> diasOperacao = [1, 2, 3, 4, 5];
+      List diasOperacao = [1, 2, 3, 4, 5];
 
       for (var doc in rotasSnapshot.docs) {
         final rotaData = doc.data();
-        final paradas = (rotaData['paradas'] as List<dynamic>?) ?? [];
+        final paradas = (rotaData['paradas'] as List?) ?? [];
 
         final atendeClinica = paradas.any((p) {
-          final pMap = p as Map<String, dynamic>;
+          final pMap = p as Map;
           final pClinicaId = (pMap['clinicaId'] ?? '').toString().trim();
-          return pClinicaId == clinicaId;
+          return pClinicaId == clinica.id; // Acessando via objeto
         });
 
         if (atendeClinica) {
           motoboyId = rotaData['entregadorId'];
           motoboyNome = rotaData['nomeEntregador'];
           if (rotaData['diasOperacao'] != null) {
-            diasOperacao = List<int>.from(rotaData['diasOperacao']);
+            diasOperacao = List.from(rotaData['diasOperacao']);
           }
           break;
         }
@@ -245,7 +254,7 @@ class ChamadoColetaController {
         motoboyId = primeiraRota['entregadorId'];
         motoboyNome = primeiraRota['nomeEntregador'];
         if (primeiraRota['diasOperacao'] != null) {
-          diasOperacao = List<int>.from(primeiraRota['diasOperacao']);
+          diasOperacao = List.from(primeiraRota['diasOperacao']);
         }
       }
 
@@ -273,9 +282,9 @@ class ChamadoColetaController {
       if (temMotoboy) {
         if (dataFoiAjustada) {
           final strNovaData =
-              "${dataAjustada.day.toString().padLeft(2, '0')}/${dataAjustada.month.toString().padLeft(2, '0')}";
+              "\({dataAjustada.day.toString().padLeft(2, '0')}/\){dataAjustada.month.toString().padLeft(2, '0')}";
           obsHistorico =
-              'Coleta agendada. Data ajustada automaticamente para o próximo dia útil da rota ($strNovaData) do entregador $motoboyNome.';
+              'Coleta agendada. Data ajustada automaticamente para o próximo dia útil da rota (\(strNovaData) do entregador\)motoboyNome.';
         } else {
           obsHistorico =
               'Coleta agendada. Rota automática atribuída para o entregador $motoboyNome.';
@@ -283,10 +292,14 @@ class ChamadoColetaController {
       }
 
       final payload = {
-        'clinicaId': clinicaId,
-        'clinicaNome': clinicaNome,
-        'laboratorioId': laboratorioId,
-        'laboratorioNome': laboratorioNome,
+        'clinicaId': clinica.id, // Acessando via objeto
+        'clinicaNome': clinica.nome, // Acessando via objeto
+        'laboratorioId': laboratorio.id, // Acessando via objeto
+        'laboratorioNome': laboratorio.nome, // Acessando via objeto
+        // 💡 INJEÇÃO DOS ENDEREÇOS (Agendamento Normal)
+        'clinicaOrigem': clinica.toMap(),
+        'laboratorioDestino': laboratorio.toMap(),
+
         'status': statusInicial,
         'isUrgencia': isEmergencia,
         'isEmergencia': isEmergencia,
