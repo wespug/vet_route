@@ -5,6 +5,7 @@ import 'package:vet_route/models/pedido_insumo_model.dart';
 import 'package:vet_route/models/rota_model.dart';
 import 'package:vet_route/models/laboratorio_model.dart';
 import 'package:vet_route/models/endereco_model.dart';
+import 'package:vet_route/models/clinica_model.dart';
 import 'package:vet_route/repositories/pedido_insumo_repository.dart';
 import 'package:vet_route/repositories/rota_repository.dart';
 
@@ -56,19 +57,18 @@ class PedidoInsumoController extends ChangeNotifier {
   }
 
   /// Cria o pedido de insumos no Firestore acionado pelo modal da clínica
-  Future<bool> criarPedido({
-    required String clinicaId,
-    required String clinicaNome,
-    required String laboratorioId,
-    required String laboratorioNome,
+  /// Cria o pedido de insumos no Firestore acionado pelo modal da clínica
+  Future criarPedido({
+    required Clinica clinica, // 💡 Agora recebe o objeto completo
+    required Laboratorio laboratorio, // 💡 Agora recebe o objeto completo
     required String usuarioSolicitante,
-    required List<Map<String, dynamic>> itens,
+    required List itens,
   }) async {
     try {
       final docRef = _firestore.collection('pedidos_insumos').doc();
       final dataAtual = DateTime.now().toIso8601String();
 
-      final Map<String, dynamic> itemHistorico = {
+      final Map itemHistorico = {
         'status': 'pendente',
         'data': dataAtual,
         'observacao': 'Pedido de insumos criado pela clínica.',
@@ -77,10 +77,13 @@ class PedidoInsumoController extends ChangeNotifier {
 
       await docRef.set({
         'id': docRef.id,
-        'clinicaId': clinicaId,
-        'clinicaNome': clinicaNome,
-        'laboratorioId': laboratorioId,
-        'laboratorioNome': laboratorioNome,
+        'clinicaId': clinica.id,
+        'clinicaNome': clinica.nome,
+        'laboratorioId': laboratorio.id,
+        'laboratorioNome': laboratorio.nome,
+        // 💡 A MÁGICA ACONTECE AQUI: Salvando a "fotografia" com os endereços!
+        'clinicaOrigem': clinica.toMap(),
+        'laboratorioDestino': laboratorio.toMap(),
         'status': 'pendente',
         'itens': itens,
         'dataCriacao': FieldValue.serverTimestamp(),

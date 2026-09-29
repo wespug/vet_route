@@ -410,10 +410,8 @@ class _ModalPedidoInsumoMobileState extends State<ModalPedidoInsumoMobile> {
       );
 
       final sucesso = await widget.controller.criarPedido(
-        clinicaId: widget.clinicaContexto.id!,
-        clinicaNome: widget.clinicaContexto.nome,
-        laboratorioId: _localLabIdSelecionado!,
-        laboratorioNome: labEncontrado.nome,
+        clinica: widget.clinicaContexto, // Passando o objeto inteiro
+        laboratorio: labEncontrado, // Passando o objeto inteiro
         usuarioSolicitante: widget.usuarioLogado,
         itens: insumosSelecionados,
       );

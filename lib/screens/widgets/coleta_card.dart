@@ -62,9 +62,6 @@ class ColetaCard extends StatelessWidget {
     final String localDestino = item.destinoVisual;
     final String enderecoDestino = item.enderecoDestinoVisual;
 
-    // 💡 REMOVIDO: O bloco "BUSCA DE ENDEREÇO MELHORADA" não é mais necessário
-    // pois o modelo já entrega a string perfeitamente formatada.
-
     final String codigoOriginal = item.codigo.isNotEmpty
         ? item.codigo
         : (item.codigoAcompanhamento ?? item.id);
@@ -230,7 +227,7 @@ class ColetaCard extends StatelessWidget {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          enderecoOrigem, // 💡 Agora exibe o endereço formatado corretamente da origem
+                          enderecoOrigem,
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
@@ -261,7 +258,7 @@ class ColetaCard extends StatelessWidget {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          enderecoDestino, // 💡 Agora exibe o endereço formatado corretamente do destino
+                          enderecoDestino,
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
