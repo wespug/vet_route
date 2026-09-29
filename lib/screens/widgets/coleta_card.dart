@@ -19,7 +19,6 @@ class ColetaCard extends StatelessWidget {
     String horaFormatada = '--:--';
     bool isFuturo = false;
 
-    // 💡 TRAVA DE TEMPO: Analisa se o pedido é para o futuro
     if (item.dataCriacao != null) {
       final data = item.dataCriacao!;
       final agora = DateTime.now();
@@ -31,7 +30,6 @@ class ColetaCard extends StatelessWidget {
       if (data.hour == 0 && data.minute == 0) {
         horaFormatada = 'A definir';
       } else {
-        // Concatenando de forma tradicional para evitar erros de interpolação no seu ambiente
         horaFormatada =
             data.hour.toString().padLeft(2, '0') +
             ':' +
@@ -64,39 +62,8 @@ class ColetaCard extends StatelessWidget {
     final String localDestino = item.destinoVisual;
     final String enderecoDestino = item.enderecoDestinoVisual;
 
-    // 💡 BUSCA DE ENDEREÇO MELHORADA
-    String enderecoOrigemFormatado = '';
-    if (!isInsumo) {
-      try {
-        final endMap = item.clinicaOrigem.endereco.toMap();
-
-        // Tentando mapear as variações de nomes mais comuns
-        final rua =
-            endMap['logradouro'] ??
-            endMap['rua'] ??
-            endMap['endereco'] ??
-            endMap['street'];
-        final num = endMap['numero'] ?? endMap['number'];
-        final bairro = endMap['bairro'] ?? endMap['neighborhood'];
-
-        List partes = [];
-        if (rua != null && rua.toString().trim().isNotEmpty) {
-          partes.add(rua.toString().trim());
-        }
-        if (num != null && num.toString().trim().isNotEmpty) {
-          partes.add(num.toString().trim());
-        }
-
-        String textoEndereco = partes.join(', ');
-        if (bairro != null && bairro.toString().trim().isNotEmpty) {
-          textoEndereco += ' - ' + bairro.toString().trim();
-        }
-
-        enderecoOrigemFormatado = textoEndereco;
-      } catch (e) {
-        // Fallback silencioso
-      }
-    }
+    // 💡 REMOVIDO: O bloco "BUSCA DE ENDEREÇO MELHORADA" não é mais necessário
+    // pois o modelo já entrega a string perfeitamente formatada.
 
     final String codigoOriginal = item.codigo.isNotEmpty
         ? item.codigo
@@ -105,7 +72,6 @@ class ColetaCard extends StatelessWidget {
         ? codigoOriginal.substring(0, 6).toUpperCase()
         : codigoOriginal.toUpperCase();
 
-    // Montando o texto do rodapé também via concatenação simples para evitar quebras
     String textoTipo = isInsumo
         ? 'Pedido de Insumo'
         : (isUrgencia ? 'Coleta de Urgência' : 'Coleta de Exame');
@@ -262,32 +228,17 @@ class ColetaCard extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
+                        const SizedBox(height: 2),
                         Text(
-                          enderecoOrigem,
-                          style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
-                            color: Color.fromARGB(176, 0, 0, 0),
+                          enderecoOrigem, // 💡 Agora exibe o endereço formatado corretamente da origem
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey.shade600,
                           ),
-                          maxLines: 1,
+                          maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
-
-                        // 💡 Exibição do Endereço de Origem
-                        if (!isInsumo &&
-                            enderecoOrigemFormatado.isNotEmpty) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            enderecoOrigemFormatado,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey.shade600,
-                              fontWeight: FontWeight.w500,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
 
                         const SizedBox(height: 12),
                         const Text(
@@ -308,14 +259,15 @@ class ColetaCard extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
+                        const SizedBox(height: 2),
                         Text(
-                          enderecoDestino,
-                          style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
-                            color: Color.fromARGB(130, 0, 0, 0),
+                          enderecoDestino, // 💡 Agora exibe o endereço formatado corretamente do destino
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey.shade600,
                           ),
-                          maxLines: 1,
+                          maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ],

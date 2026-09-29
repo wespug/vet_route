@@ -55,20 +55,12 @@ class Coleta {
             : 'Laboratório não informado');
 
   String get enderecoOrigemVisual => isInsumo
-      ? (laboratorioDestino.endereco.logradouro.isNotEmpty
-            ? laboratorioDestino.endereco.logradouro
-            : 'Sem endereço do Laboratorio Origem')
-      : (clinicaOrigem.endereco.logradouro.isNotEmpty
-            ? clinicaOrigem.endereco.logradouro
-            : "Sem endereço da Clinica Origem");
+      ? laboratorioDestino.endereco.enderecoCompleto
+      : clinicaOrigem.endereco.enderecoCompleto;
 
   String get enderecoDestinoVisual => isInsumo
-      ? (clinicaOrigem.endereco.logradouro.isNotEmpty
-            ? clinicaOrigem.endereco.logradouro
-            : "Sem endereço da Clinica Destino")
-      : (laboratorioDestino.endereco.logradouro.isNotEmpty
-            ? laboratorioDestino.endereco.logradouro
-            : 'Sem endereço do Laboratorio Destino');
+      ? clinicaOrigem.endereco.enderecoCompleto
+      : laboratorioDestino.endereco.enderecoCompleto;
 
   String get nomeClinica => clinicaOrigem.nome;
   String get codigo => codigoAcompanhamento ?? id;
@@ -148,9 +140,9 @@ class Coleta {
         email: clinicaData['email'] ?? '',
         telefone: clinicaData['telefone'] ?? '',
         cnpj: clinicaData['cnpj'] ?? '',
-        // 💡 BLINDAGEM DE TIPAGEM: Conversão segura do mapa aninhado
+        // 💡 BLINDAGEM: Se não achar em clinicaData['endereco'], procura na raiz do documento
         endereco: Endereco.fromMap(
-          Map.from(clinicaData['endereco'] as Map? ?? {}),
+          clinicaData['endereco'] ?? data['enderecoOrigem'] ?? data['endereco'],
         ),
       ),
 
@@ -160,8 +152,10 @@ class Coleta {
         email: labData['email'] ?? '',
         telefone: labData['telefone'] ?? '',
         cnpj: labData['cnpj'] ?? '',
-        // 💡 BLINDAGEM DE TIPAGEM: Conversão segura do mapa aninhado
-        endereco: Endereco.fromMap(Map.from(labData['endereco'] as Map? ?? {})),
+        // 💡 BLINDAGEM: O mesmo para o destino
+        endereco: Endereco.fromMap(
+          labData['endereco'] ?? data['enderecoDestino'] ?? data['endereco'],
+        ),
       ),
 
       entregador:
