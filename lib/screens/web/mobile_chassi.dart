@@ -163,7 +163,11 @@ class _MobileChassiState extends State<MobileChassi> {
         return const LaboratorioMobileScr();
 
       case 'entregador_dashboard':
-        return const EntregadorMobileScr();
+        final String? uidLogado = FirebaseAuth.instance.currentUser?.uid;
+        return EntregadorMobileScr(
+          entregadorId: uidLogado,
+          isVisaoGeral: false,
+        );
 
       default:
         return Container(
