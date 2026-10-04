@@ -30,6 +30,11 @@
 	<string>O aplicativo precisa de acesso à câmera para registrar a entrega das coletas de urgência.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>O Vet Route precisa da sua localização para traçar rotas.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>O Vet Route precisa da sua localização para navegação contínua.</string>
+
+	
+
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>O aplicativo precisa de acesso à galeria para anexar imagens aos chamados.</string>
 	<key>UIApplicationSceneManifest</key>
