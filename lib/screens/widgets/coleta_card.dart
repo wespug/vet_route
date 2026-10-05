@@ -12,6 +12,7 @@ import 'package:vet_route/controllers/coleta_controller.dart';
 import 'package:vet_route/screens/web/entregadores/components/modal_detalhes_coleta_motoboy.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:vet_route/screens/web/entregadores/components/modal_validacao_coleta.dart';
 
 class ColetaCard extends StatefulWidget {
   final Coleta item;
@@ -28,7 +29,7 @@ class ColetaCard extends StatefulWidget {
 }
 
 class _ColetaCardState extends State<ColetaCard> {
-  bool _isNavegando = false;
+  bool _rotaCalculada = false;
   bool _carregandoMapa = false;
   bool _mostrarMapa = false;
   LatLngBounds? _limitesRota;
@@ -69,7 +70,7 @@ class _ColetaCardState extends State<ColetaCard> {
 
     // Pega a posição do motoboy
     _posicaoAtual = await Geolocator.getCurrentPosition();
-    setState(() => _isNavegando = true);
+    setState(() => _rotaCalculada = true);
 
     // Reseta o zoom e as linhas do mapa
     _minLat = 90.0;
@@ -171,7 +172,10 @@ class _ColetaCardState extends State<ColetaCard> {
           // Se for a origem, salva no banco para usar de cache na próxima vez
           if (isOrigem) {
             try {
-              final controller = Provider.of(context, listen: false);
+              final controller = Provider.of<ColetaController>(
+                context,
+                listen: false,
+              );
               await controller.atualizarCoordenadasOrigem(
                 widget.item.id,
                 lat,
@@ -281,18 +285,43 @@ class _ColetaCardState extends State<ColetaCard> {
   // 1. FUNÇÃO DO MODO NAVEGAÇÃO (Prepara o terreno para o Waze/Maps)
   // ====================================================================
   Future _abrirModoNavegacao() async {
-    // Pega as coordenadas da Clínica (Origem da coleta)
-    final double? lat = widget.item.latitudeOrigem;
-    final double? lng = widget.item.longitudeOrigem;
+    // 1. Atualiza o status em segundo plano com segurança total
+    try {
+      final String statusNorm = widget.item.status.toLowerCase();
+      final bool isEmRota =
+          statusNorm.contains('rota') ||
+          statusNorm.contains('caminho') ||
+          statusNorm.contains('coletar');
 
-    if (lat == null || lng == null) {
-      _mostrarErro(
-        "Coordenadas não calculadas. Clique em 'Iniciar Rota' primeiro.",
-      );
+      if (!isEmRota) {
+        final controller = Provider.of<ColetaController>(
+          context,
+          listen: false,
+        );
+        controller.atualizarStatusColeta(widget.item.id, 'coletar_produto');
+      }
+    } catch (e) {
+      print("Aviso: Erro ignorado ao atualizar status pelo botão Navegar: $e");
+    }
+
+    // 2. MÁGICA: Usa a nossa função inteligente para garantir a coordenada
+    // (Mesmo que o Firebase ainda não tenha devolvido a atualização para a tela)
+    PointLatLng? coordClinica = await _obterCoordenadas(
+      widget.item.enderecoOrigemVisual,
+      widget.item.latitudeOrigem,
+      widget.item.longitudeOrigem,
+      isOrigem: true,
+    );
+
+    if (coordClinica == null) {
+      _mostrarErro("Não foi possível obter as coordenadas para navegação.");
       return;
     }
 
-    // Links Universais (Funcionam no iPhone e no Android, abrindo o app nativo se instalado)
+    final double lat = coordClinica.latitude;
+    final double lng = coordClinica.longitude;
+
+    // 3. Monta os Links Universais de Navegação (Concatenados com segurança)
     final Uri urlGoogleMaps = Uri.parse(
       "https://www.google.com/maps/dir/?api=1&destination=" +
           lat.toString() +
@@ -308,7 +337,9 @@ class _ColetaCardState extends State<ColetaCard> {
           "&navigate=yes",
     );
 
-    // Mostra as opções para o motoboy escolher
+    // 4. Trava de segurança para abrir o Modal
+    if (!mounted) return;
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.white,
@@ -331,7 +362,7 @@ class _ColetaCardState extends State<ColetaCard> {
                 leading: Image.network(
                   "https://cdn-icons-png.flaticon.com/512/2875/2875331.png",
                   width: 32,
-                ), // Ícone do G Maps
+                ),
                 title: const Text(
                   "Google Maps",
                   style: TextStyle(fontWeight: FontWeight.bold),
@@ -349,7 +380,7 @@ class _ColetaCardState extends State<ColetaCard> {
                 leading: Image.network(
                   "https://cdn-icons-png.flaticon.com/512/732/732288.png",
                   width: 32,
-                ), // Ícone do Waze
+                ),
                 title: const Text(
                   "Waze",
                   style: TextStyle(fontWeight: FontWeight.bold),
@@ -922,7 +953,7 @@ class _ColetaCardState extends State<ColetaCard> {
           child: OutlinedButton.icon(
             onPressed: () {
               setState(() => _mostrarMapa = true);
-              if (!_isNavegando) _iniciarNavegacao();
+              if (!_rotaCalculada) _iniciarNavegacao();
             },
             icon: Icon(Icons.map, color: corTema),
             label: const Text("Ver Rota no Mapa"),
@@ -933,17 +964,25 @@ class _ColetaCardState extends State<ColetaCard> {
   }
 
   // O botão altera a sua função dependendo de já estarmos em rota ou não
-
   Widget _buildBotaoAcaoPrincipal(Color corTema) {
-    if (_isNavegando) {
+    final String statusNorm = widget.item.status.toLowerCase();
+    final bool isEmRota =
+        statusNorm.contains('rota') ||
+        statusNorm.contains('caminho') ||
+        statusNorm.contains('coletar');
+
+    if (isEmRota) {
       return ElevatedButton.icon(
         onPressed: () {
-          // A SUA LÓGICA DE FINALIZAR PARADA ENTRA AQUI!
-          print("Finalizando parada no banco...");
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (_) => ModalValidacaoColeta(item: widget.item),
+          );
         },
-        icon: const Icon(Icons.check_circle_outline, size: 18),
+        icon: const Icon(Icons.qr_code_scanner, size: 18),
         label: const Text(
-          "Finalizar Parada",
+          "Coletar Produto",
           style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
         ),
         style: ElevatedButton.styleFrom(
@@ -960,23 +999,27 @@ class _ColetaCardState extends State<ColetaCard> {
       onPressed: _carregandoMapa
           ? null
           : () async {
-              // 1. Muda a interface para mostrar o mapa
               setState(() => _mostrarMapa = true);
 
-              // 2. Traça a rota na Google (se ainda não existir)
-              if (!_isNavegando) {
-                await _iniciarNavegacao();
+              // 1. AVISAR O FIREBASE IMEDIATAMENTE (COM A TIPAGEM CORRETA)
+              try {
+                final controller = Provider.of<ColetaController>(
+                  context,
+                  listen: false,
+                );
+                // Removemos o await para não travar a tela enquanto o banco processa
+                controller.atualizarStatusColeta(
+                  widget.item.id,
+                  'coletar_produto',
+                );
+              } catch (e) {
+                print("Erro ao atualizar status: $e");
               }
 
-              // 3. Atualiza o status oficial no banco de dados para a clínica/laboratório ver!
-              final controller = Provider.of<ColetaController>(
-                context,
-                listen: false,
-              );
-              await controller.atualizarStatusColeta(
-                widget.item.id,
-                'coletar_produto',
-              );
+              // 2. DESENHAR A ROTA NO MAPA COM CALMA
+              if (!_rotaCalculada) {
+                await _iniciarNavegacao();
+              }
             },
       style: ElevatedButton.styleFrom(
         backgroundColor: corTema,
@@ -1032,6 +1075,7 @@ class _ColetaCardState extends State<ColetaCard> {
                 context,
                 listen: false,
               );
+
               await controller.recusarColeta(item.id);
             },
             style: ElevatedButton.styleFrom(
