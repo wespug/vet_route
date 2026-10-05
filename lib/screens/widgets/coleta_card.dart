@@ -37,7 +37,7 @@ class _ColetaCardState extends State<ColetaCard> {
   String _tempoViagem = "";
   String _distanciaRota = "";
 
-  Future _iniciarNavegacao() async {
+  Future<void> _iniciarNavegacao() async {
     setState(() => _carregandoMapa = true);
 
     bool serviceEnabled;
@@ -61,120 +61,193 @@ class _ColetaCardState extends State<ColetaCard> {
     }
 
     if (permission == LocationPermission.deniedForever) {
-      _mostrarErro("Permissões de localização permanentemente negadas.");
+      _mostrarErro("Permissões permanentemente negadas.");
       setState(() => _carregandoMapa = false);
       return;
     }
 
-    // Captura a posição atual do entregador
+    // 1. Captura a posição atual do entregador (Ponto A)
     _posicaoAtual = await Geolocator.getCurrentPosition();
 
-    const double destinoLat = -23.56168;
-    const double destinoLng = -46.65598;
+    // 2. Verifica se o banco já tem as coordenadas salvas
+    double? latColeta = widget.item.latitudeOrigem;
+    double? lngColeta = widget.item.longitudeOrigem;
 
-    // 1º: Ativamos a interface do mapa na tela PRIMEIRO
-    setState(() {
-      _isNavegando = true;
-    });
+    if (latColeta != null && lngColeta != null) {
+      // TEM NO BANCO: Usa direto e economiza a chamada de API!
+      setState(() => _isNavegando = true);
 
-    // 2º: Traçamos a rota e movemos a câmara
-    await _tracarRota(
-      PointLatLng(_posicaoAtual!.latitude, _posicaoAtual!.longitude),
-      PointLatLng(destinoLat, destinoLng),
-    );
+      await _tracarRota(
+        PointLatLng(_posicaoAtual!.latitude, _posicaoAtual!.longitude),
+        PointLatLng(latColeta, lngColeta),
+      );
+    } else {
+      // NÃO TEM NO BANCO: Faz Geocoding, salva e usa.
+      final String enderecoTexto = widget.item.enderecoOrigemVisual;
 
-    // 3º: Desligamos o loading
-    setState(() {
-      _carregandoMapa = false;
-    });
+      // 1. Adicione este log para ver o endereço puro:
+      print("=== DEBUG GEOCODING ===");
+      print("Endereço puro: $enderecoTexto");
+
+      final String urlGeocode =
+          "https://maps.googleapis.com/maps/api/geocode/json?address=${Uri.encodeComponent(enderecoTexto)}&key=${AppConfig.googleMapsApiKey}";
+
+      try {
+        final responseGeo = await http.get(Uri.parse(urlGeocode));
+        if (responseGeo.statusCode == 200) {
+          final dataGeo = json.decode(responseGeo.body);
+
+          print("Resposta da Google: ${responseGeo.body}");
+
+          if (dataGeo['status'] == 'OK' && dataGeo['results'].isNotEmpty) {
+            final location = dataGeo['results'][0]['geometry']['location'];
+            latColeta = (location['lat'] as num).toDouble();
+            lngColeta = (location['lng'] as num).toDouble();
+
+            // Chama o Controller para salvar no Firestore de vez!
+            final controller = Provider.of<ColetaController>(
+              context,
+              listen: false,
+            );
+            await controller.atualizarCoordenadasOrigem(
+              widget.item.id,
+              latColeta!,
+              lngColeta!,
+            );
+
+            setState(() => _isNavegando = true);
+
+            await _tracarRota(
+              PointLatLng(_posicaoAtual!.latitude, _posicaoAtual!.longitude),
+              PointLatLng(latColeta!, lngColeta!),
+            );
+          } else {
+            _mostrarErro("Não foi possível encontrar o endereço no mapa.");
+          }
+        }
+      } catch (e) {
+        _mostrarErro("Erro ao buscar endereço: $e");
+      }
+    }
+
+    // Desliga o loading
+    setState(() => _carregandoMapa = false);
   }
 
-  Future _tracarRota(PointLatLng origem, PointLatLng destino) async {
-    // 1. Chama a API Direta da Google
+  Future<void> _tracarRota(PointLatLng origem, PointLatLng destino) async {
+    print("=== DEBUG ROTA ===");
+
+    // Concatenação blindada sem o uso do cifrão ($)
     final url =
-        "https://maps.googleapis.com/maps/api/directions/json?origin=\({origem.latitude},\){origem.longitude}&destination=\({destino.latitude},\){destino.longitude}&mode=driving&key=${AppConfig.googleMapsApiKey}";
+        "https://maps.googleapis.com/maps/api/directions/json?origin=" +
+        origem.latitude.toString() +
+        "," +
+        origem.longitude.toString() +
+        "&destination=" +
+        destino.latitude.toString() +
+        "," +
+        destino.longitude.toString() +
+        "&mode=driving&key=" +
+        AppConfig.googleMapsApiKey;
 
-    final response = await http.get(Uri.parse(url));
+    print(
+      "URL Directions montada.",
+    ); // Não imprimo a URL toda para não poluir, mas sabemos que está concatenada.
 
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
+    try {
+      final response = await http.get(Uri.parse(url));
 
-      if (data['routes'] != null && data['routes'].isNotEmpty) {
-        final route = data['routes'][0];
-        final leg = route['legs'][0];
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        print("Status da Resposta Google Directions: " + data['status']);
 
-        // 2. Atualiza o Tempo e a Distância
-        setState(() {
-          _distanciaRota = leg['distance']['text'];
-          _tempoViagem = leg['duration']['text'];
-        });
-
-        // 3. Decodifica a linha azul da rota
-        final pointsString = route['overview_polyline']['points'];
-        PolylinePoints polylinePoints = PolylinePoints();
-        List resultPoints = polylinePoints.decodePolyline(pointsString);
-
-        List<LatLng> polylineCoordinates = [];
-
-        // Variáveis para calcular os limites da câmara (para focar na rota toda)
-        double minLat = origem.latitude;
-        double minLng = origem.longitude;
-        double maxLat = origem.latitude;
-        double maxLng = origem.longitude;
-
-        for (var point in resultPoints) {
-          polylineCoordinates.add(LatLng(point.latitude, point.longitude));
-
-          // Descobre os pontos mais extremos para a câmara
-          if (point.latitude < minLat) minLat = point.latitude;
-          if (point.latitude > maxLat) maxLat = point.latitude;
-          if (point.longitude < minLng) minLng = point.longitude;
-          if (point.longitude > maxLng) maxLng = point.longitude;
+        if (data['status'] != 'OK') {
+          print(
+            "Mensagem de erro da Google: " +
+                (data['error_message'] ?? "Sem detalhes"),
+          );
+          return;
         }
 
-        setState(() {
-          _polylines.add(
-            Polyline(
-              polylineId: const PolylineId("rota_coleta"),
-              color: Colors.blueAccent,
-              width: 5,
-              points: polylineCoordinates,
-            ),
+        if (data['routes'] != null && data['routes'].isNotEmpty) {
+          final route = data['routes'][0];
+          final leg = route['legs'][0];
+
+          setState(() {
+            _distanciaRota = leg['distance']['text'];
+            _tempoViagem = leg['duration']['text'];
+          });
+
+          final pointsString = route['overview_polyline']['points'];
+          PolylinePoints polylinePoints = PolylinePoints();
+          List<PointLatLng> resultPoints = polylinePoints.decodePolyline(
+            pointsString,
           );
 
-          _markers.add(
-            Marker(
-              markerId: const MarkerId("origem"),
-              position: LatLng(origem.latitude, origem.longitude),
-              icon: BitmapDescriptor.defaultMarkerWithHue(
-                BitmapDescriptor.hueBlue,
+          List<LatLng> polylineCoordinates = [];
+
+          double minLat = origem.latitude;
+          double minLng = origem.longitude;
+          double maxLat = origem.latitude;
+          double maxLng = origem.longitude;
+
+          for (var point in resultPoints) {
+            polylineCoordinates.add(LatLng(point.latitude, point.longitude));
+            if (point.latitude < minLat) minLat = point.latitude;
+            if (point.latitude > maxLat) maxLat = point.latitude;
+            if (point.longitude < minLng) minLng = point.longitude;
+            if (point.longitude > maxLng) maxLng = point.longitude;
+          }
+
+          setState(() {
+            _polylines.add(
+              Polyline(
+                polylineId: const PolylineId("rota_coleta"),
+                color: Colors.blueAccent,
+                width: 5,
+                points: polylineCoordinates,
               ),
-            ),
-          );
+            );
 
-          _markers.add(
-            Marker(
-              markerId: const MarkerId("destino"),
-              position: LatLng(destino.latitude, destino.longitude),
-              icon: BitmapDescriptor.defaultMarkerWithHue(
-                BitmapDescriptor.hueRed,
+            _markers.add(
+              Marker(
+                markerId: const MarkerId("origem"),
+                position: LatLng(origem.latitude, origem.longitude),
+                icon: BitmapDescriptor.defaultMarkerWithHue(
+                  BitmapDescriptor.hueBlue,
+                ),
               ),
-            ),
-          );
-        });
+            );
 
-        // 4. Move e afasta a câmara para mostrar a rota completa!
-        final controller = await _mapController.future;
-        controller.animateCamera(
-          CameraUpdate.newLatLngBounds(
-            LatLngBounds(
-              southwest: LatLng(minLat, minLng),
-              northeast: LatLng(maxLat, maxLng),
-            ),
-            50.0, // Margem de 50 pixels para a linha não colar nas bordas
-          ),
-        );
+            _markers.add(
+              Marker(
+                markerId: const MarkerId("destino"),
+                position: LatLng(destino.latitude, destino.longitude),
+                icon: BitmapDescriptor.defaultMarkerWithHue(
+                  BitmapDescriptor.hueRed,
+                ),
+              ),
+            );
+          });
+
+          // Move a câmara
+          if (_mapController.isCompleted) {
+            final controller = await _mapController.future;
+            controller.animateCamera(
+              CameraUpdate.newLatLngBounds(
+                LatLngBounds(
+                  southwest: LatLng(minLat, minLng),
+                  northeast: LatLng(maxLat, maxLng),
+                ),
+                50.0,
+              ),
+            );
+          }
+          print("=== ROTA DESENHADA COM SUCESSO ===");
+        }
       }
+    } catch (e) {
+      print("Erro ao tentar buscar a rota: $e");
     }
   }
 

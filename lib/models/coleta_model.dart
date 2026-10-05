@@ -17,6 +17,8 @@ class Coleta {
   final String? nomeLaboratorioOrigemTexto;
   final List<dynamic> itens;
   final List<dynamic> historico;
+  final double? latitudeOrigem;
+  final double? longitudeOrigem;
 
   Coleta({
     required this.id,
@@ -31,6 +33,8 @@ class Coleta {
     this.nomeLaboratorioOrigemTexto,
     this.itens = const [],
     this.historico = const [],
+    this.latitudeOrigem,
+    this.longitudeOrigem,
   });
 
   bool get isEmergencia => isUrgente;
@@ -82,6 +86,8 @@ class Coleta {
       'clinicaOrigem': clinicaOrigem.toMap(),
       'laboratorioDestino': laboratorioDestino.toMap(),
       'entregador': entregador?.toMap(),
+      'latitudeOrigem': latitudeOrigem,
+      'longitudeOrigem': longitudeOrigem,
       'dataSolicitacao': dataSolicitacao != null
           ? Timestamp.fromDate(dataSolicitacao!)
           : FieldValue.serverTimestamp(),
@@ -163,6 +169,9 @@ class Coleta {
               data['entregador'] is Map<String, dynamic>
           ? Entregador.fromMap(data['entregador'] as Map<String, dynamic>)
           : null,
+
+      latitudeOrigem: (data['latitudeOrigem'] as num?)?.toDouble(),
+      longitudeOrigem: (data['longitudeOrigem'] as num?)?.toDouble(),
     );
   }
 }

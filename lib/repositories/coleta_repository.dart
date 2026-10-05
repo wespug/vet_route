@@ -14,4 +14,5 @@ abstract class ColetaRepository {
 
   /// Atualiza o status de um pedido/coleta no banco de dados
   Future<void> atualizarStatusColeta(String coletaId, String novoStatus);
+  Future<void> atualizarCampo(String id, Map<String, dynamic> dados);
 }

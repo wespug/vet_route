@@ -192,6 +192,28 @@ class FirestoreColetaRepository implements ColetaRepository {
   }
 
   @override
+  Future<void> atualizarCampo(String id, Map<String, dynamic> dados) async {
+    try {
+      final docColeta = await _firestore.collection('coletas').doc(id).get();
+      if (docColeta.exists) {
+        await docColeta.reference.update(dados);
+        return;
+      }
+
+      final docInsumo = await _firestore
+          .collection('pedidos_insumos')
+          .doc(id)
+          .get();
+      if (docInsumo.exists) {
+        await docInsumo.reference.update(dados);
+      }
+    } catch (e) {
+      debugPrint('Erro ao atualizar campo no repositório: $e');
+      rethrow;
+    }
+  }
+
+  @override
   Future<void> atualizarStatusColeta(String coletaId, String novoStatus) async {
     try {
       // 1. Monta o pacote base de atualização

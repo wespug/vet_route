@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/coleta_model.dart';
@@ -184,6 +185,23 @@ class ColetaController extends ChangeNotifier {
     } finally {
       isLoading.value = false;
       notifyListeners();
+    }
+  }
+
+  Future atualizarCoordenadasOrigem(
+    String idColeta,
+    double lat,
+    double lng,
+  ) async {
+    try {
+      // Usamos o repositório para garantir que a atualização acontece na coleção certa,
+      // mantendo a arquitetura limpa em vez de chamar o Firestore diretamente no Controller.
+      await _repository.atualizarCampo(idColeta, {
+        'latitudeOrigem': lat,
+        'longitudeOrigem': lng,
+      });
+    } catch (e) {
+      debugPrint("Erro ao salvar coordenadas: $e");
     }
   }
 
