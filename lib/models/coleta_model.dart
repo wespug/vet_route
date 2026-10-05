@@ -15,10 +15,13 @@ class Coleta {
   final DateTime? dataSolicitacao;
   final bool isInsumo;
   final String? nomeLaboratorioOrigemTexto;
-  final List<dynamic> itens;
-  final List<dynamic> historico;
+  final List itens;
+  final List historico;
   final double? latitudeOrigem;
   final double? longitudeOrigem;
+  // 💡 NOVO: Coordenadas de destino adicionadas
+  final double? latitudeDestino;
+  final double? longitudeDestino;
 
   Coleta({
     required this.id,
@@ -35,11 +38,12 @@ class Coleta {
     this.historico = const [],
     this.latitudeOrigem,
     this.longitudeOrigem,
+    this.latitudeDestino, // 💡 NOVO
+    this.longitudeDestino, // 💡 NOVO
   });
 
   bool get isEmergencia => isUrgente;
 
-  // 💡 CORRIGIDO: Nomes ajustados para origemVisual e destinoVisual
   String get origemVisual => isInsumo
       ? (laboratorioDestino.nome.isNotEmpty
             ? laboratorioDestino.nome
@@ -47,8 +51,6 @@ class Coleta {
       : (clinicaOrigem.nome.isNotEmpty
             ? clinicaOrigem.nome
             : 'Clínica não informada');
-
-  // 💡 CORRIGIDO: Nomes ajustados para origemVisual e destinoVisual
 
   String get destinoVisual => isInsumo
       ? (clinicaOrigem.nome.isNotEmpty
@@ -73,8 +75,7 @@ class Coleta {
   String get idDoEntregador => entregador?.id ?? '';
   String get nomeDoEntregador => entregador?.nome ?? 'Aguardando Entregador';
 
-  // 💡 CORRIGIDO: Método toMap() adicionado para suportar o Repository
-  Map<String, dynamic> toMap() {
+  Map toMap() {
     return {
       'status': status,
       'isUrgente': isUrgente,
@@ -88,6 +89,8 @@ class Coleta {
       'entregador': entregador?.toMap(),
       'latitudeOrigem': latitudeOrigem,
       'longitudeOrigem': longitudeOrigem,
+      'latitudeDestino': latitudeDestino, // 💡 NOVO
+      'longitudeDestino': longitudeDestino, // 💡 NOVO
       'dataSolicitacao': dataSolicitacao != null
           ? Timestamp.fromDate(dataSolicitacao!)
           : FieldValue.serverTimestamp(),
@@ -95,7 +98,7 @@ class Coleta {
   }
 
   factory Coleta.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>? ?? {};
+    final data = doc.data() as Map? ?? {};
     final String collectionName = doc.reference.parent.path;
 
     final bool ehInsumo =
@@ -106,10 +109,8 @@ class Coleta {
         data['possuiInsumo'] == true ||
         data['tipo']?.toString().toLowerCase() == 'insumo';
 
-    final Map<String, dynamic> clinicaData =
-        data['clinicaOrigem'] as Map<String, dynamic>? ?? {};
-    final Map<String, dynamic> labData =
-        data['laboratorioDestino'] as Map<String, dynamic>? ?? {};
+    final Map clinicaData = data['clinicaOrigem'] as Map? ?? {};
+    final Map labData = data['laboratorioDestino'] as Map? ?? {};
 
     String clinicaNome = clinicaData['nome'] ?? data['clinicaNome'] ?? '';
     String clinicaId = clinicaData['id'] ?? data['clinicaId'] ?? '';
@@ -134,10 +135,10 @@ class Coleta {
           : (data['dataCriacao'] is Timestamp
                 ? (data['dataCriacao'] as Timestamp).toDate()
                 : null),
-      itens: (data['itens'] as List<dynamic>?) ?? [],
+      itens: (data['itens'] as List?) ?? [],
       historico:
-          (data['historico'] as List<dynamic>?) ??
-          (data['historicoLogs'] as List<dynamic>?) ??
+          (data['historico'] as List?) ??
+          (data['historicoLogs'] as List?) ??
           [],
 
       clinicaOrigem: Clinica(
@@ -146,7 +147,6 @@ class Coleta {
         email: clinicaData['email'] ?? '',
         telefone: clinicaData['telefone'] ?? '',
         cnpj: clinicaData['cnpj'] ?? '',
-        // 💡 BLINDAGEM: Se não achar em clinicaData['endereco'], procura na raiz do documento
         endereco: Endereco.fromMap(
           clinicaData['endereco'] ?? data['enderecoOrigem'] ?? data['endereco'],
         ),
@@ -158,20 +158,20 @@ class Coleta {
         email: labData['email'] ?? '',
         telefone: labData['telefone'] ?? '',
         cnpj: labData['cnpj'] ?? '',
-        // 💡 BLINDAGEM: O mesmo para o destino
         endereco: Endereco.fromMap(
           labData['endereco'] ?? data['enderecoDestino'] ?? data['endereco'],
         ),
       ),
 
-      entregador:
-          data['entregador'] != null &&
-              data['entregador'] is Map<String, dynamic>
+      entregador: data['entregador'] != null && data['entregador'] is Map
           ? Entregador.fromMap(data['entregador'] as Map<String, dynamic>)
           : null,
 
       latitudeOrigem: (data['latitudeOrigem'] as num?)?.toDouble(),
       longitudeOrigem: (data['longitudeOrigem'] as num?)?.toDouble(),
+      latitudeDestino: (data['latitudeDestino'] as num?)?.toDouble(), // 💡 NOVO
+      longitudeDestino: (data['longitudeDestino'] as num?)
+          ?.toDouble(), // 💡 NOVO
     );
   }
 }

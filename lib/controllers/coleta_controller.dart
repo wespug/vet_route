@@ -163,6 +163,16 @@ class ColetaController extends ChangeNotifier {
         );
   }
 
+  Future atualizarStatusColeta(String coletaId, String novoStatus) async {
+    try {
+      // Usa a função que já existe no seu repositório
+      await _repository.atualizarStatusColeta(coletaId, novoStatus);
+    } catch (e) {
+      debugPrint('Erro ao atualizar status: $e');
+      rethrow;
+    }
+  }
+
   /// Ação do Motoboy ao recusar uma coleta designada a ele
   Future<void> recusarColeta(String coletaId) async {
     try {

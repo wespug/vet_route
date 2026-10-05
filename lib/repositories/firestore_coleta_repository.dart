@@ -47,6 +47,38 @@ class FirestoreColetaRepository implements ColetaRepository {
   }
 
   @override
+  Future<void> atualizarCampo(String id, Map<String, dynamic> dados) async {
+    try {
+      // 1. Tenta atualizar na coleção principal de coletas
+      final docColeta = await _firestore.collection('coletas').doc(id).get();
+      if (docColeta.exists) {
+        await _firestore.collection('coletas').doc(id).update(dados);
+      }
+
+      // 2. Tenta atualizar na coleção de insumos
+      final docInsumo = await _firestore
+          .collection('pedidos_insumos')
+          .doc(id)
+          .get();
+      if (docInsumo.exists) {
+        await _firestore.collection('pedidos_insumos').doc(id).update(dados);
+      }
+
+      // 3. Tenta atualizar na coleção de chamados
+      final docChamado = await _firestore
+          .collection('chamados_coleta')
+          .doc(id)
+          .get();
+      if (docChamado.exists) {
+        await _firestore.collection('chamados_coleta').doc(id).update(dados);
+      }
+    } catch (e) {
+      debugPrint("❌ Erro ao atualizar campo do documento (\(id):\)e");
+      rethrow;
+    }
+  }
+
+  @override
   Future<List<Entregador>> obterEntregadoresAtivos() async {
     final snapshot = await _firestore
         .collection('entregadores')
@@ -187,30 +219,8 @@ class FirestoreColetaRepository implements ColetaRepository {
   }
 
   @override
-  Future<void> solicitarColeta(Coleta novaColeta) async {
-    await _firestore.collection('coletas').add(novaColeta.toMap());
-  }
-
-  @override
-  Future<void> atualizarCampo(String id, Map<String, dynamic> dados) async {
-    try {
-      final docColeta = await _firestore.collection('coletas').doc(id).get();
-      if (docColeta.exists) {
-        await docColeta.reference.update(dados);
-        return;
-      }
-
-      final docInsumo = await _firestore
-          .collection('pedidos_insumos')
-          .doc(id)
-          .get();
-      if (docInsumo.exists) {
-        await docInsumo.reference.update(dados);
-      }
-    } catch (e) {
-      debugPrint('Erro ao atualizar campo no repositório: $e');
-      rethrow;
-    }
+  Future solicitarColeta(Coleta novaColeta) async {
+    await _firestore.collection('coletas').add(Map.from(novaColeta.toMap()));
   }
 
   @override

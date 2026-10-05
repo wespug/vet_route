@@ -31,6 +31,11 @@ class _ColetaCardState extends State<ColetaCard> {
   bool _isNavegando = false;
   bool _carregandoMapa = false;
   bool _mostrarMapa = false;
+  LatLngBounds? _limitesRota;
+  double _minLat = 90.0;
+  double _maxLat = -90.0;
+  double _minLng = 180.0;
+  double _maxLng = -180.0;
 
   Position? _posicaoAtual;
   Completer<GoogleMapController> _mapController = Completer();
@@ -39,20 +44,20 @@ class _ColetaCardState extends State<ColetaCard> {
   String _tempoViagem = "";
   String _distanciaRota = "";
 
-  Future<void> _iniciarNavegacao() async {
+  // ====================================================================
+  // FUNÇÃO 1: INICIA A ROTA DUPLA
+  // ====================================================================
+  Future _iniciarNavegacao() async {
     setState(() => _carregandoMapa = true);
 
-    bool serviceEnabled;
-    LocationPermission permission;
-
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
       _mostrarErro("Os serviços de localização estão desativados.");
       setState(() => _carregandoMapa = false);
       return;
     }
 
-    permission = await Geolocator.checkPermission();
+    LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
@@ -62,84 +67,141 @@ class _ColetaCardState extends State<ColetaCard> {
       }
     }
 
-    if (permission == LocationPermission.deniedForever) {
-      _mostrarErro("Permissões permanentemente negadas.");
-      setState(() => _carregandoMapa = false);
-      return;
-    }
-
-    // 1. Captura a posição atual do entregador (Ponto A)
+    // Pega a posição do motoboy
     _posicaoAtual = await Geolocator.getCurrentPosition();
+    setState(() => _isNavegando = true);
 
-    // 2. Verifica se o banco já tem as coordenadas salvas
-    double? latColeta = widget.item.latitudeOrigem;
-    double? lngColeta = widget.item.longitudeOrigem;
+    // Reseta o zoom e as linhas do mapa
+    _minLat = 90.0;
+    _maxLat = -90.0;
+    _minLng = 180.0;
+    _maxLng = -180.0;
+    _polylines.clear();
+    _markers.clear();
 
-    if (latColeta != null && lngColeta != null) {
-      // TEM NO BANCO: Usa direto e economiza a chamada de API!
-      setState(() => _isNavegando = true);
+    // 1. Pega as coordenadas da Clínica
+    PointLatLng? coordClinica = await _obterCoordenadas(
+      widget.item.enderecoOrigemVisual,
+      widget.item.latitudeOrigem,
+      widget.item.longitudeOrigem,
+      isOrigem: true,
+    );
 
+    // 2. Pega as coordenadas do Laboratório
+    PointLatLng? coordLab = await _obterCoordenadas(
+      widget.item.enderecoDestinoVisual,
+      widget.item.latitudeDestino, // Se o model não tiver isso, passe 'null'
+      widget.item.longitudeDestino, // Se o model não tiver isso, passe 'null'
+      isOrigem: false,
+    );
+
+    if (coordClinica != null) {
+      // ROTA 1: MOTOBOY -> CLÍNICA (AZUL CLARO)
       await _tracarRota(
-        PointLatLng(_posicaoAtual!.latitude, _posicaoAtual!.longitude),
-        PointLatLng(latColeta, lngColeta),
+        origem: PointLatLng(_posicaoAtual!.latitude, _posicaoAtual!.longitude),
+        destino: coordClinica,
+        rotaId: "rota_motoboy_clinica",
+        corRota: Colors.blueAccent,
+        idMarkerDestino: "marker_clinica",
+        hueMarker: BitmapDescriptor.hueBlue,
+        isPrimeiraRota: true, // Salva o tempo e distância na tela
       );
-    } else {
-      // NÃO TEM NO BANCO: Faz Geocoding, salva e usa.
-      final String enderecoTexto = widget.item.enderecoOrigemVisual;
 
-      // 1. Adicione este log para ver o endereço puro:
-      print("=== DEBUG GEOCODING ===");
-      print("Endereço puro: $enderecoTexto");
+      if (coordLab != null) {
+        // ROTA 2: CLÍNICA -> LABORATÓRIO (ROXA)
+        await _tracarRota(
+          origem: coordClinica,
+          destino: coordLab,
+          rotaId: "rota_clinica_lab",
+          corRota: Colors.deepPurpleAccent,
+          idMarkerDestino: "marker_lab",
+          hueMarker:
+              BitmapDescriptor.hueRed, // Pino vermelho no laboratório final
+          isPrimeiraRota: false,
+        );
+      }
 
-      final String urlGeocode =
-          "https://maps.googleapis.com/maps/api/geocode/json?address=${Uri.encodeComponent(enderecoTexto)}&key=${AppConfig.googleMapsApiKey}";
+      // 3. Aplica o Zoom Total englobando Motoboy, Clínica e Lab
+      _limitesRota = LatLngBounds(
+        southwest: LatLng(_minLat, _minLng),
+        northeast: LatLng(_maxLat, _maxLng),
+      );
 
-      try {
-        final responseGeo = await http.get(Uri.parse(urlGeocode));
-        if (responseGeo.statusCode == 200) {
-          final dataGeo = json.decode(responseGeo.body);
-
-          print("Resposta da Google: ${responseGeo.body}");
-
-          if (dataGeo['status'] == 'OK' && dataGeo['results'].isNotEmpty) {
-            final location = dataGeo['results'][0]['geometry']['location'];
-            latColeta = (location['lat'] as num).toDouble();
-            lngColeta = (location['lng'] as num).toDouble();
-
-            // Chama o Controller para salvar no Firestore de vez!
-            final controller = Provider.of<ColetaController>(
-              context,
-              listen: false,
-            );
-            await controller.atualizarCoordenadasOrigem(
-              widget.item.id,
-              latColeta!,
-              lngColeta!,
-            );
-
-            setState(() => _isNavegando = true);
-
-            await _tracarRota(
-              PointLatLng(_posicaoAtual!.latitude, _posicaoAtual!.longitude),
-              PointLatLng(latColeta!, lngColeta!),
-            );
-          } else {
-            _mostrarErro("Não foi possível encontrar o endereço no mapa.");
-          }
-        }
-      } catch (e) {
-        _mostrarErro("Erro ao buscar endereço: $e");
+      if (_mapController.isCompleted) {
+        final controller = await _mapController.future;
+        controller.animateCamera(
+          CameraUpdate.newLatLngBounds(_limitesRota!, 30.0),
+        );
       }
     }
 
-    // Desliga o loading
     setState(() => _carregandoMapa = false);
   }
 
-  Future<void> _tracarRota(PointLatLng origem, PointLatLng destino) async {
-    print("=== DEBUG ROTA ===");
+  // ====================================================================
+  // FUNÇÃO 2: HELPER DE GEOCODING (Converte Endereço em Coordenada)
+  // ====================================================================
+  Future _obterCoordenadas(
+    String endereco,
+    double? latSalva,
+    double? lngSalva, {
+    required bool isOrigem,
+  }) async {
+    // Se já estiver salvo no banco, devolve direto!
+    if (latSalva != null && lngSalva != null) {
+      return PointLatLng(latSalva, lngSalva);
+    }
 
-    // Concatenação blindada sem o uso do cifrão ($)
+    // Se não, pede à Google (com concatenação segura sem $)
+    final String urlGeocode =
+        "https://maps.googleapis.com/maps/api/geocode/json?address=" +
+        Uri.encodeComponent(endereco) +
+        "&key=" +
+        AppConfig.googleMapsApiKey;
+
+    try {
+      final response = await http.get(Uri.parse(urlGeocode));
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['status'] == 'OK' && data['results'].isNotEmpty) {
+          final loc = data['results'][0]['geometry']['location'];
+          double lat = (loc['lat'] as num).toDouble();
+          double lng = (loc['lng'] as num).toDouble();
+
+          // Se for a origem, salva no banco para usar de cache na próxima vez
+          if (isOrigem) {
+            try {
+              final controller = Provider.of(context, listen: false);
+              await controller.atualizarCoordenadasOrigem(
+                widget.item.id,
+                lat,
+                lng,
+              );
+            } catch (e) {
+              print("Erro ao salvar origem no cache: $e");
+            }
+          }
+          return PointLatLng(lat, lng);
+        }
+      }
+    } catch (e) {
+      print("Erro no Geocoding: $e");
+    }
+    return null;
+  }
+
+  // ====================================================================
+  // FUNÇÃO 3: O DESENHISTA DE LINHAS DINÂMICAS
+  // ====================================================================
+  Future _tracarRota({
+    required PointLatLng origem,
+    required PointLatLng destino,
+    required String rotaId,
+    required Color corRota,
+    required String idMarkerDestino,
+    required double hueMarker,
+    required bool isPrimeiraRota,
+  }) async {
     final url =
         "https://maps.googleapis.com/maps/api/directions/json?origin=" +
         origem.latitude.toString() +
@@ -152,104 +214,60 @@ class _ColetaCardState extends State<ColetaCard> {
         "&mode=driving&key=" +
         AppConfig.googleMapsApiKey;
 
-    print(
-      "URL Directions montada.",
-    ); // Não imprimo a URL toda para não poluir, mas sabemos que está concatenada.
-
     try {
       final response = await http.get(Uri.parse(url));
-
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        print("Status da Resposta Google Directions: " + data['status']);
-
-        if (data['status'] != 'OK') {
-          print(
-            "Mensagem de erro da Google: " +
-                (data['error_message'] ?? "Sem detalhes"),
-          );
-          return;
-        }
-
-        if (data['routes'] != null && data['routes'].isNotEmpty) {
+        if (data['status'] == 'OK' && data['routes'].isNotEmpty) {
           final route = data['routes'][0];
           final leg = route['legs'][0];
 
-          setState(() {
-            _distanciaRota = leg['distance']['text'];
-            _tempoViagem = leg['duration']['text'];
-          });
+          // Guarda o tempo e distância apenas do trajeto imediato (Motoboy -> Clínica)
+          if (isPrimeiraRota) {
+            setState(() {
+              _distanciaRota = leg['distance']['text'];
+              _tempoViagem = leg['duration']['text'];
+            });
+          }
 
           final pointsString = route['overview_polyline']['points'];
           PolylinePoints polylinePoints = PolylinePoints();
-          List<PointLatLng> resultPoints = polylinePoints.decodePolyline(
-            pointsString,
-          );
+          List resultPoints = polylinePoints.decodePolyline(pointsString);
+          List polylineCoordinates = [];
 
-          List<LatLng> polylineCoordinates = [];
-
-          double minLat = origem.latitude;
-          double minLng = origem.longitude;
-          double maxLat = origem.latitude;
-          double maxLng = origem.longitude;
-
+          // Adiciona os pontos da linha e atualiza o Zoom Global
           for (var point in resultPoints) {
             polylineCoordinates.add(LatLng(point.latitude, point.longitude));
-            if (point.latitude < minLat) minLat = point.latitude;
-            if (point.latitude > maxLat) maxLat = point.latitude;
-            if (point.longitude < minLng) minLng = point.longitude;
-            if (point.longitude > maxLng) maxLng = point.longitude;
+            if (point.latitude < _minLat) _minLat = point.latitude;
+            if (point.latitude > _maxLat) _maxLat = point.latitude;
+            if (point.longitude < _minLng) _minLng = point.longitude;
+            if (point.longitude > _maxLng) _maxLng = point.longitude;
           }
 
           setState(() {
             _polylines.add(
               Polyline(
-                polylineId: const PolylineId("rota_coleta"),
-                color: Colors.blueAccent,
+                polylineId: PolylineId(rotaId),
+                color: corRota,
                 width: 5,
-                points: polylineCoordinates,
+                points: List.from(polylineCoordinates),
               ),
             );
 
+            // Coloca o pino apenas no destino de cada perna
+            // (O motoboy já tem a bolinha azul nativa)
             _markers.add(
               Marker(
-                markerId: const MarkerId("origem"),
-                position: LatLng(origem.latitude, origem.longitude),
-                icon: BitmapDescriptor.defaultMarkerWithHue(
-                  BitmapDescriptor.hueBlue,
-                ),
-              ),
-            );
-
-            _markers.add(
-              Marker(
-                markerId: const MarkerId("destino"),
+                markerId: MarkerId(idMarkerDestino),
                 position: LatLng(destino.latitude, destino.longitude),
-                icon: BitmapDescriptor.defaultMarkerWithHue(
-                  BitmapDescriptor.hueRed,
-                ),
+                icon: BitmapDescriptor.defaultMarkerWithHue(hueMarker),
               ),
             );
           });
-
-          // Move a câmara
-          if (_mapController.isCompleted) {
-            final controller = await _mapController.future;
-            controller.animateCamera(
-              CameraUpdate.newLatLngBounds(
-                LatLngBounds(
-                  southwest: LatLng(minLat, minLng),
-                  northeast: LatLng(maxLat, maxLng),
-                ),
-                50.0,
-              ),
-            );
-          }
-          print("=== ROTA DESENHADA COM SUCESSO ===");
         }
       }
     } catch (e) {
-      print("Erro ao tentar buscar a rota: $e");
+      print("Erro ao tentar buscar a rota \(rotaId:\)e");
     }
   }
 
@@ -426,6 +444,12 @@ class _ColetaCardState extends State<ColetaCard> {
       corBadge = Colors.orange.shade800;
       corFundoBadge = Colors.orange.shade50;
       statusTexto = 'Em Rota';
+    } else if (statusNorm.contains('rota') ||
+        statusNorm.contains('caminho') ||
+        statusNorm.contains('coletar')) {
+      corBadge = Colors.orange.shade800;
+      corFundoBadge = Colors.orange.shade50;
+      statusTexto = 'Coletar Produto';
     }
 
     return Opacity(
@@ -700,7 +724,9 @@ class _ColetaCardState extends State<ColetaCard> {
             child: Stack(
               children: [
                 GoogleMap(
-                  // Travas estáticas
+                  // Força o iOS a recriar o mapa limpo
+                  key: UniqueKey(),
+
                   scrollGesturesEnabled: false,
                   zoomGesturesEnabled: false,
                   tiltGesturesEnabled: false,
@@ -713,21 +739,31 @@ class _ColetaCardState extends State<ColetaCard> {
                             _posicaoAtual!.latitude,
                             _posicaoAtual!.longitude,
                           )
-                        : const LatLng(
-                            -23.56168,
-                            -46.65598,
-                          ), // Proteção contra crash
+                        : const LatLng(-23.56168, -46.65598),
                     zoom: 14.5,
                   ),
-                  polylines: _polylines,
-                  markers: _markers,
+                  polylines: Set.from(_polylines),
+                  markers: Set.from(_markers),
                   myLocationEnabled: true,
+
                   onMapCreated: (GoogleMapController controller) {
-                    if (!_mapController.isCompleted) {
-                      _mapController.complete(controller);
+                    // 1. MÁGICA 1: Destrói o controlador velho e usa o novo!
+                    if (_mapController.isCompleted) {
+                      _mapController = Completer();
+                    }
+                    _mapController.complete(controller);
+
+                    // 2. MÁGICA 2: Puxa o zoom de volta para a rota inteira!
+                    if (_limitesRota != null) {
+                      Future.delayed(const Duration(milliseconds: 400), () {
+                        controller.animateCamera(
+                          CameraUpdate.newLatLngBounds(_limitesRota!, 20.0),
+                        );
+                      });
                     }
                   },
                 ),
+
                 if (_tempoViagem.isNotEmpty)
                   Positioned(
                     top: 10,
@@ -744,7 +780,6 @@ class _ColetaCardState extends State<ColetaCard> {
                           BoxShadow(color: Colors.black12, blurRadius: 4),
                         ],
                       ),
-
                       child: Text(
                         _tempoViagem + " • " + _distanciaRota,
                         style: TextStyle(
@@ -898,6 +933,7 @@ class _ColetaCardState extends State<ColetaCard> {
   }
 
   // O botão altera a sua função dependendo de já estarmos em rota ou não
+
   Widget _buildBotaoAcaoPrincipal(Color corTema) {
     if (_isNavegando) {
       return ElevatedButton.icon(
@@ -923,9 +959,24 @@ class _ColetaCardState extends State<ColetaCard> {
     return ElevatedButton(
       onPressed: _carregandoMapa
           ? null
-          : () {
+          : () async {
+              // 1. Muda a interface para mostrar o mapa
               setState(() => _mostrarMapa = true);
-              _iniciarNavegacao();
+
+              // 2. Traça a rota na Google (se ainda não existir)
+              if (!_isNavegando) {
+                await _iniciarNavegacao();
+              }
+
+              // 3. Atualiza o status oficial no banco de dados para a clínica/laboratório ver!
+              final controller = Provider.of<ColetaController>(
+                context,
+                listen: false,
+              );
+              await controller.atualizarStatusColeta(
+                widget.item.id,
+                'coletar_produto',
+              );
             },
       style: ElevatedButton.styleFrom(
         backgroundColor: corTema,
@@ -977,7 +1028,10 @@ class _ColetaCardState extends State<ColetaCard> {
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(context);
-              final controller = Provider.of(context, listen: false);
+              final controller = Provider.of<ColetaController>(
+                context,
+                listen: false,
+              );
               await controller.recusarColeta(item.id);
             },
             style: ElevatedButton.styleFrom(
