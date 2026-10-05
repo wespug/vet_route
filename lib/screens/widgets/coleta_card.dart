@@ -766,8 +766,8 @@ class _ColetaCardState extends State<ColetaCard> {
 
                 if (_tempoViagem.isNotEmpty)
                   Positioned(
-                    top: 10,
-                    right: 10,
+                    bottom: 12, // Move para a base do mapa
+                    left: 12, // Move para a esquerda
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                         vertical: 6,

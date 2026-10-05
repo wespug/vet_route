@@ -81,7 +81,9 @@ class ModalDetalhesColetaMotoboy extends StatelessWidget {
                   const Divider(height: 24),
                   _buildLinhaDetalhe(
                     "Status",
-                    item.status.toUpperCase(),
+                    item.status
+                        .replaceAll('_', ' ')
+                        .toUpperCase(), // Remove o underscore e põe em maiúsculas
                     Icons.info_outline,
                   ),
                   const Divider(height: 24),
@@ -218,21 +220,42 @@ class ModalDetalhesColetaMotoboy extends StatelessWidget {
 
   Widget _buildLinhaDetalhe(String label, String valor, IconData icone) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Icon(icone, size: 18, color: Colors.grey.shade500),
-        const SizedBox(width: 12),
-        Text(
-          label,
-          style: TextStyle(
-            color: Colors.grey.shade600,
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(8),
           ),
+          child: Icon(icone, size: 20, color: Colors.grey.shade600),
         ),
-        const Spacer(),
-        Text(
-          valor,
-          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  color: Colors.grey.shade500,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                valor,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 14,
+                  color: Colors.black87,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
         ),
       ],
     );
