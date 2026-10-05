@@ -5,6 +5,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:vet_route/controllers/core/app_config.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:vet_route/models/coleta_model.dart';
 import 'package:vet_route/controllers/coleta_controller.dart';
@@ -261,10 +262,94 @@ class _ColetaCardState extends State<ColetaCard> {
   // ====================================================================
   // 1. FUNÇÃO DO MODO NAVEGAÇÃO (Prepara o terreno para o Waze/Maps)
   // ====================================================================
-  void _abrirModoNavegacao() {
-    // No próximo passo, vamos colocar aqui o código do 'url_launcher'
-    // para abrir o Waze ou o Google Maps nativo com as coordenadas!
-    print("Modo navegação acionado para o Waze/Maps!");
+  Future _abrirModoNavegacao() async {
+    // Pega as coordenadas da Clínica (Origem da coleta)
+    final double? lat = widget.item.latitudeOrigem;
+    final double? lng = widget.item.longitudeOrigem;
+
+    if (lat == null || lng == null) {
+      _mostrarErro(
+        "Coordenadas não calculadas. Clique em 'Iniciar Rota' primeiro.",
+      );
+      return;
+    }
+
+    // Links Universais (Funcionam no iPhone e no Android, abrindo o app nativo se instalado)
+    final Uri urlGoogleMaps = Uri.parse(
+      "https://www.google.com/maps/dir/?api=1&destination=" +
+          lat.toString() +
+          "," +
+          lng.toString() +
+          "&travelmode=driving",
+    );
+    final Uri urlWaze = Uri.parse(
+      "https://waze.com/ul?ll=" +
+          lat.toString() +
+          "," +
+          lng.toString() +
+          "&navigate=yes",
+    );
+
+    // Mostra as opções para o motoboy escolher
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: Text(
+                  "Como deseja navegar?",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                ),
+              ),
+              ListTile(
+                leading: Image.network(
+                  "https://cdn-icons-png.flaticon.com/512/2875/2875331.png",
+                  width: 32,
+                ), // Ícone do G Maps
+                title: const Text(
+                  "Google Maps",
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await launchUrl(
+                    urlGoogleMaps,
+                    mode: LaunchMode.externalApplication,
+                  );
+                },
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: Image.network(
+                  "https://cdn-icons-png.flaticon.com/512/732/732288.png",
+                  width: 32,
+                ), // Ícone do Waze
+                title: const Text(
+                  "Waze",
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await launchUrl(
+                    urlWaze,
+                    mode: LaunchMode.externalApplication,
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   // ====================================================================
