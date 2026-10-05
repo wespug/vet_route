@@ -29,6 +29,7 @@ class ColetaCard extends StatefulWidget {
 class _ColetaCardState extends State<ColetaCard> {
   bool _isNavegando = false;
   bool _carregandoMapa = false;
+  bool _mostrarMapa = false;
 
   Position? _posicaoAtual;
   Completer<GoogleMapController> _mapController = Completer();
@@ -257,9 +258,20 @@ class _ColetaCardState extends State<ColetaCard> {
     ).showSnackBar(SnackBar(content: Text(mensagem)));
   }
 
+  // ====================================================================
+  // 1. FUNÇÃO DO MODO NAVEGAÇÃO (Prepara o terreno para o Waze/Maps)
+  // ====================================================================
+  void _abrirModoNavegacao() {
+    // No próximo passo, vamos colocar aqui o código do 'url_launcher'
+    // para abrir o Waze ou o Google Maps nativo com as coordenadas!
+    print("Modo navegação acionado para o Waze/Maps!");
+  }
+
+  // ====================================================================
+  // 2. O NOVO BUILD (Mais limpo, delegando a construção das partes)
+  // ====================================================================
   @override
   Widget build(BuildContext context) {
-    // A lógica de cores e dados originais foi mantida
     String horaFormatada = '--:--';
     bool isFuturo = false;
 
@@ -284,27 +296,16 @@ class _ColetaCardState extends State<ColetaCard> {
     final bool isInsumo = widget.item.isInsumo;
     final bool isUrgencia = widget.item.isEmergencia;
 
-    Color corTema;
-    Color corFundoTema;
-    if (isInsumo) {
-      corTema = Colors.teal;
-      corFundoTema = Colors.teal.shade50;
-    } else if (isUrgencia) {
-      corTema = Colors.redAccent.shade700;
-      corFundoTema = Colors.red.shade50;
-    } else {
-      corTema = Colors.indigo;
-      corFundoTema = Colors.indigo.shade50;
-    }
+    Color corTema = isInsumo
+        ? Colors.teal
+        : (isUrgencia ? Colors.redAccent.shade700 : Colors.indigo);
+    Color corFundoTema = isInsumo
+        ? Colors.teal.shade50
+        : (isUrgencia ? Colors.red.shade50 : Colors.indigo.shade50);
 
     final String statusNorm = widget.item.status.toLowerCase();
     final bool isRecusado =
         statusNorm.contains('recusad') || statusNorm.contains('cancel');
-
-    final String localOrigem = widget.item.origemVisual;
-    final String enderecoOrigem = widget.item.enderecoOrigemVisual;
-    final String localDestino = widget.item.destinoVisual;
-    final String enderecoDestino = widget.item.enderecoDestinoVisual;
 
     final String codigoOriginal = widget.item.codigo.isNotEmpty
         ? widget.item.codigo
@@ -364,179 +365,34 @@ class _ColetaCardState extends State<ColetaCard> {
                   ),
                 ],
         ),
-        child: _isNavegando
-            ? _buildMapaNavegacao(corTema)
-            : _buildDetalhesOriginais(
-                corTema,
-                corFundoTema,
-                corBadge,
-                corFundoBadge,
-                statusTexto,
-                horaFormatada,
-                localOrigem,
-                enderecoOrigem,
-                localDestino,
-                enderecoDestino,
-                rodapeTexto,
-                isInsumo,
-                isUrgencia,
-                isRecusado,
-                isFuturo,
-              ),
+        // Aqui removemos aquele if completo do _isNavegando e usamos o layout unificado
+        child: _buildLayoutUnificado(
+          corTema,
+          corFundoTema,
+          corBadge,
+          corFundoBadge,
+          statusTexto,
+          horaFormatada,
+          rodapeTexto,
+          isInsumo,
+          isUrgencia,
+          isRecusado,
+          isFuturo,
+        ),
       ),
     );
   }
 
-  // Interface do Mapa (Ativada ao clicar em Iniciar Rota)
-  Widget _buildMapaNavegacao(Color corTema) {
-    return Column(
-      children: [
-        SizedBox(
-          height:
-              300, // Aumentei um pouco a altura para ficar melhor de navegar
-          child: ClipRRect(
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(14),
-              topRight: Radius.circular(14),
-            ),
-            child: Stack(
-              children: [
-                GoogleMap(
-                  initialCameraPosition: CameraPosition(
-                    target: LatLng(
-                      _posicaoAtual!.latitude,
-                      _posicaoAtual!.longitude,
-                    ),
-                    zoom: 14.5,
-                  ),
-                  polylines: _polylines,
-                  markers: _markers,
-                  myLocationEnabled: true,
-                  myLocationButtonEnabled: true,
-                  zoomGesturesEnabled: true, // Garante que pode dar zoom
-                  scrollGesturesEnabled:
-                      true, // Garante que pode arrastar o mapa
-                  onMapCreated: (GoogleMapController controller) {
-                    if (!_mapController.isCompleted) {
-                      _mapController.complete(controller);
-                    }
-                  },
-                ),
-
-                // Cartão flutuante de Tempo e Distância
-                if (_tempoViagem.isNotEmpty)
-                  Positioned(
-                    top: 16,
-                    left: 16,
-                    right: 16,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 12,
-                        horizontal: 16,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.95),
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: const [
-                          BoxShadow(color: Colors.black12, blurRadius: 8),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(Icons.timer_outlined, color: corTema),
-                              const SizedBox(width: 8),
-                              Text(
-                                _tempoViagem,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                              ),
-                            ],
-                          ),
-                          Container(
-                            width: 1,
-                            height: 20,
-                            color: Colors.grey.shade300,
-                          ),
-                          Row(
-                            children: [
-                              Icon(Icons.route_outlined, color: corTema),
-                              const SizedBox(width: 8),
-                              Text(
-                                _distanciaRota,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
-        Container(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    // Lógica para finalizar coleta
-                  },
-                  icon: const Icon(Icons.check_circle_outline),
-                  label: const Text("Finalizar Parada"),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: corTema,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              OutlinedButton(
-                onPressed: () {
-                  setState(() {
-                    _isNavegando = false;
-                    _mapController =
-                        Completer(); // Prepara um novo mapa para a próxima vez
-                  });
-                },
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 14,
-                    horizontal: 16,
-                  ),
-                ),
-                child: const Icon(Icons.close, color: Colors.black87),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  // Interface Original do Card separada numa função
-  Widget _buildDetalhesOriginais(
+  // ====================================================================
+  // 3. LAYOUT UNIFICADO (Cabeçalho, Miolo Dinâmico e Rodapé)
+  // ====================================================================
+  Widget _buildLayoutUnificado(
     Color corTema,
     Color corFundoTema,
     Color corBadge,
     Color corFundoBadge,
     String statusTexto,
     String horaFormatada,
-    String localOrigem,
-    String enderecoOrigem,
-    String localDestino,
-    String enderecoDestino,
     String rodapeTexto,
     bool isInsumo,
     bool isUrgencia,
@@ -546,6 +402,7 @@ class _ColetaCardState extends State<ColetaCard> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // CABEÇALHO (Status e Hora)
         Padding(
           padding: const EdgeInsets.only(
             left: 16,
@@ -598,98 +455,15 @@ class _ColetaCardState extends State<ColetaCard> {
         ),
         const Divider(height: 1, color: Color(0xFFF2F2F7), thickness: 1.5),
 
+        // MIOLO DINÂMICO: AQUI ACONTECE A TROCA ENTRE TEXTO E MAPA!
         Padding(
           padding: const EdgeInsets.all(16),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Column(
-                children: [
-                  Icon(Icons.radio_button_checked, color: corTema, size: 18),
-                  Container(
-                    width: 2,
-                    height: 28,
-                    color: Colors.grey.shade200,
-                    margin: const EdgeInsets.symmetric(vertical: 4),
-                  ),
-                  const Icon(
-                    Icons.location_on,
-                    color: Colors.redAccent,
-                    size: 20,
-                  ),
-                ],
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "Coletar em:",
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    Text(
-                      localOrigem,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.black87,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      enderecoOrigem,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey.shade600,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      "Entregar em",
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    Text(
-                      localDestino,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.black87,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      enderecoDestino,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey.shade600,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+          child: _mostrarMapa
+              ? _buildVisorMapa(corTema)
+              : _buildVisorTextos(corTema),
         ),
 
+        // RODAPÉ (Insumo/Detalhes e Botões de Ação)
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
@@ -732,15 +506,13 @@ class _ColetaCardState extends State<ColetaCard> {
                     ),
                   ),
                   InkWell(
-                    onTap: () {
-                      showDialog(
-                        context: context,
-                        builder: (_) => ModalDetalhesColetaMotoboy(
-                          item: widget.item,
-                          isInsumo: isInsumo,
-                        ),
-                      );
-                    },
+                    onTap: () => showDialog(
+                      context: context,
+                      builder: (_) => ModalDetalhesColetaMotoboy(
+                        item: widget.item,
+                        isInsumo: isInsumo,
+                      ),
+                    ),
                     borderRadius: BorderRadius.circular(4),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
@@ -816,38 +588,9 @@ class _ColetaCardState extends State<ColetaCard> {
                                 ],
                               ),
                             )
-                          : ElevatedButton(
-                              onPressed: _carregandoMapa
-                                  ? null
-                                  : _iniciarNavegacao,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: corTema,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 14,
-                                ),
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                              ),
-                              child: _carregandoMapa
-                                  ? const SizedBox(
-                                      height: 16,
-                                      width: 16,
-                                      child: CircularProgressIndicator(
-                                        color: Colors.white,
-                                        strokeWidth: 2,
-                                      ),
-                                    )
-                                  : const Text(
-                                      "Iniciar Rota",
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w800,
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                            ),
+                          : _buildBotaoAcaoPrincipal(
+                              corTema,
+                            ), // Botão inteligente
                     ),
                   ],
                 ),
@@ -856,6 +599,269 @@ class _ColetaCardState extends State<ColetaCard> {
           ),
         ),
       ],
+    );
+  }
+
+  // ====================================================================
+  // 4. WIDGETS AUXILIARES E BOTÕES INTELIGENTES
+  // ====================================================================
+  Widget _buildVisorMapa(Color corTema) {
+    return Column(
+      children: [
+        SizedBox(
+          height: 220, // Altura perfeita para não quebrar a lista
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Stack(
+              children: [
+                GoogleMap(
+                  // Travas estáticas
+                  scrollGesturesEnabled: false,
+                  zoomGesturesEnabled: false,
+                  tiltGesturesEnabled: false,
+                  rotateGesturesEnabled: false,
+                  myLocationButtonEnabled: false,
+                  mapToolbarEnabled: false,
+                  initialCameraPosition: CameraPosition(
+                    target: _posicaoAtual != null
+                        ? LatLng(
+                            _posicaoAtual!.latitude,
+                            _posicaoAtual!.longitude,
+                          )
+                        : const LatLng(
+                            -23.56168,
+                            -46.65598,
+                          ), // Proteção contra crash
+                    zoom: 14.5,
+                  ),
+                  polylines: _polylines,
+                  markers: _markers,
+                  myLocationEnabled: true,
+                  onMapCreated: (GoogleMapController controller) {
+                    if (!_mapController.isCompleted) {
+                      _mapController.complete(controller);
+                    }
+                  },
+                ),
+                if (_tempoViagem.isNotEmpty)
+                  Positioned(
+                    top: 10,
+                    right: 10,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 6,
+                        horizontal: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.95),
+                        borderRadius: BorderRadius.circular(8),
+                        boxShadow: const [
+                          BoxShadow(color: Colors.black12, blurRadius: 4),
+                        ],
+                      ),
+
+                      child: Text(
+                        _tempoViagem + " • " + _distanciaRota,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: corTema,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ),
+                if (_carregandoMapa)
+                  const Center(child: CircularProgressIndicator()),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            TextButton.icon(
+              onPressed: () => setState(() => _mostrarMapa = false),
+              icon: const Icon(Icons.list, color: Colors.grey),
+              label: const Text(
+                "Ver Endereços",
+                style: TextStyle(color: Colors.grey),
+              ),
+            ),
+            ElevatedButton.icon(
+              onPressed: _abrirModoNavegacao,
+              icon: const Icon(Icons.navigation, size: 18),
+              label: const Text("Navegar"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: corTema,
+                foregroundColor: Colors.white,
+                elevation: 0,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildVisorTextos(Color corTema) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Column(
+              children: [
+                Icon(Icons.radio_button_checked, color: corTema, size: 18),
+                Container(
+                  width: 2,
+                  height: 28,
+                  color: Colors.grey.shade200,
+                  margin: const EdgeInsets.symmetric(vertical: 4),
+                ),
+                const Icon(
+                  Icons.location_on,
+                  color: Colors.redAccent,
+                  size: 20,
+                ),
+              ],
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "Coletar em:",
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    widget.item.origemVisual,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.black87,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    widget.item.enderecoOrigemVisual,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey.shade600,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    "Entregar em",
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    widget.item.destinoVisual,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.black87,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    widget.item.enderecoDestinoVisual,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey.shade600,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: () {
+              setState(() => _mostrarMapa = true);
+              if (!_isNavegando) _iniciarNavegacao();
+            },
+            icon: Icon(Icons.map, color: corTema),
+            label: const Text("Ver Rota no Mapa"),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // O botão altera a sua função dependendo de já estarmos em rota ou não
+  Widget _buildBotaoAcaoPrincipal(Color corTema) {
+    if (_isNavegando) {
+      return ElevatedButton.icon(
+        onPressed: () {
+          // A SUA LÓGICA DE FINALIZAR PARADA ENTRA AQUI!
+          print("Finalizando parada no banco...");
+        },
+        icon: const Icon(Icons.check_circle_outline, size: 18),
+        label: const Text(
+          "Finalizar Parada",
+          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.green.shade600,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          elevation: 0,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+      );
+    }
+
+    return ElevatedButton(
+      onPressed: _carregandoMapa
+          ? null
+          : () {
+              setState(() => _mostrarMapa = true);
+              _iniciarNavegacao();
+            },
+      style: ElevatedButton.styleFrom(
+        backgroundColor: corTema,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+      child: _carregandoMapa
+          ? const SizedBox(
+              height: 16,
+              width: 16,
+              child: CircularProgressIndicator(
+                color: Colors.white,
+                strokeWidth: 2,
+              ),
+            )
+          : const Text(
+              "Iniciar Rota",
+              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+            ),
     );
   }
 
@@ -886,10 +892,7 @@ class _ColetaCardState extends State<ColetaCard> {
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(context);
-              final controller = Provider.of<ColetaController>(
-                context,
-                listen: false,
-              );
+              final controller = Provider.of(context, listen: false);
               await controller.recusarColeta(item.id);
             },
             style: ElevatedButton.styleFrom(
