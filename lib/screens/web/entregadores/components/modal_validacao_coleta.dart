@@ -171,15 +171,12 @@ class _ModalValidacaoColetaState extends State<ModalValidacaoColeta> {
       // Você vai precisar de uma função no seu ColetaController para guardar estes dados,
       // algo parecido com isto (ajuste o nome da função consoante o que tiver lá):
 
-      /* 
-      await controller.confirmarPosseMotoboy(
-        pedidoId: widget.item.id,
-        status: 'em_transporte',
-        fotoFile: _fotoProduto, // O controller cuida de subir para o Storage
-        latitude: _localizacaoFoto?.latitude,
-        longitude: _localizacaoFoto?.longitude,
+      await controller.confirmarPosseComFoto(
+        coletaId: widget.item.id,
+        foto: _fotoProduto!, // Enviamos o arquivo físico
+        enderecoGeo:
+            _enderecoFormatado, // Enviamos o nome da rua que o Google traduziu
       );
-      */
 
       // Por agora, para não quebrar a compilação, usamos o método base que já existe:
       await controller.atualizarStatusColeta(widget.item.id, 'em_transporte');

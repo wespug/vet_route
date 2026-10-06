@@ -247,6 +247,7 @@ class _GestaoPedidosInsumosHubState extends State<GestaoPedidosInsumosHub> {
       return s.contains('aguardando') ||
           s.contains('rota') ||
           s.contains('coletar') ||
+          s.contains('transporte') ||
           s.contains('transito');
     }).toList();
 

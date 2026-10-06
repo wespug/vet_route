@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/coleta_model.dart';
 import '../repositories/coleta_repository.dart';
+import 'dart:io';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ColetaController extends ChangeNotifier {
   final ColetaRepository _repository;
@@ -229,6 +232,45 @@ class ColetaController extends ChangeNotifier {
     } finally {
       isLoading.value = false;
       notifyListeners();
+    }
+  }
+
+  Future confirmarPosseComFoto({
+    required String coletaId,
+    required File foto,
+    required String enderecoGeo,
+  }) async {
+    try {
+      // 1. Cria o caminho no Storage
+      final storageRef = FirebaseStorage.instance
+          .ref()
+          .child('coletas')
+          .child(coletaId)
+          .child(
+            'comprovante_' +
+                DateTime.now().millisecondsSinceEpoch.toString() +
+                '.jpg',
+          );
+
+      // 2. Sobe a foto original e pega o Link
+      final uploadTask = await storageRef.putFile(foto);
+      final urlFoto = await uploadTask.ref.getDownloadURL();
+
+      // 3. 💡 A MÁGICA: Prepara os dados do comprovativo
+      final Map<String, dynamic> dadosAtualizacao = {
+        'status': 'em_transporte',
+        'comprovanteColetaUrl': urlFoto,
+        'comprovanteEndereco': enderecoGeo,
+        'comprovanteData': FieldValue.serverTimestamp(),
+      };
+
+      // 4. Delega ao repositório! Ele vai procurar na coleção certa e atualizar.
+      await _repository.atualizarCampo(coletaId, dadosAtualizacao);
+
+      notifyListeners();
+    } catch (e) {
+      print("Erro ao subir foto: " + e.toString());
+      throw e;
     }
   }
 

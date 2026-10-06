@@ -481,6 +481,10 @@ class _ColetaCardState extends State<ColetaCard> {
       corBadge = Colors.deepPurple;
       corFundoBadge = Colors.deepPurple.shade50;
       statusTexto = 'Agendado';
+    } else if (statusNorm == 'em_transporte') {
+      corBadge = Colors.green.shade800;
+      corFundoBadge = Colors.green.shade50;
+      statusTexto = 'Em Transporte';
     } else if (statusNorm.contains('rota') || statusNorm.contains('caminho')) {
       corBadge = Colors.orange.shade800;
       corFundoBadge = Colors.orange.shade50;
@@ -705,65 +709,101 @@ class _ColetaCardState extends State<ColetaCard> {
               ),
               if (!widget.isFinalizados) ...[
                 const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      flex: 1,
-                      child: OutlinedButton(
-                        onPressed: () => _confirmarRecusa(context, widget.item),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.redAccent,
-                          backgroundColor: Colors.white,
-                          side: BorderSide(color: Colors.redAccent.shade200),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
+
+                widget.item.status == 'em_transporte'
+                    ? SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          icon: const Icon(
+                            Icons.check_circle_outline,
+                            color: Colors.white,
                           ),
-                        ),
-                        child: const Text(
-                          "Recusar",
-                          style: TextStyle(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 13,
+                          label: const Text(
+                            "ENTREGAR PRODUTO",
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
                           ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green.shade600,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          onPressed: () {
+                            print("Abrir fluxo de entrega final");
+                          },
                         ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      flex: 2,
-                      child: isFuturo
-                          ? Container(
-                              padding: const EdgeInsets.symmetric(vertical: 13),
-                              decoration: BoxDecoration(
-                                color: Colors.grey.shade300,
-                                borderRadius: BorderRadius.circular(8),
+                      )
+                    : Row(
+                        children: [
+                          Expanded(
+                            flex: 1,
+                            child: OutlinedButton(
+                              onPressed: () =>
+                                  _confirmarRecusa(context, widget.item),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.redAccent,
+                                backgroundColor: Colors.white,
+                                side: BorderSide(
+                                  color: Colors.redAccent.shade200,
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
                               ),
-                              alignment: Alignment.center,
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.calendar_month_rounded,
-                                    size: 16,
-                                    color: Colors.grey.shade600,
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    "Aguardando Data",
-                                    style: TextStyle(
-                                      color: Colors.grey.shade700,
-                                      fontWeight: FontWeight.w800,
-                                      fontSize: 13,
+                              child: const Text(
+                                "Recusar",
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            flex: 2,
+                            child: isFuturo
+                                ? Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 13,
                                     ),
-                                  ),
-                                ],
-                              ),
-                            )
-                          : _buildBotaoAcaoPrincipal(corTema),
-                    ),
-                  ],
-                ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey.shade300,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.calendar_month_rounded,
+                                          size: 16,
+                                          color: Colors.grey.shade600,
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          "Aguardando Data",
+                                          style: TextStyle(
+                                            color: Colors.grey.shade700,
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  )
+                                : _buildBotaoAcaoPrincipal(corTema),
+                          ),
+                        ],
+                      ),
               ],
             ],
           ),
