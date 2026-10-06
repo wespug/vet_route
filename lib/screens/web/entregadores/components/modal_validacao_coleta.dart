@@ -442,23 +442,47 @@ class _ModalValidacaoColetaState extends State<ModalValidacaoColeta> {
           const SizedBox(height: 16),
           Row(
             children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _tirarFoto,
-                  icon: const Icon(Icons.refresh),
-                  label: const Text("Refazer"),
+              OutlinedButton.icon(
+                onPressed: _tirarFoto,
+                icon: const Icon(Icons.refresh, size: 18),
+                label: const Text(
+                  "Refazer",
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.indigo,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                flex: 2,
                 child: ElevatedButton.icon(
                   onPressed: _finalizarColeta,
-                  icon: const Icon(Icons.check),
-                  label: const Text("Confirmar Coleta"),
+                  icon: const Icon(Icons.check_circle_outline, size: 20),
+                  label: const FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      "Confirmar Coleta",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
+                    ),
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green.shade600,
                     foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                 ),
               ),

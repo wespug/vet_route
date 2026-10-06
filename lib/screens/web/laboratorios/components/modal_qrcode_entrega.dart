@@ -1,12 +1,15 @@
+import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
-import 'package:vet_route/models/pedido_insumo_model.dart'; // Ajuste o caminho se necessário
+import 'package:vet_route/models/pedido_insumo_model.dart';
+import 'dart:convert';
 
-class ModalQrCodeEntrega extends StatelessWidget {
+class ModalQrCodeEntrega extends StatefulWidget {
   final PedidoInsumoModel pedido;
   final String? nomeEntregador;
 
@@ -15,6 +18,58 @@ class ModalQrCodeEntrega extends StatelessWidget {
     required this.pedido,
     this.nomeEntregador,
   });
+
+  @override
+  State createState() => _ModalQrCodeEntregaState();
+}
+
+class _ModalQrCodeEntregaState extends State<ModalQrCodeEntrega> {
+  StreamSubscription<DocumentSnapshot>? _ouvinteDeStatus;
+
+  @override
+  void initState() {
+    super.initState();
+    _escutarPosseDoMotoboy();
+  }
+
+  // A MAGIA: Ouve o Firebase em tempo real
+  void _escutarPosseDoMotoboy() {
+    // Liga-se ao documento do pedido na coleção "pedidos_insumos"
+    _ouvinteDeStatus = FirebaseFirestore.instance
+        .collection('pedidos_insumos')
+        .doc(widget.pedido.id)
+        .snapshots()
+        .listen((DocumentSnapshot snapshot) {
+          if (snapshot.exists) {
+            final dados = snapshot.data() as Map;
+            final String statusAtual = dados['status'] ?? '';
+
+            // Se o motoboy leu o QR Code e tirou a foto com sucesso...
+            if (statusAtual.toLowerCase() == 'em_transporte') {
+              if (mounted) {
+                // Mostra o brinde de sucesso verde
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      "Leitura Validada! O pacote de ${widget.pedido.clinicaNome} já está na posse do motoboy.",
+                    ),
+                    backgroundColor: Colors.green.shade600,
+                    duration: const Duration(seconds: 4),
+                  ),
+                );
+                // Fecha a janela na cara do laboratório
+                Navigator.of(context).pop();
+              }
+            }
+          }
+        });
+  }
+
+  @override
+  void dispose() {
+    _ouvinteDeStatus?.cancel(); // Limpa o escutador ao fechar
+    super.dispose();
+  }
 
   // ===========================================================================
   // GERADOR DE PDF PROFISSIONAL (ORDEM DE COLETA)
@@ -26,7 +81,7 @@ class ModalQrCodeEntrega extends StatelessWidget {
     String codigoFormatado,
   ) async {
     final pdf = pw.Document();
-    final entregadorLabel = nomeEntregador ?? 'Não atribuído';
+    final entregadorLabel = widget.nomeEntregador ?? 'Não atribuído';
 
     pdf.addPage(
       pw.Page(
@@ -65,7 +120,7 @@ class ModalQrCodeEntrega extends StatelessWidget {
                           ),
                         ),
                         pw.Text(
-                          pedido.clinicaNome,
+                          widget.pedido.clinicaNome,
                           style: pw.TextStyle(
                             fontSize: 18,
                             fontWeight: pw.FontWeight.bold,
@@ -123,7 +178,7 @@ class ModalQrCodeEntrega extends StatelessWidget {
                   ),
                 ),
                 pw.SizedBox(height: 10),
-                ...pedido.itens.map((item) {
+                ...widget.pedido.itens.map((item) {
                   final qtd =
                       item['quantidade'] ??
                       item['quantidadeSolicitada'] ??
@@ -196,21 +251,21 @@ class ModalQrCodeEntrega extends StatelessWidget {
     final dataFormatada = DateFormat('dd/MM/yyyy').format(agora);
     final horaFormatada = DateFormat('HH:mm').format(agora);
 
-    final String codigoFormatado = pedido.codigo.length >= 6
-        ? pedido.codigo.substring(0, 6).toUpperCase()
-        : pedido.codigo.toUpperCase();
+    final String codigoFormatado = widget.pedido.codigo.length >= 6
+        ? widget.pedido.codigo.substring(0, 6).toUpperCase()
+        : widget.pedido.codigo.toUpperCase();
 
     // 💡 Agora enviamos também a variável 'codigo' no JSON
-    final dadosQrCode =
-        '{"id": "' +
-        pedido.id +
-        '", "codigo": "' +
-        codigoFormatado +
-        '", "acao": "em_transporte", "data": "' +
-        dataFormatada +
-        '"}';
+    final Map mapaQr = {
+      'id': widget.pedido.id,
+      'codigo': codigoFormatado,
+      'acao': 'em_transporte',
+      'data': dataFormatada,
+    };
 
-    final entregadorLabel = nomeEntregador ?? 'Não atribuído';
+    final String dadosQrCode = jsonEncode(mapaQr);
+
+    final entregadorLabel = widget.nomeEntregador ?? 'Não atribuído';
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -261,7 +316,7 @@ class ModalQrCodeEntrega extends StatelessWidget {
                             ),
                           ),
                           Text(
-                            pedido.clinicaNome,
+                            widget.pedido.clinicaNome,
                             style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w900,
@@ -332,10 +387,10 @@ class ModalQrCodeEntrega extends StatelessWidget {
               ),
               child: ListView.separated(
                 padding: const EdgeInsets.all(12),
-                itemCount: pedido.itens.length,
+                itemCount: widget.pedido.itens.length,
                 separatorBuilder: (context, index) => const Divider(height: 16),
                 itemBuilder: (context, index) {
-                  final item = pedido.itens[index];
+                  final item = widget.pedido.itens[index];
                   final qtd =
                       item['quantidade'] ??
                       item['quantidadeSolicitada'] ??

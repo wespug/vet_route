@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:vet_route/controllers/pedido_insumo_controller.dart';
 import 'package:vet_route/models/pedido_insumo_model.dart';
 import 'package:vet_route/screens/web/laboratorios/components/modal_qrcode_entrega.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class ModalAcaoPedidoInsumo extends StatefulWidget {
   final PedidoInsumoModel pedido;
@@ -987,33 +989,109 @@ class _ModalAcaoPedidoInsumoState extends State<ModalAcaoPedidoInsumo> {
                           ],
                         ),
                         const SizedBox(height: 12),
+
                         // 🗺️ O MAPA ENTRARÁ AQUI
+
+                        // 🗺️ O MAPA REAL ENTRA AQUI
                         Container(
-                          height: 200,
+                          height: 220,
                           width: double.infinity,
                           decoration: BoxDecoration(
                             color: Colors.grey.shade100,
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(color: Colors.grey.shade300),
                           ),
-                          child: Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.map_outlined,
-                                  size: 40,
-                                  color: Colors.grey.shade400,
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  "Carregando mapa da rota...",
-                                  style: TextStyle(
-                                    color: Colors.grey.shade500,
-                                    fontWeight: FontWeight.w500,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: StreamBuilder<DocumentSnapshot>(
+                              // Ouve o documento do motoboy em tempo real!
+                              stream: FirebaseFirestore.instance
+                                  .collection('usuarios')
+                                  .doc(data['entregadorId'].toString())
+                                  .snapshots(),
+                              builder: (context, snapshot) {
+                                // 1. A processar
+                                if (snapshot.connectionState ==
+                                    ConnectionState.waiting) {
+                                  return const Center(
+                                    child: CircularProgressIndicator(),
+                                  );
+                                }
+
+                                // 2. Sem dados do motoboy
+                                if (!snapshot.hasData ||
+                                    !snapshot.data!.exists) {
+                                  return const Center(
+                                    child: Text(
+                                      "Aguardando sinal do GPS...",
+                                      style: TextStyle(color: Colors.grey),
+                                    ),
+                                  );
+                                }
+
+                                final entregadorData =
+                                    snapshot.data!.data() as Map?;
+
+                                // 3. Motoboy existe, mas ainda não ativou o radar (coordenadas vazias)
+                                if (entregadorData == null ||
+                                    !entregadorData.containsKey(
+                                      'latitudeAtual',
+                                    ) ||
+                                    !entregadorData.containsKey(
+                                      'longitudeAtual',
+                                    )) {
+                                  return Center(
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.location_off_rounded,
+                                          color: Colors.grey.shade400,
+                                          size: 36,
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          "Sinal de GPS ainda não recebido.",
+                                          style: TextStyle(
+                                            color: Colors.grey.shade600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }
+
+                                // 4. SUCESSO: Temos as coordenadas! Desenha o mapa.
+                                final double lat =
+                                    entregadorData['latitudeAtual'];
+                                final double lng =
+                                    entregadorData['longitudeAtual'];
+
+                                return GoogleMap(
+                                  initialCameraPosition: CameraPosition(
+                                    target: LatLng(lat, lng),
+                                    zoom:
+                                        16.5, // Um zoom porreiro para acompanhar motas nas ruas
                                   ),
-                                ),
-                              ],
+                                  markers: {
+                                    Marker(
+                                      markerId: const MarkerId('motoboy_live'),
+                                      position: LatLng(lat, lng),
+                                      icon:
+                                          BitmapDescriptor.defaultMarkerWithHue(
+                                            BitmapDescriptor.hueBlue,
+                                          ), // Pino Azul
+                                      infoWindow: const InfoWindow(
+                                        title: "Posição Atual",
+                                      ),
+                                    ),
+                                  },
+                                  zoomControlsEnabled: true,
+                                  mapToolbarEnabled: false,
+                                  myLocationButtonEnabled: false,
+                                );
+                              },
                             ),
                           ),
                         ),

@@ -4,6 +4,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:vet_route/controllers/entregador_controller.dart';
+import 'package:vet_route/controllers/entregador_controller.dart';
 
 import 'package:vet_route/repositories/coleta_repository.dart';
 import 'package:vet_route/repositories/firestore_coleta_repository.dart';
@@ -29,6 +31,10 @@ void main() async {
         ChangeNotifierProvider<ColetaController>(
           create: (context) =>
               ColetaController(context.read<ColetaRepository>()),
+        ),
+
+        ChangeNotifierProvider<EntregadorController>(
+          create: (_) => EntregadorController(),
         ),
       ],
       child: const VetRouteAPP(),

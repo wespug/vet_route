@@ -868,11 +868,21 @@ class _ColetaCardState extends State<ColetaCard> {
                     _mapController.complete(controller);
 
                     // 2. MÁGICA 2: Puxa o zoom de volta para a rota inteira!
+                    // 2. MÁGICA 2: Puxa o zoom de volta para a rota inteira!
                     if (_limitesRota != null) {
                       Future.delayed(const Duration(milliseconds: 400), () {
-                        controller.animateCamera(
-                          CameraUpdate.newLatLngBounds(_limitesRota!, 20.0),
-                        );
+                        if (!mounted) return;
+
+                        // 💡 BLINDAGEM MÁXIMA: Tenta animar, mas se o mapa já tiver evaporado, ignora em silêncio.
+                        try {
+                          controller.animateCamera(
+                            CameraUpdate.newLatLngBounds(_limitesRota!, 20.0),
+                          );
+                        } catch (e) {
+                          debugPrint(
+                            "Animação ignorada: O mapa já foi fechado pelo utilizador.",
+                          );
+                        }
                       });
                     }
                   },

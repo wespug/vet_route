@@ -9,8 +9,9 @@ import '../repositories/firestore_coleta_repository.dart';
 import 'dart:async';
 import 'package:geolocator/geolocator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 
-class EntregadorController {
+class EntregadorController extends ChangeNotifier {
   final FirestoreColetaRepository? _repository;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   StreamSubscription? _rastreioGPS;
@@ -167,32 +168,90 @@ class EntregadorController {
   // =========================================================================
   // 📍 RASTREIO INTELIGENTE (ATIVADO NA RECOLHA, DESLIGADO NA ENTREGA)
   // =========================================================================
+  // =========================================================================
+  // 📍 RASTREIO INTELIGENTE (ATIVADO NA RECOLHA, DESLIGADO NA ENTREGA)
+  // =========================================================================
+  // =========================================================================
+  // 📍 RASTREIO INTELIGENTE (ATIVADO NA RECOLHA, DESLIGADO NA ENTREGA)
+  // =========================================================================
   Future iniciarRastreioInteligente(String entregadorId) async {
-    // Trava de segurança: Se já estiver a rastrear, não duplica o serviço
-    if (_rastreioGPS != null) return;
+    debugPrint("🚀 [GPS] Iniciando tentativa de rastreio para: $entregadorId");
+
+    if (_rastreioGPS != null) {
+      debugPrint(
+        "⚠️️ [GPS] O rastreio já estava ativo. Abortando nova inicialização.",
+      );
+      return;
+    }
 
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) return;
+    if (!serviceEnabled) {
+      debugPrint(
+        "❌ [GPS] Serviço de localização (GPS) está desligado no aparelho!",
+      );
+      return;
+    }
 
     LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
+      debugPrint("⚠️ [GPS] Permissão negada, solicitando ao usuário...");
       permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) return;
+      if (permission == LocationPermission.denied) {
+        debugPrint("❌ [GPS] O usuário negou a permissão de localização.");
+        return;
+      }
     }
 
-    // 💡 FILTRO DE ECONOMIA: Só envia para a nuvem se a mota andar 100 metros
+    // 💡 O "Empurrão" Inicial com Logs e Timeout (limite de 7 segundos)
+    try {
+      debugPrint("⏳ [GPS] Solicitando posição inicial ao satélite...");
+
+      Position posicaoInicial =
+          await Geolocator.getCurrentPosition(
+            desiredAccuracy: LocationAccuracy.high,
+          ).timeout(
+            const Duration(seconds: 7),
+            onTimeout: () {
+              throw Exception(
+                "Timeout: O satélite demorou mais de 7 segundos para responder.",
+              );
+            },
+          );
+
+      debugPrint(
+        "✅ [GPS] Posição recebida! Lat: \({posicaoInicial.latitude}, Lng:\){posicaoInicial.longitude}",
+      );
+      debugPrint("⏳ [GPS] Salvando coordenada inicial no Firebase...");
+
+      await _db.collection('usuarios').doc(entregadorId).set({
+        'latitudeAtual': posicaoInicial.latitude,
+        'longitudeAtual': posicaoInicial.longitude,
+        'ultimaAtualizacaoGPS': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      debugPrint("🟢 [GPS] SUCESSO! Sinal inicial forçado no Firebase.");
+    } catch (e) {
+      debugPrint("❌ [GPS] FALHA NO EMPURRÃO INICIAL: $e");
+    }
+
+    // 💡 FILTRO DE ECONOMIA: A partir de agora, só envia se a mota andar 100 metros
     const LocationSettings configuracaoGPS = LocationSettings(
       accuracy: LocationAccuracy.high,
       distanceFilter: 100,
     );
 
-    debugPrint("🟢 [GPS] Rastreio Inteligente Iniciado para a viagem!");
+    debugPrint(
+      "🛣️ [GPS] Ligando o radar de viagem (100m de distância mínima)...",
+    );
 
     _rastreioGPS =
         Geolocator.getPositionStream(locationSettings: configuracaoGPS).listen((
           Position position,
         ) {
-          // Grava a coordenada na coleção 'usuarios' onde o perfil do motoboy vive
+          debugPrint(
+            "📡 [GPS-MOVIMENTO] Andou 100m! Atualizando Firebase: \({position.latitude},\){position.longitude}",
+          );
+
           _db
               .collection('usuarios')
               .doc(entregadorId)
@@ -202,7 +261,7 @@ class EntregadorController {
                 'ultimaAtualizacaoGPS': FieldValue.serverTimestamp(),
               }, SetOptions(merge: true))
               .catchError((e) {
-                debugPrint("Erro ao atualizar GPS do motoboy: $e");
+                debugPrint("❌ [GPS-MOVIMENTO] Erro ao gravar no Firebase: $e");
               });
         });
   }
