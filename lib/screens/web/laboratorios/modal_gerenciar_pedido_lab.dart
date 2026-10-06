@@ -160,7 +160,7 @@ class _ModalGerenciarPedidoLabState extends State<ModalGerenciarPedidoLab> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text(
-                    "Itens Solicitados para Conferência:",
+                    "Itens Solicitados para Conferência:!!!",
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                   ),
                   Text(

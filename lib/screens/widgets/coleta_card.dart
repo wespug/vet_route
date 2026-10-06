@@ -484,7 +484,7 @@ class _ColetaCardState extends State<ColetaCard> {
     } else if (statusNorm == 'em_transporte') {
       corBadge = Colors.green.shade800;
       corFundoBadge = Colors.green.shade50;
-      statusTexto = 'Em Transporte';
+      statusTexto = 'Em Transporte!!!';
     } else if (statusNorm.contains('rota') || statusNorm.contains('caminho')) {
       corBadge = Colors.orange.shade800;
       corFundoBadge = Colors.orange.shade50;

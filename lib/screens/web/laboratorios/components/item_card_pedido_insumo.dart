@@ -193,7 +193,7 @@ class _ItemCardPedidoInsumoState extends State<ItemCardPedidoInsumo> {
               ),
               const SizedBox(width: 4),
               Text(
-                "${pedido.itens.length} item(ns) na lista",
+                "${pedido.itens.length} item(ns) na lista!!!",
                 style: TextStyle(
                   color: Colors.grey.shade600,
                   fontSize: 13,

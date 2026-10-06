@@ -603,7 +603,9 @@ class _ModalAcaoPedidoInsumoState extends State<ModalAcaoPedidoInsumo> {
                           setState(() => decisaoSelecionada = val);
                         },
                       ),
+
                       const Divider(height: 1),
+
                       RadioListTile<DecisaoAtendimento>(
                         activeColor: Colors.indigo,
                         value: DecisaoAtendimento.aprovarParcial,
@@ -716,6 +718,202 @@ class _ModalAcaoPedidoInsumoState extends State<ModalAcaoPedidoInsumo> {
                     ],
                   ),
                 ),
+
+                // 💡 MEGA MELHORIA: PROVA LOGÍSTICA DE RECOLHA
+                if (data['comprovanteColetaUrl'] != null &&
+                    data['comprovanteColetaUrl'].toString().isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: Colors.green.shade200,
+                        width: 1.5,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.green.withOpacity(0.05),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.verified_user_rounded,
+                              color: Colors.green.shade700,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              "Comprovante de Coleta Segura",
+                              style: TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 14,
+                                color: Colors.green.shade800,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // 1. A Foto do Produto (Com botão de ampliar)
+                            GestureDetector(
+                              onTap: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (_) => Dialog(
+                                    backgroundColor: Colors.transparent,
+                                    insetPadding: const EdgeInsets.all(16),
+                                    child: Stack(
+                                      alignment: Alignment.center,
+                                      children: [
+                                        InteractiveViewer(
+                                          panEnabled: true,
+                                          minScale: 0.5,
+                                          maxScale: 4.0,
+                                          child: ClipRRect(
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
+                                            child: Image.network(
+                                              data['comprovanteColetaUrl']
+                                                  .toString(),
+                                              fit: BoxFit.contain,
+                                            ),
+                                          ),
+                                        ),
+                                        Positioned(
+                                          top: 0,
+                                          right: 0,
+                                          child: IconButton(
+                                            icon: const Icon(
+                                              Icons.cancel,
+                                              color: Colors.white,
+                                              size: 40,
+                                            ),
+                                            onPressed: () =>
+                                                Navigator.pop(context),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                              child: MouseRegion(
+                                cursor: SystemMouseCursors.click,
+                                child: Stack(
+                                  alignment: Alignment.center,
+                                  children: [
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: Image.network(
+                                        data['comprovanteColetaUrl'].toString(),
+                                        width: 100,
+                                        height: 100,
+                                        fit: BoxFit.cover,
+                                        errorBuilder:
+                                            (context, error, stackTrace) =>
+                                                Container(
+                                                  width: 100,
+                                                  height: 100,
+                                                  color: Colors.grey.shade200,
+                                                  child: const Icon(
+                                                    Icons.broken_image,
+                                                    color: Colors.grey,
+                                                  ),
+                                                ),
+                                      ),
+                                    ),
+                                    // Camada escura com Lupa indicando que é clicável
+                                    Container(
+                                      width: 100,
+                                      height: 100,
+                                      decoration: BoxDecoration(
+                                        color: Colors.black.withOpacity(0.3),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: const Icon(
+                                        Icons.zoom_in,
+                                        color: Colors.white,
+                                        size: 32,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            // 2. Os Dados de Localização e Hora
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.access_time_filled,
+                                        size: 14,
+                                        color: Colors.grey.shade600,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        "Validado em: " +
+                                            widget.controller.formatarData(
+                                              data['comprovanteData'],
+                                            ),
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.black87,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Icon(
+                                        Icons.location_on,
+                                        size: 14,
+                                        color: Colors.red.shade400,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Expanded(
+                                        child: Text(
+                                          "Local da posse:\n" +
+                                              (data['comprovanteEndereco']
+                                                      ?.toString() ??
+                                                  "Endereço não capturado"),
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey.shade700,
+                                            height: 1.3,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ],
             ],
           ),

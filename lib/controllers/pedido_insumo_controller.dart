@@ -487,9 +487,20 @@ class PedidoInsumoController extends ChangeNotifier {
           'bgIcon': const Color(0xFFE8F5E9),
           'icon': Icons.check_circle_outline,
         };
+      // 💡 ADICIONADO: A NOVA COR PARA DIFERENCIAR O "EM TRANSPORTE" (Verde escuro)
+      case 'em_transporte':
+        return {
+          'label': 'Em Transporte',
+          'cor': Colors.green.shade800,
+          'bgBadge': Colors.green.shade50,
+          'borderBadge': Colors.green.shade200,
+          'bgIcon': Colors.green.shade50,
+          'icon': Icons.local_shipping_rounded,
+        };
       case 'aguardando_coleta':
       case 'aguardando_entregador':
       case 'aguardando entregador':
+      case 'coletar_produto': // 💡 Agrupado para manter o laranja enquanto aguarda a foto
         return {
           'label': 'Aguardando Entregador',
           'cor': const Color(0xFFED6C02),
