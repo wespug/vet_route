@@ -82,15 +82,15 @@ class _ItemCardPedidoInsumoState extends State<ItemCardPedidoInsumo> {
 
   @override
   Widget build(BuildContext context) {
-    final controller =
-        context.watch<PedidoInsumoController?>() ?? PedidoInsumoController();
+    final controller = PedidoInsumoController();
 
     final pedido = PedidoInsumoModel.fromFirestore(widget.doc);
     final dataRaw = widget.doc.data() as Map<String, dynamic>;
 
+    final String statusRaw = (dataRaw['status'] ?? '').toString();
     final bool isEmSeparacao =
-        pedido.status.toLowerCase() == 'em_separacao' ||
-        pedido.status.toLowerCase() == 'em separação';
+        statusRaw.toLowerCase() == 'em_separacao' ||
+        statusRaw.toLowerCase() == 'em separação';
 
     final String codigoOriginal =
         dataRaw['codigoAcompanhamento'] ??
@@ -107,6 +107,11 @@ class _ItemCardPedidoInsumoState extends State<ItemCardPedidoInsumo> {
       dataRaw,
       controller,
     );
+
+    // 💡 A MÁGICA DA CONTROLADORA ENTRA AQUI
+    // Pega o texto bonito e as cores usando a controladora
+    final statusAmigavel = controller.formatarStatusAmigavel(statusRaw);
+    final estilo = controller.obterEstiloStatus(statusRaw);
 
     return Container(
       width: double.infinity,
@@ -133,13 +138,16 @@ class _ItemCardPedidoInsumoState extends State<ItemCardPedidoInsumo> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: pedido.corStatus.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
+                  color: estilo['bgBadge'], // Fundo dinâmico
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: estilo['borderBadge'],
+                  ), // Borda dinâmica
                 ),
                 child: Text(
-                  pedido.textoStatus,
+                  statusAmigavel, // 💡 Adeus underline! Usa a formatação correta.
                   style: TextStyle(
-                    color: pedido.corStatus,
+                    color: estilo['cor'], // Cor do texto dinâmica
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
                   ),

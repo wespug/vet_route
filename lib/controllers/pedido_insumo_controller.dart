@@ -450,6 +450,10 @@ class PedidoInsumoController extends ChangeNotifier {
       case 'recusado / cancelado':
       case 'cancelado':
         return 'Recusado / Cancelado';
+      case 'coletar_produto':
+        return 'Motoboy no Local / Aguardando Coleta';
+      case 'em_transporte':
+        return 'Em Transporte';
       case 'entregue':
       case 'concluido':
       case 'concluído':

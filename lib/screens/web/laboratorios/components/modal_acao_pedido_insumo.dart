@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:vet_route/controllers/pedido_insumo_controller.dart';
 import 'package:vet_route/models/pedido_insumo_model.dart';
+import 'package:vet_route/screens/web/laboratorios/components/modal_qrcode_entrega.dart';
 
 class ModalAcaoPedidoInsumo extends StatefulWidget {
   final PedidoInsumoModel pedido;
@@ -200,7 +201,10 @@ class _ModalAcaoPedidoInsumoState extends State<ModalAcaoPedidoInsumo> {
     final pedido = widget.pedido;
     final data = widget.dataRaw;
 
-    final statusFormatado = pedido.textoStatus;
+    final statusFormatado = widget.controller.formatarStatusAmigavel(
+      pedido.status,
+    );
+    pedido.textoStatus;
     final historico = (data['historico'] as List<dynamic>?) ?? [];
     final nomeEntregador = data['nomeEntregador']?.toString();
 
@@ -240,6 +244,9 @@ class _ModalAcaoPedidoInsumoState extends State<ModalAcaoPedidoInsumo> {
     final bool isEmSeparacao =
         pedido.status.toLowerCase() == 'em_separacao' ||
         pedido.status.toLowerCase() == 'em separação';
+
+    final bool isAguardandoColeta =
+        pedido.status.toLowerCase() == 'coletar_produto';
 
     return AlertDialog(
       backgroundColor: const Color(0xFFF4F4F8),
@@ -368,7 +375,7 @@ class _ModalAcaoPedidoInsumoState extends State<ModalAcaoPedidoInsumo> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text(
-                    "Itens Solicitados para Conferência:",
+                    "Itens Solicitados para  Conferência:",
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                   ),
                   Text(
@@ -745,6 +752,32 @@ class _ModalAcaoPedidoInsumoState extends State<ModalAcaoPedidoInsumo> {
                 : const Icon(Icons.local_shipping_rounded, size: 18),
             label: const Text("Encaminhar para Entrega"),
             onPressed: _processandoModal ? null : _encaminharEntregaModal,
+          ),
+
+        if (isAguardandoColeta)
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green.shade600,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            icon: const Icon(Icons.qr_code_scanner, size: 18),
+            label: const Text("Liberar p/ Motoboy"),
+            onPressed: () {
+              Navigator.pop(context); // Fecha o modal de detalhes
+
+              // Chama o Modal do QR Code que criamos na etapa anterior
+              showDialog(
+                context: context,
+                builder: (_) => ModalQrCodeEntrega(
+                  pedido: pedido,
+                  nomeEntregador: nomeEntregador,
+                ),
+              );
+            },
           ),
         if (isPendente && decisaoSelecionada != null)
           ElevatedButton.icon(

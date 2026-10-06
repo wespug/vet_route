@@ -246,6 +246,7 @@ class _GestaoPedidosInsumosHubState extends State<GestaoPedidosInsumosHub> {
       final s = ((doc.data() as Map)['status'] ?? '').toString().toLowerCase();
       return s.contains('aguardando') ||
           s.contains('rota') ||
+          s.contains('coletar') ||
           s.contains('transito');
     }).toList();
 

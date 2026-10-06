@@ -5,6 +5,11 @@ import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:vet_route/models/coleta_model.dart';
+import 'package:provider/provider.dart';
+import 'package:vet_route/controllers/coleta_controller.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:vet_route/controllers/core/app_config.dart';
 
 class ModalValidacaoColeta extends StatefulWidget {
   final Coleta item;
@@ -15,7 +20,7 @@ class ModalValidacaoColeta extends StatefulWidget {
   State createState() => _ModalValidacaoColetaState();
 }
 
-class _ModalValidacaoColetaState extends State {
+class _ModalValidacaoColetaState extends State<ModalValidacaoColeta> {
   int _passoAtual = 1;
 
   // Dados do Passo 1
@@ -24,6 +29,7 @@ class _ModalValidacaoColetaState extends State {
 
   // Dados do Passo 2
   File? _fotoProduto;
+  String _enderecoFormatado = "";
   Position? _localizacaoFoto;
   DateTime? _dataHoraFoto;
   bool _carregandoCamera = false;
@@ -31,8 +37,12 @@ class _ModalValidacaoColetaState extends State {
   // =======================================================================
   // LÓGICA DO PASSO 1: LER QR CODE
   // =======================================================================
+
+  // =======================================================================
+  // LÓGICA DO PASSO 1: LER QR CODE COM SEGURANÇA
+  // =======================================================================
   void _aoLerQrCode(BarcodeCapture capture) {
-    if (_processandoQR) return; // Evita múltiplas leituras simultâneas
+    if (_processandoQR) return;
 
     final List barcodes = capture.barcodes;
     if (barcodes.isNotEmpty && barcodes.first.rawValue != null) {
@@ -41,16 +51,58 @@ class _ModalValidacaoColetaState extends State {
         _qrCodeLido = barcodes.first.rawValue;
       });
 
-      // Aqui você pode adicionar uma validação (ex: verificar se o QR bate com a clínica)
-      print("QR Code Lido: $_qrCodeLido");
+      try {
+        final Map qrDados = json.decode(_qrCodeLido!);
+        final String qrId = qrDados['id'] ?? '';
+        final String qrAcao = qrDados['acao'] ?? '';
+        final String qrCodigo = qrDados['codigo'] ?? '';
 
-      // Avança para o Passo 2 com um pequeno delay visual
-      Future.delayed(const Duration(milliseconds: 500), () {
-        if (mounted) {
-          setState(() => _passoAtual = 2);
+        final String codigoOriginal = widget.item.codigo.isNotEmpty
+            ? widget.item.codigo
+            : (widget.item.codigoAcompanhamento ?? widget.item.id);
+        final String codigoMotoboy = codigoOriginal.length >= 6
+            ? codigoOriginal.substring(0, 6).toUpperCase()
+            : codigoOriginal.toUpperCase();
+
+        // 💡 LOGS DE DEBUGGING (O RAIO-X)
+        print("=== DEBUG DE VALIDAÇÃO ===");
+        print("QR_ID: " + qrId);
+        print("QR_CODIGO: " + qrCodigo);
+        print("QR_ACAO: " + qrAcao);
+        print("--- ESPERADO PELO APP ---");
+        print("APP_ID: " + widget.item.id);
+        print("APP_CODIGO: " + codigoMotoboy);
+        print("==========================");
+
+        if ((qrId == widget.item.id || qrCodigo == codigoMotoboy) &&
+            qrAcao == "em_transporte") {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("QR Code validado! Liberação autorizada."),
+              backgroundColor: Colors.green,
+            ),
+          );
+
+          Future.delayed(const Duration(milliseconds: 600), () {
+            if (mounted) setState(() => _passoAtual = 2);
+          });
+        } else {
+          _abortarLeituraInvalida("Este QR Code não pertence a este pedido!");
         }
-      });
+      } catch (e) {
+        _abortarLeituraInvalida("QR Code inválido ou danificado.");
+      }
     }
+  }
+
+  // Função auxiliar para recomeçar o scanner em caso de erro
+  void _abortarLeituraInvalida(String mensagem) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(mensagem), backgroundColor: Colors.redAccent),
+    );
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) setState(() => _processandoQR = false);
+    });
   }
 
   // =======================================================================
@@ -65,6 +117,18 @@ class _ModalValidacaoColetaState extends State {
         desiredAccuracy: LocationAccuracy.high,
       );
       _dataHoraFoto = DateTime.now();
+
+      if (_localizacaoFoto != null) {
+        _enderecoFormatado =
+            "Lat: " +
+            _localizacaoFoto!.latitude.toStringAsFixed(5) +
+            " / Lng: " +
+            _localizacaoFoto!.longitude.toStringAsFixed(5);
+        _buscarEndereco(
+          _localizacaoFoto!.latitude,
+          _localizacaoFoto!.longitude,
+        );
+      }
 
       // 2. Abre a câmera nativa do dispositivo
       final ImagePicker picker = ImagePicker();
@@ -88,16 +152,91 @@ class _ModalValidacaoColetaState extends State {
   // =======================================================================
   // FINALIZAR PROCESSO
   // =======================================================================
-  void _finalizarColeta() {
-    // Aqui você enviará a _fotoProduto, _qrCodeLido, _localizacaoFoto para o Firebase Storage / Firestore
-    print("Enviando dados para o Firebase...");
-    print("QR: $_qrCodeLido");
-    print(
-      "Lat: \({_localizacaoFoto?.latitude}, Lng:\){_localizacaoFoto?.longitude}",
+
+  // =======================================================================
+  // FINALIZAR PROCESSO: SUBIR PARA AS NUVENS
+  // =======================================================================
+  Future _finalizarColeta() async {
+    // 1. Mostrar que estamos trabalhando
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
     );
 
-    Navigator.pop(context); // Fecha o modal
-    // Chame aqui o seu ColetaController para atualizar o status para "em_transporte" ou similar.
+    try {
+      final controller = Provider.of<ColetaController>(context, listen: false);
+
+      // AQUI ENTRA A SUA LOGÍSTICA REAL!
+      // Você vai precisar de uma função no seu ColetaController para guardar estes dados,
+      // algo parecido com isto (ajuste o nome da função consoante o que tiver lá):
+
+      /* 
+      await controller.confirmarPosseMotoboy(
+        pedidoId: widget.item.id,
+        status: 'em_transporte',
+        fotoFile: _fotoProduto, // O controller cuida de subir para o Storage
+        latitude: _localizacaoFoto?.latitude,
+        longitude: _localizacaoFoto?.longitude,
+      );
+      */
+
+      // Por agora, para não quebrar a compilação, usamos o método base que já existe:
+      await controller.atualizarStatusColeta(widget.item.id, 'em_transporte');
+
+      // Fecha o "Carregando"
+      if (mounted) Navigator.pop(context);
+
+      // Fecha o Modal inteiro e conclui o trabalho
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Coleta validada! Pacote em sua posse."),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted)
+        Navigator.pop(context); // Fecha o "Carregando" em caso de erro
+      print("Erro ao disparar para o Firebase: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Erro ao confirmar posse: $e"),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future _buscarEndereco(double lat, double lng) async {
+    try {
+      final url =
+          "https://maps.googleapis.com/maps/api/geocode/json?latlng=" +
+          lat.toString() +
+          "," +
+          lng.toString() +
+          "&key=" +
+          AppConfig.googleMapsApiKey;
+
+      final response = await http.get(Uri.parse(url));
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['status'] == 'OK' && data['results'].isNotEmpty) {
+          // Extrai o endereço formatado do Google
+          String completo = data['results'][0]['formatted_address'];
+          if (mounted) {
+            setState(() {
+              // Corta o texto para mostrar apenas "Rua e Número" (antes do traço do bairro)
+              _enderecoFormatado = completo.split('-')[0].trim();
+            });
+          }
+        }
+      }
+    } catch (e) {
+      print("Erro ao converter coordenadas: " + e.toString());
+    }
   }
 
   // =======================================================================
@@ -265,11 +404,13 @@ class _ModalValidacaoColetaState extends State {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            "Lat: \({_localizacaoFoto?.latitude}\nLng:\){_localizacaoFoto?.longitude}",
+                            _enderecoFormatado,
                             style: const TextStyle(
                               color: Colors.white70,
-                              fontSize: 12,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
                             ),
+                            maxLines: 2,
                           ),
                         ],
                       ),

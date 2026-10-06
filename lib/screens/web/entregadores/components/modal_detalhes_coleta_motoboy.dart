@@ -73,11 +73,7 @@ class ModalDetalhesColetaMotoboy extends StatelessWidget {
               ),
               child: Column(
                 children: [
-                  _buildLinhaDetalhe(
-                    "ID da Parada",
-                    "#$codigoFormatado",
-                    Icons.tag,
-                  ),
+                  _buildLinhaDetalhe("ID", "#$codigoFormatado", Icons.tag),
                   const Divider(height: 24),
                   _buildLinhaDetalhe(
                     "Status",

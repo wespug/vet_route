@@ -404,9 +404,13 @@ class _ColetaCardState extends State<ColetaCard> {
   // ====================================================================
   // 2. O NOVO BUILD (Mais limpo, delegando a construção das partes)
   // ====================================================================
+
+  // ====================================================================
+  // 2. O NOVO BUILD (Mais limpo, delegando a construção das partes)
+  // ====================================================================
   @override
   Widget build(BuildContext context) {
-    String horaFormatada = '--:--';
+    String dataHoraFormatada = '--/-- --:--';
     bool isFuturo = false;
 
     if (widget.item.dataCriacao != null) {
@@ -417,10 +421,17 @@ class _ColetaCardState extends State<ColetaCard> {
 
       isFuturo = dataItem.isAfter(hoje);
 
+      final diaMes =
+          data.day.toString().padLeft(2, '0') +
+          '/' +
+          data.month.toString().padLeft(2, '0');
+
       if (data.hour == 0 && data.minute == 0) {
-        horaFormatada = 'A definir';
+        dataHoraFormatada = diaMes + ' - A definir';
       } else {
-        horaFormatada =
+        dataHoraFormatada =
+            diaMes +
+            ' às ' +
             data.hour.toString().padLeft(2, '0') +
             ':' +
             data.minute.toString().padLeft(2, '0');
@@ -441,6 +452,7 @@ class _ColetaCardState extends State<ColetaCard> {
     final bool isRecusado =
         statusNorm.contains('recusad') || statusNorm.contains('cancel');
 
+    // 💡 ID FORMATADO: Agora extraído cedo para enviarmos ao Cabeçalho
     final String codigoOriginal = widget.item.codigo.isNotEmpty
         ? widget.item.codigo
         : (widget.item.codigoAcompanhamento ?? widget.item.id);
@@ -448,12 +460,10 @@ class _ColetaCardState extends State<ColetaCard> {
         ? codigoOriginal.substring(0, 6).toUpperCase()
         : codigoOriginal.toUpperCase();
 
-    String rodapeTexto =
-        (isInsumo
-            ? 'Pedido de Insumo'
-            : (isUrgencia ? 'Coleta de Urgência' : 'Coleta de Exame')) +
-        ' • ID: #' +
-        codigoFormatado;
+    // 💡 RODAPÉ LIMPO: O ID já não está espremido aqui em baixo
+    String rodapeTexto = isInsumo
+        ? 'Pedido de Insumo'
+        : (isUrgencia ? 'Coleta de Urgência' : 'Coleta de Exame');
 
     Color corBadge = corTema;
     Color corFundoBadge = corFundoTema;
@@ -505,15 +515,15 @@ class _ColetaCardState extends State<ColetaCard> {
                   ),
                 ],
         ),
-        // Aqui removemos aquele if completo do _isNavegando e usamos o layout unificado
         child: _buildLayoutUnificado(
           corTema,
           corFundoTema,
           corBadge,
           corFundoBadge,
           statusTexto,
-          horaFormatada,
+          dataHoraFormatada,
           rodapeTexto,
+          codigoFormatado,
           isInsumo,
           isUrgencia,
           isRecusado,
@@ -524,7 +534,7 @@ class _ColetaCardState extends State<ColetaCard> {
   }
 
   // ====================================================================
-  // 3. LAYOUT UNIFICADO (Cabeçalho, Miolo Dinâmico e Rodapé)
+  // 3. LAYOUT UNIFICADO (Cabeçalho Redesenhado)
   // ====================================================================
   Widget _buildLayoutUnificado(
     Color corTema,
@@ -532,8 +542,9 @@ class _ColetaCardState extends State<ColetaCard> {
     Color corBadge,
     Color corFundoBadge,
     String statusTexto,
-    String horaFormatada,
+    String dataHoraFormatada,
     String rodapeTexto,
+    String codigoFormatado,
     bool isInsumo,
     bool isUrgencia,
     bool isRecusado,
@@ -542,7 +553,7 @@ class _ColetaCardState extends State<ColetaCard> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // CABEÇALHO (Status e Hora)
+        // CABEÇALHO PODEROSO: ID Gigante + Data + Status
         Padding(
           padding: const EdgeInsets.only(
             left: 16,
@@ -550,9 +561,48 @@ class _ColetaCardState extends State<ColetaCard> {
             top: 16,
             bottom: 12,
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ID EM DESTAQUE GIGANTE
+                  Expanded(
+                    child: Text(
+                      "#$codigoFormatado",
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.black87,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                  // DATA E HORA
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.calendar_today_outlined,
+                        size: 14,
+                        color: Colors.grey.shade500,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        dataHoraFormatada,
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              // BADGE DE STATUS NA SEGUNDA LINHA
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 10,
@@ -572,30 +622,12 @@ class _ColetaCardState extends State<ColetaCard> {
                   ),
                 ),
               ),
-              Row(
-                children: [
-                  Icon(
-                    Icons.access_time_rounded,
-                    size: 14,
-                    color: Colors.grey.shade400,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    horaFormatada,
-                    style: TextStyle(
-                      color: Colors.grey.shade600,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
-                    ),
-                  ),
-                ],
-              ),
             ],
           ),
         ),
         const Divider(height: 1, color: Color(0xFFF2F2F7), thickness: 1.5),
 
-        // MIOLO DINÂMICO: AQUI ACONTECE A TROCA ENTRE TEXTO E MAPA!
+        // MIOLO DINÂMICO: MAPA OU TEXTO (Continua a funcionar perfeitamente)
         Padding(
           padding: const EdgeInsets.all(16),
           child: _mostrarMapa
@@ -603,7 +635,7 @@ class _ColetaCardState extends State<ColetaCard> {
               : _buildVisorTextos(corTema),
         ),
 
-        // RODAPÉ (Insumo/Detalhes e Botões de Ação)
+        // RODAPÉ COM DETALHES E BOTÕES
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
@@ -728,9 +760,7 @@ class _ColetaCardState extends State<ColetaCard> {
                                 ],
                               ),
                             )
-                          : _buildBotaoAcaoPrincipal(
-                              corTema,
-                            ), // Botão inteligente
+                          : _buildBotaoAcaoPrincipal(corTema),
                     ),
                   ],
                 ),
