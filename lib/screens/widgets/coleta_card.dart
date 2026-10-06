@@ -6,6 +6,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:vet_route/controllers/core/app_config.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:vet_route/controllers/entregador_controller.dart';
 
 import 'package:vet_route/models/coleta_model.dart';
 import 'package:vet_route/controllers/coleta_controller.dart';
@@ -484,7 +485,7 @@ class _ColetaCardState extends State<ColetaCard> {
     } else if (statusNorm == 'em_transporte') {
       corBadge = Colors.green.shade800;
       corFundoBadge = Colors.green.shade50;
-      statusTexto = 'Em Transporte!!!';
+      statusTexto = 'Em Transporte';
     } else if (statusNorm.contains('rota') || statusNorm.contains('caminho')) {
       corBadge = Colors.orange.shade800;
       corFundoBadge = Colors.orange.shade50;
@@ -733,6 +734,18 @@ class _ColetaCardState extends State<ColetaCard> {
                             ),
                           ),
                           onPressed: () {
+                            // DESLIGAR O RADAR COM O TRUQUE ANTI-ERRO
+                            try {
+                              EntregadorController entregadorCtrl =
+                                  Provider.of<EntregadorController>(
+                                    context,
+                                    listen: false,
+                                  );
+                              entregadorCtrl.pararRastreio();
+                            } catch (e) {
+                              debugPrint("Erro ao parar radar: $e");
+                            }
+
                             print("Abrir fluxo de entrega final");
                           },
                         ),

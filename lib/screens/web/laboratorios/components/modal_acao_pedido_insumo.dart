@@ -766,7 +766,7 @@ class _ModalAcaoPedidoInsumoState extends State<ModalAcaoPedidoInsumo> {
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // 1. A Foto do Produto (Com botão de ampliar)
+                            // 1. A Foto do Produto (Com lupa discreta no canto)
                             GestureDetector(
                               onTap: () {
                                 showDialog(
@@ -813,7 +813,6 @@ class _ModalAcaoPedidoInsumoState extends State<ModalAcaoPedidoInsumo> {
                               child: MouseRegion(
                                 cursor: SystemMouseCursors.click,
                                 child: Stack(
-                                  alignment: Alignment.center,
                                   children: [
                                     ClipRRect(
                                       borderRadius: BorderRadius.circular(8),
@@ -835,24 +834,30 @@ class _ModalAcaoPedidoInsumoState extends State<ModalAcaoPedidoInsumo> {
                                                 ),
                                       ),
                                     ),
-                                    // Camada escura com Lupa indicando que é clicável
-                                    Container(
-                                      width: 100,
-                                      height: 100,
-                                      decoration: BoxDecoration(
-                                        color: Colors.black.withOpacity(0.3),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: const Icon(
-                                        Icons.zoom_in,
-                                        color: Colors.white,
-                                        size: 32,
+                                    // Lupa pequenina e elegante no canto inferior direito
+                                    Positioned(
+                                      bottom: 6,
+                                      right: 6,
+                                      child: Container(
+                                        padding: const EdgeInsets.all(6),
+                                        decoration: BoxDecoration(
+                                          color: Colors.black.withOpacity(0.6),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: const Icon(
+                                          Icons.zoom_in,
+                                          color: Colors.white,
+                                          size: 14,
+                                        ),
                                       ),
                                     ),
                                   ],
                                 ),
                               ),
                             ),
+                            const SizedBox(
+                              width: 24,
+                            ), // 💡 DISTÂNCIA AUMENTADA AQUI (respiro para o texto)
                             // 2. Os Dados de Localização e Hora
                             Expanded(
                               child: Column(
@@ -909,6 +914,108 @@ class _ModalAcaoPedidoInsumoState extends State<ModalAcaoPedidoInsumo> {
                               ),
                             ),
                           ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                // ==========================================================
+                // 💡 MEGA MELHORIA 3.0: RASTREIO AO VIVO DO MOTOBOY
+                // ==========================================================
+                if (data['status'] == 'em_transporte') ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: Colors.blue.shade200,
+                        width: 1.5,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.blue.withOpacity(0.05),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.radar_rounded,
+                                  color: Colors.blue.shade700,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  "Rastreio em Tempo Real",
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 14,
+                                    color: Colors.blue.shade800,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.blue.shade50,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                "Chegada em: -- min", // Substituiremos pela lógica real
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 11,
+                                  color: Colors.blue.shade700,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        // 🗺️ O MAPA ENTRARÁ AQUI
+                        Container(
+                          height: 200,
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.grey.shade300),
+                          ),
+                          child: Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.map_outlined,
+                                  size: 40,
+                                  color: Colors.grey.shade400,
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  "Carregando mapa da rota...",
+                                  style: TextStyle(
+                                    color: Colors.grey.shade500,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ],
                     ),

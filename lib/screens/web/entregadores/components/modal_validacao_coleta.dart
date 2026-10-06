@@ -4,9 +4,11 @@ import 'package:intl/intl.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:vet_route/controllers/entregador_controller.dart';
 import 'package:vet_route/models/coleta_model.dart';
 import 'package:provider/provider.dart';
 import 'package:vet_route/controllers/coleta_controller.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:vet_route/controllers/core/app_config.dart';
@@ -156,8 +158,17 @@ class _ModalValidacaoColetaState extends State<ModalValidacaoColeta> {
   // =======================================================================
   // FINALIZAR PROCESSO: SUBIR PARA AS NUVENS
   // =======================================================================
+
+  // =======================================================================
+  // FINALIZAR PROCESSO: SUBIR PARA AS NUVENS E LIGAR RADAR
+  // =======================================================================
+  // =======================================================================
+  // FINALIZAR PROCESSO: SUBIR PARA AS NUVENS E LIGAR RADAR
+  // =======================================================================
+  // =======================================================================
+  // FINALIZAR PROCESSO: SUBIR PARA AS NUVENS E LIGAR RADAR
+  // =======================================================================
   Future _finalizarColeta() async {
-    // 1. Mostrar que estamos trabalhando
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -165,39 +176,50 @@ class _ModalValidacaoColetaState extends State<ModalValidacaoColeta> {
     );
 
     try {
-      final controller = Provider.of<ColetaController>(context, listen: false);
-
-      // AQUI ENTRA A SUA LOGÍSTICA REAL!
-      // Você vai precisar de uma função no seu ColetaController para guardar estes dados,
-      // algo parecido com isto (ajuste o nome da função consoante o que tiver lá):
-
-      await controller.confirmarPosseComFoto(
-        coletaId: widget.item.id,
-        foto: _fotoProduto!, // Enviamos o arquivo físico
-        enderecoGeo:
-            _enderecoFormatado, // Enviamos o nome da rua que o Google traduziu
+      // TRUQUE ANTI-ERRO: Declarar o tipo antes da variável!
+      ColetaController coletaCtrl = Provider.of<ColetaController>(
+        context,
+        listen: false,
       );
 
-      // Por agora, para não quebrar a compilação, usamos o método base que já existe:
-      await controller.atualizarStatusColeta(widget.item.id, 'em_transporte');
+      await coletaCtrl.confirmarPosseComFoto(
+        coletaId: widget.item.id,
+        foto: _fotoProduto!,
+        enderecoGeo: _enderecoFormatado,
+      );
 
-      // Fecha o "Carregando"
-      if (mounted) Navigator.pop(context);
+      await coletaCtrl.atualizarStatusColeta(widget.item.id, 'em_transporte');
 
-      // Fecha o Modal inteiro e conclui o trabalho
+      // LIGAR O RADAR COM O TRUQUE ANTI-ERRO
+      try {
+        EntregadorController entregadorCtrl = Provider.of<EntregadorController>(
+          context,
+          listen: false,
+        );
+        String? entregadorId = FirebaseAuth.instance.currentUser?.uid;
+
+        if (entregadorId != null && entregadorId.isNotEmpty) {
+          entregadorCtrl.iniciarRastreioInteligente(entregadorId);
+        } else {
+          debugPrint("Aviso: Motoboy não autenticado.");
+        }
+      } catch (e) {
+        debugPrint("Erro ao ligar radar: $e");
+      }
+
+      if (mounted) Navigator.pop(context); // Fecha loading
+
       if (mounted) {
-        Navigator.pop(context);
+        Navigator.pop(context); // Fecha modal
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text("Coleta validada! Pacote em sua posse."),
+            content: Text("Coleta validada! Radar ativado. Boa viagem!"),
             backgroundColor: Colors.green,
           ),
         );
       }
     } catch (e) {
-      if (mounted)
-        Navigator.pop(context); // Fecha o "Carregando" em caso de erro
-      print("Erro ao disparar para o Firebase: $e");
+      if (mounted) Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("Erro ao confirmar posse: $e"),

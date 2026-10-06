@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // 💡 Importação adicionada
-import 'package:firebase_core/firebase_core.dart'; // 💡 Importação adicionada
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import '../models/entregador_model.dart';
 import '../models/perfil_usuario.dart';
 import '../repositories/firestore_coleta_repository.dart';
+import 'dart:async';
+import 'package:geolocator/geolocator.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class EntregadorController {
   final FirestoreColetaRepository? _repository;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
+  StreamSubscription? _rastreioGPS;
 
   // --- ESTADOS REATIVOS (COMPARTILHADOS) ---
   final ValueNotifier<bool> isLoading = ValueNotifier<bool>(false);
@@ -158,6 +162,55 @@ class EntregadorController {
 
   double _converterColorToHue(Color color) {
     return HSVColor.fromColor(color).hue;
+  }
+
+  // =========================================================================
+  // 📍 RASTREIO INTELIGENTE (ATIVADO NA RECOLHA, DESLIGADO NA ENTREGA)
+  // =========================================================================
+  Future iniciarRastreioInteligente(String entregadorId) async {
+    // Trava de segurança: Se já estiver a rastrear, não duplica o serviço
+    if (_rastreioGPS != null) return;
+
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) return;
+
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) return;
+    }
+
+    // 💡 FILTRO DE ECONOMIA: Só envia para a nuvem se a mota andar 100 metros
+    const LocationSettings configuracaoGPS = LocationSettings(
+      accuracy: LocationAccuracy.high,
+      distanceFilter: 100,
+    );
+
+    debugPrint("🟢 [GPS] Rastreio Inteligente Iniciado para a viagem!");
+
+    _rastreioGPS =
+        Geolocator.getPositionStream(locationSettings: configuracaoGPS).listen((
+          Position position,
+        ) {
+          // Grava a coordenada na coleção 'usuarios' onde o perfil do motoboy vive
+          _db
+              .collection('usuarios')
+              .doc(entregadorId)
+              .set({
+                'latitudeAtual': position.latitude,
+                'longitudeAtual': position.longitude,
+                'ultimaAtualizacaoGPS': FieldValue.serverTimestamp(),
+              }, SetOptions(merge: true))
+              .catchError((e) {
+                debugPrint("Erro ao atualizar GPS do motoboy: $e");
+              });
+        });
+  }
+
+  void pararRastreio() {
+    _rastreioGPS?.cancel();
+    _rastreioGPS = null;
+    debugPrint("🛑 [GPS] Viagem concluída. Rastreio Desligado.");
   }
 
   void dispose() {
