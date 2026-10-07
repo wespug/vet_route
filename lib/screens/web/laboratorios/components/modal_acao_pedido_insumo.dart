@@ -5,6 +5,9 @@ import 'package:vet_route/screens/web/laboratorios/components/modal_qrcode_entre
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
+// 💡 1. IMPORTAÇÃO DO NOVO COMPONENTE LINDÃO
+import 'package:vet_route/screens/widgets/card_rastreio_live.dart';
+
 class ModalAcaoPedidoInsumo extends StatefulWidget {
   final PedidoInsumoModel pedido;
   final Map<String, dynamic> dataRaw;
@@ -216,12 +219,28 @@ class _ModalAcaoPedidoInsumoState extends State<ModalAcaoPedidoInsumo> {
         (data['placa']?.toString() ?? data['placaExterna']?.toString()) ??
         'Não informada';
 
-    print("\n=== RAIO-X DO PEDIDO DE INSUMOS ===");
-    print("Pedido ID: ${pedido.codigo}");
-    print("Entregador Nome: $nomeEntregador");
-    print("Veiculo puro no DB: ${data['veiculo']}");
-    print("Placa pura no DB: ${data['placa']}");
-    print("===================================\n");
+    // 💡 2. EXTRATOR DE ENDEREÇO PARA O NOVO MAPA
+    String extrairEnderecoSeguro(Map<String, dynamic>? obj) {
+      if (obj == null) return 'Endereço não disponível no sistema';
+      final end = obj['endereco'];
+      if (end == null) return 'Endereço não disponível no sistema';
+      if (end is String) return end;
+      if (end is Map) {
+        final rua = end['logradouro'] ?? end['rua'] ?? '';
+        final numero = end['numero'] ?? 'S/N';
+        final bairro = end['bairro'] ?? '';
+        List<String> partes = [];
+        if (rua.toString().isNotEmpty) partes.add("$rua, $numero");
+        if (bairro.toString().isNotEmpty) partes.add(bairro.toString());
+        return partes.isNotEmpty ? partes.join(' - ') : 'Endereço incompleto';
+      }
+      return 'Endereço não disponível no sistema';
+    }
+
+    final String enderecoOrigem = extrairEnderecoSeguro(data['clinicaOrigem']);
+    final String enderecoDestino = extrairEnderecoSeguro(
+      data['laboratorioDestino'],
+    );
 
     // 💡 GARANTIA DO HORÁRIO DE NASCIMENTO DO PEDIDO
     String dataHoraExibicao = pedido.formatarData(pedido.dataSolicitacao);
@@ -1138,181 +1157,16 @@ class _ModalAcaoPedidoInsumoState extends State<ModalAcaoPedidoInsumo> {
                   ),
                 ],
                 // ==========================================================
-                // 💡 MEGA MELHORIA 3.0: RASTREIO AO VIVO DO MOTOBOY
+                // 💡 MEGA MELHORIA 3.0: RASTREIO AO VIVO DO MOTOBOY (COM COMPONENTE)
                 // ==========================================================
-                if (data['status'] == 'em_transporte') ...[
+                if (data['status'] == 'em_transporte' &&
+                    data['entregadorId'] != null) ...[
                   const SizedBox(height: 16),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: Colors.blue.shade200,
-                        width: 1.5,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.blue.withOpacity(0.05),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.radar_rounded,
-                                  color: Colors.blue.shade700,
-                                  size: 20,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  "Rastreio em Tempo Real",
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 14,
-                                    color: Colors.blue.shade800,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.blue.shade50,
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                "Chegada em: -- min", // Substituiremos pela lógica real
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 11,
-                                  color: Colors.blue.shade700,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-
-                        // 🗺️ O MAPA ENTRARÁ AQUI
-
-                        // 🗺️ O MAPA REAL ENTRA AQUI
-                        Container(
-                          height: 220,
-                          width: double.infinity,
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade100,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.grey.shade300),
-                          ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: StreamBuilder<DocumentSnapshot>(
-                              // Ouve o documento do motoboy em tempo real!
-                              stream: FirebaseFirestore.instance
-                                  .collection('usuarios')
-                                  .doc(data['entregadorId'].toString())
-                                  .snapshots(),
-                              builder: (context, snapshot) {
-                                // 1. A processar
-                                if (snapshot.connectionState ==
-                                    ConnectionState.waiting) {
-                                  return const Center(
-                                    child: CircularProgressIndicator(),
-                                  );
-                                }
-
-                                // 2. Sem dados do motoboy
-                                if (!snapshot.hasData ||
-                                    !snapshot.data!.exists) {
-                                  return const Center(
-                                    child: Text(
-                                      "Aguardando sinal do GPS...",
-                                      style: TextStyle(color: Colors.grey),
-                                    ),
-                                  );
-                                }
-
-                                final entregadorData =
-                                    snapshot.data!.data() as Map?;
-
-                                // 3. Motoboy existe, mas ainda não ativou o radar (coordenadas vazias)
-                                if (entregadorData == null ||
-                                    !entregadorData.containsKey(
-                                      'latitudeAtual',
-                                    ) ||
-                                    !entregadorData.containsKey(
-                                      'longitudeAtual',
-                                    )) {
-                                  return Center(
-                                    child: Column(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        Icon(
-                                          Icons.location_off_rounded,
-                                          color: Colors.grey.shade400,
-                                          size: 36,
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Text(
-                                          "Sinal de GPS ainda não recebido.",
-                                          style: TextStyle(
-                                            color: Colors.grey.shade600,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                }
-
-                                // 4. SUCESSO: Temos as coordenadas! Desenha o mapa.
-                                final double lat =
-                                    entregadorData['latitudeAtual'];
-                                final double lng =
-                                    entregadorData['longitudeAtual'];
-
-                                return GoogleMap(
-                                  initialCameraPosition: CameraPosition(
-                                    target: LatLng(lat, lng),
-                                    zoom:
-                                        16.5, // Um zoom porreiro para acompanhar motas nas ruas
-                                  ),
-                                  markers: {
-                                    Marker(
-                                      markerId: const MarkerId('motoboy_live'),
-                                      position: LatLng(lat, lng),
-                                      icon:
-                                          BitmapDescriptor.defaultMarkerWithHue(
-                                            BitmapDescriptor.hueBlue,
-                                          ), // Pino Azul
-                                      infoWindow: const InfoWindow(
-                                        title: "Posição Atual",
-                                      ),
-                                    ),
-                                  },
-                                  zoomControlsEnabled: true,
-                                  mapToolbarEnabled: false,
-                                  myLocationButtonEnabled: false,
-                                );
-                              },
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                  CardRastreioLive(
+                    entregadorId: data['entregadorId'].toString(),
+                    enderecoOrigem: enderecoOrigem,
+                    enderecoDestino: enderecoDestino,
+                    status: data['status'].toString(),
                   ),
                 ],
               ],

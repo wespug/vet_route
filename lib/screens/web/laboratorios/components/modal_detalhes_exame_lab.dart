@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:vet_route/models/coleta_model.dart';
 import 'package:vet_route/controllers/gestao_exames_lab_controller.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:vet_route/screens/widgets/card_rastreio_live.dart';
 
 class ModalDetalhesExameLab extends StatefulWidget {
   final Coleta coleta;
@@ -283,7 +284,6 @@ class _ModalDetalhesExameLabState extends State<ModalDetalhesExameLab> {
                     nomeEntregador != 'Aguardando Entregador' &&
                     nomeEntregador != 'Não Atribuído');
 
-            // 💡 A MÁGICA: Permite trocar entregador a qualquer momento ANTES dele bipar o pacote
             final bool podeTrocarEntregador =
                 !statusRealTime.toLowerCase().contains('transporte') &&
                 !statusRealTime.toLowerCase().contains('rota') &&
@@ -766,6 +766,8 @@ class _ModalDetalhesExameLabState extends State<ModalDetalhesExameLab> {
                           docData,
                           statusRealTime,
                           context,
+                          enderecoOrigem,
+                          enderecoDestino,
                         ),
                       ],
                     ),
@@ -1017,6 +1019,8 @@ class _ModalDetalhesExameLabState extends State<ModalDetalhesExameLab> {
     Map<String, dynamic> data,
     String statusRealTime,
     BuildContext context,
+    String endOrigem,
+    String endDestino,
   ) {
     if (logs.isEmpty)
       return const Text(
@@ -1137,7 +1141,12 @@ class _ModalDetalhesExameLabState extends State<ModalDetalhesExameLab> {
                           statusRealTime.toLowerCase() == 'em_transporte' &&
                           data['entregadorId'] != null) ...[
                         const SizedBox(height: 16),
-                        _buildCardMapa(data),
+                        _buildCardMapa(
+                          data,
+                          statusRealTime,
+                          endOrigem,
+                          endDestino,
+                        ),
                       ],
                       if (index == indexEntrega &&
                           data['fotoUrlEntrega'] != null &&
@@ -1327,106 +1336,17 @@ class _ModalDetalhesExameLabState extends State<ModalDetalhesExameLab> {
     );
   }
 
-  Widget _buildCardMapa(Map<String, dynamic> data) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.blue.shade200, width: 1.5),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.radar_rounded, color: Colors.blue.shade700, size: 20),
-              const SizedBox(width: 8),
-              Text(
-                "Rastreio em Tempo Real",
-                style: TextStyle(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 14,
-                  color: Colors.blue.shade800,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Container(
-            height: 200,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey.shade300),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: StreamBuilder<DocumentSnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection('usuarios')
-                    .doc(data['entregadorId'].toString())
-                    .snapshots(),
-                builder: (context, mapSnapshot) {
-                  if (mapSnapshot.connectionState == ConnectionState.waiting)
-                    return const Center(child: CircularProgressIndicator());
-                  if (!mapSnapshot.hasData || !mapSnapshot.data!.exists)
-                    return const Center(
-                      child: Text(
-                        "Aguardando sinal do GPS...",
-                        style: TextStyle(color: Colors.grey),
-                      ),
-                    );
-                  final entregadorData = mapSnapshot.data!.data() as Map?;
-                  if (entregadorData == null ||
-                      !entregadorData.containsKey('latitudeAtual') ||
-                      !entregadorData.containsKey('longitudeAtual')) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.location_off_rounded,
-                            color: Colors.grey.shade400,
-                            size: 36,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            "Sinal de GPS ainda não recebido.",
-                            style: TextStyle(color: Colors.grey.shade600),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-                  final double lat = entregadorData['latitudeAtual'];
-                  final double lng = entregadorData['longitudeAtual'];
-                  return GoogleMap(
-                    initialCameraPosition: CameraPosition(
-                      target: LatLng(lat, lng),
-                      zoom: 16.5,
-                    ),
-                    markers: {
-                      Marker(
-                        markerId: const MarkerId('motoboy_live'),
-                        position: LatLng(lat, lng),
-                        icon: BitmapDescriptor.defaultMarkerWithHue(
-                          BitmapDescriptor.hueBlue,
-                        ),
-                      ),
-                    },
-                    zoomControlsEnabled: true,
-                    mapToolbarEnabled: false,
-                    myLocationButtonEnabled: false,
-                  );
-                },
-              ),
-            ),
-          ),
-        ],
-      ),
+  Widget _buildCardMapa(
+    Map<String, dynamic> data,
+    String statusRealTime,
+    String endOrigem,
+    String endDestino,
+  ) {
+    return CardRastreioLive(
+      entregadorId: data['entregadorId'].toString(),
+      enderecoOrigem: endOrigem,
+      enderecoDestino: endDestino,
+      status: statusRealTime,
     );
   }
 
