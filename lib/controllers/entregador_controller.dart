@@ -11,8 +11,6 @@ import '../models/perfil_usuario.dart';
 import '../repositories/firestore_coleta_repository.dart';
 import 'dart:async';
 import 'package:geolocator/geolocator.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/material.dart';
 
 class EntregadorController extends ChangeNotifier {
   final FirestoreColetaRepository? _repository;
@@ -171,18 +169,12 @@ class EntregadorController extends ChangeNotifier {
   // =========================================================================
   // 📍 RASTREIO INTELIGENTE (ATIVADO NA RECOLHA, DESLIGADO NA ENTREGA)
   // =========================================================================
-  // =========================================================================
-  // 📍 RASTREIO INTELIGENTE (ATIVADO NA RECOLHA, DESLIGADO NA ENTREGA)
-  // =========================================================================
-  // =========================================================================
-  // 📍 RASTREIO INTELIGENTE (ATIVADO NA RECOLHA, DESLIGADO NA ENTREGA)
-  // =========================================================================
   Future iniciarRastreioInteligente(String entregadorId) async {
     debugPrint("🚀 [GPS] Iniciando tentativa de rastreio para: $entregadorId");
 
     if (_rastreioGPS != null) {
       debugPrint(
-        "⚠️️ [GPS] O rastreio já estava ativo. Abortando nova inicialização.",
+        "⚠ [GPS] O rastreio já estava ativo. Abortando nova inicialização.",
       );
       return;
     }
@@ -205,7 +197,6 @@ class EntregadorController extends ChangeNotifier {
       }
     }
 
-    // 💡 O "Empurrão" Inicial com Logs e Timeout (limite de 7 segundos)
     try {
       debugPrint("⏳ [GPS] Solicitando posição inicial ao satélite...");
 
@@ -222,7 +213,7 @@ class EntregadorController extends ChangeNotifier {
           );
 
       debugPrint(
-        "✅ [GPS] Posição recebida! Lat: \({posicaoInicial.latitude}, Lng:\){posicaoInicial.longitude}",
+        "✅ [GPS] Posição recebida! Lat: ${posicaoInicial.latitude}, Lng: ${posicaoInicial.longitude}",
       );
       debugPrint("⏳ [GPS] Salvando coordenada inicial no Firebase...");
 
@@ -237,7 +228,6 @@ class EntregadorController extends ChangeNotifier {
       debugPrint("❌ [GPS] FALHA NO EMPURRÃO INICIAL: $e");
     }
 
-    // 💡 FILTRO DE ECONOMIA: A partir de agora, só envia se a mota andar 100 metros
     const LocationSettings configuracaoGPS = LocationSettings(
       accuracy: LocationAccuracy.high,
       distanceFilter: 100,
@@ -252,7 +242,7 @@ class EntregadorController extends ChangeNotifier {
           Position position,
         ) {
           debugPrint(
-            "📡 [GPS-MOVIMENTO] Andou 100m! Atualizando Firebase: \({position.latitude},\){position.longitude}",
+            "📡 [GPS-MOVIMENTO] Andou 100m! Atualizando Firebase: ${position.latitude}, ${position.longitude}",
           );
 
           _db
@@ -269,6 +259,9 @@ class EntregadorController extends ChangeNotifier {
         });
   }
 
+  // =========================================================================
+  // 💡 MÁGICA: A função agora exige e utiliza a coleção correta!
+  // =========================================================================
   Future confirmarEntregaComFoto({
     required String pedidoId,
     required File foto,
@@ -276,34 +269,36 @@ class EntregadorController extends ChangeNotifier {
     required double lat,
     required double lng,
     required String dataFormatada,
+    required String colecao, // 💡 INJETAMOS A COLEÇÃO AQUI
   }) async {
     try {
-      // 1. Cria o caminho no Storage (Padrão idêntico ao da Coleta)
+      // 1. Cria o caminho no Storage
       final storageRef = FirebaseStorage.instance
           .ref()
           .child('comprovantes_entrega')
           .child(
-            'entrega_\({pedidoId}_\){DateTime.now().millisecondsSinceEpoch}.jpg',
+            'entrega_${pedidoId}_${DateTime.now().millisecondsSinceEpoch}.jpg',
           );
 
       // 2. Sobe a foto original e pega o Link
       final uploadTask = await storageRef.putFile(foto);
       final urlFoto = await uploadTask.ref.getDownloadURL();
 
-      // 3. A MÁGICA: Prepara os dados de conclusão
+      // 3. Prepara os dados de conclusão
       final Map<String, dynamic> dadosAtualizacao = {
         'status': 'concluido',
         'fotoUrlEntrega': urlFoto,
         'enderecoEntrega': enderecoGeo,
         'latEntrega': lat,
         'lngEntrega': lng,
-        'dataEntrega': dataFormatada,
-        'timestampEntrega': FieldValue.serverTimestamp(),
+        'dataEntrega': dataFormatada, // Formato DD/MM/YYYY HH:MM
+        'timestampEntrega':
+            FieldValue.serverTimestamp(), // Usado para ordenação segura
       };
 
-      // 4. Atualiza no banco de dados (Ajuste para o seu repositório se usar um, igual na Coleta)
+      // 4. MÁGICA: Atualiza na coleção correta enviada pelo Modal! 💡
       await FirebaseFirestore.instance
-          .collection('pedidos_insumos')
+          .collection(colecao) // 👈 Deixou de ser fixo em 'pedidos_insumos'
           .doc(pedidoId)
           .update(dadosAtualizacao);
 
@@ -331,10 +326,12 @@ class EntregadorController extends ChangeNotifier {
     }
   }
 
+  @override
   void dispose() {
     isLoading.dispose();
     todosEntregadores.dispose();
     entregadoresAtivos.dispose();
     marcadores.dispose();
+    super.dispose();
   }
 }

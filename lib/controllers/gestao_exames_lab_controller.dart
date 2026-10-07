@@ -58,11 +58,13 @@ class GestaoExamesLabController extends ChangeNotifier {
                   statusLower.contains('cancelado') ||
                   statusLower.contains('recusado');
 
+              // 💡 A SOLUÇÃO: Adicionado 'transporte' para capturar o status 'em_transporte'
               final isEmRota =
                   statusLower.contains('em rota') ||
                   statusLower.contains('em_rota') ||
                   statusLower.contains('coletado') ||
-                  statusLower.contains('caminho');
+                  statusLower.contains('caminho') ||
+                  statusLower.contains('transporte');
 
               if (isEncerrado) {
                 if (isMesmoDia) {
@@ -73,9 +75,10 @@ class GestaoExamesLabController extends ChangeNotifier {
               } else if (isCancelado) {
                 tempHistorico.add(coleta);
               } else if (isEmRota) {
-                tempEmRota.add(coleta);
+                tempEmRota.add(
+                  coleta,
+                ); // 💡 Agora os itens em transporte vêm para aqui!
               } else {
-                // 💡 Qualquer status como 'pendente', 'aguardando_coleta' ou 'indo_coletar' cai aqui
                 tempAguardando.add(coleta);
               }
             }
@@ -159,14 +162,14 @@ class GestaoExamesLabController extends ChangeNotifier {
           : 'Despachado para o motoboy parceiro: $nomeEntregador.';
 
       final updatePayload = {
-        'status': 'indo_coletar', // 💡 Mudança para o novo status
+        'status': 'indo_coletar',
         'nomeEntregador': nomeEntregador,
         'veiculoExterno': veiculo,
         'placaExterna': placa,
         'isTransporteExterno': isExterno,
         'historicoLogs': FieldValue.arrayUnion([
           {
-            'status': 'indo_coletar', // 💡 Mudança para o novo status no log
+            'status': 'indo_coletar',
             'data': Timestamp.now(),
             'observacao': obs,
             'usuario': 'Laboratório',

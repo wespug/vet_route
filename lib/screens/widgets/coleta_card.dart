@@ -6,8 +6,6 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:vet_route/controllers/core/app_config.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:vet_route/controllers/entregador_controller.dart';
-
 import 'package:vet_route/models/coleta_model.dart';
 import 'package:vet_route/controllers/coleta_controller.dart';
 import 'package:vet_route/screens/web/clinicas/modal/modal_validacao_entrega.dart';
@@ -47,9 +45,6 @@ class _ColetaCardState extends State<ColetaCard> {
   String _tempoViagem = "";
   String _distanciaRota = "";
 
-  // ====================================================================
-  // FUNÇÃO 1: INICIA A ROTA DUPLA
-  // ====================================================================
   Future _iniciarNavegacao() async {
     setState(() => _carregandoMapa = true);
 
@@ -70,11 +65,9 @@ class _ColetaCardState extends State<ColetaCard> {
       }
     }
 
-    // Pega a posição do motoboy
     _posicaoAtual = await Geolocator.getCurrentPosition();
     setState(() => _rotaCalculada = true);
 
-    // Reseta o zoom e as linhas do mapa
     _minLat = 90.0;
     _maxLat = -90.0;
     _minLng = 180.0;
@@ -82,7 +75,6 @@ class _ColetaCardState extends State<ColetaCard> {
     _polylines.clear();
     _markers.clear();
 
-    // 1. Pega as coordenadas da Clínica
     PointLatLng? coordClinica = await _obterCoordenadas(
       widget.item.enderecoOrigemVisual,
       widget.item.latitudeOrigem,
@@ -90,16 +82,14 @@ class _ColetaCardState extends State<ColetaCard> {
       isOrigem: true,
     );
 
-    // 2. Pega as coordenadas do Laboratório
     PointLatLng? coordLab = await _obterCoordenadas(
       widget.item.enderecoDestinoVisual,
-      widget.item.latitudeDestino, // Se o model não tiver isso, passe 'null'
-      widget.item.longitudeDestino, // Se o model não tiver isso, passe 'null'
+      widget.item.latitudeDestino,
+      widget.item.longitudeDestino,
       isOrigem: false,
     );
 
     if (coordClinica != null) {
-      // ROTA 1: MOTOBOY -> CLÍNICA (AZUL CLARO)
       await _tracarRota(
         origem: PointLatLng(_posicaoAtual!.latitude, _posicaoAtual!.longitude),
         destino: coordClinica,
@@ -107,24 +97,21 @@ class _ColetaCardState extends State<ColetaCard> {
         corRota: Colors.blueAccent,
         idMarkerDestino: "marker_clinica",
         hueMarker: BitmapDescriptor.hueBlue,
-        isPrimeiraRota: true, // Salva o tempo e distância na tela
+        isPrimeiraRota: true,
       );
 
       if (coordLab != null) {
-        // ROTA 2: CLÍNICA -> LABORATÓRIO (ROXA)
         await _tracarRota(
           origem: coordClinica,
           destino: coordLab,
           rotaId: "rota_clinica_lab",
           corRota: Colors.deepPurpleAccent,
           idMarkerDestino: "marker_lab",
-          hueMarker:
-              BitmapDescriptor.hueRed, // Pino vermelho no laboratório final
+          hueMarker: BitmapDescriptor.hueRed,
           isPrimeiraRota: false,
         );
       }
 
-      // 3. Aplica o Zoom Total englobando Motoboy, Clínica e Lab
       _limitesRota = LatLngBounds(
         southwest: LatLng(_minLat, _minLng),
         northeast: LatLng(_maxLat, _maxLng),
@@ -141,21 +128,15 @@ class _ColetaCardState extends State<ColetaCard> {
     setState(() => _carregandoMapa = false);
   }
 
-  // ====================================================================
-  // FUNÇÃO 2: HELPER DE GEOCODING (Converte Endereço em Coordenada)
-  // ====================================================================
   Future _obterCoordenadas(
     String endereco,
     double? latSalva,
     double? lngSalva, {
     required bool isOrigem,
   }) async {
-    // Se já estiver salvo no banco, devolve direto!
-    if (latSalva != null && lngSalva != null) {
+    if (latSalva != null && lngSalva != null)
       return PointLatLng(latSalva, lngSalva);
-    }
 
-    // Se não, pede à Google (com concatenação segura sem $)
     final String urlGeocode =
         "https://maps.googleapis.com/maps/api/geocode/json?address=" +
         Uri.encodeComponent(endereco) +
@@ -171,7 +152,6 @@ class _ColetaCardState extends State<ColetaCard> {
           double lat = (loc['lat'] as num).toDouble();
           double lng = (loc['lng'] as num).toDouble();
 
-          // Se for a origem, salva no banco para usar de cache na próxima vez
           if (isOrigem) {
             try {
               final controller = Provider.of<ColetaController>(
@@ -184,21 +164,18 @@ class _ColetaCardState extends State<ColetaCard> {
                 lng,
               );
             } catch (e) {
-              print("Erro ao salvar origem no cache: $e");
+              debugPrint("Erro ao salvar origem no cache: $e");
             }
           }
           return PointLatLng(lat, lng);
         }
       }
     } catch (e) {
-      print("Erro no Geocoding: $e");
+      debugPrint("Erro no Geocoding: $e");
     }
     return null;
   }
 
-  // ====================================================================
-  // FUNÇÃO 3: O DESENHISTA DE LINHAS DINÂMICAS
-  // ====================================================================
   Future _tracarRota({
     required PointLatLng origem,
     required PointLatLng destino,
@@ -228,7 +205,6 @@ class _ColetaCardState extends State<ColetaCard> {
           final route = data['routes'][0];
           final leg = route['legs'][0];
 
-          // Guarda o tempo e distância apenas do trajeto imediato (Motoboy -> Clínica)
           if (isPrimeiraRota) {
             setState(() {
               _distanciaRota = leg['distance']['text'];
@@ -241,7 +217,6 @@ class _ColetaCardState extends State<ColetaCard> {
           List resultPoints = polylinePoints.decodePolyline(pointsString);
           List polylineCoordinates = [];
 
-          // Adiciona os pontos da linha e atualiza o Zoom Global
           for (var point in resultPoints) {
             polylineCoordinates.add(LatLng(point.latitude, point.longitude));
             if (point.latitude < _minLat) _minLat = point.latitude;
@@ -259,9 +234,6 @@ class _ColetaCardState extends State<ColetaCard> {
                 points: List.from(polylineCoordinates),
               ),
             );
-
-            // Coloca o pino apenas no destino de cada perna
-            // (O motoboy já tem a bolinha azul nativa)
             _markers.add(
               Marker(
                 markerId: MarkerId(idMarkerDestino),
@@ -273,7 +245,7 @@ class _ColetaCardState extends State<ColetaCard> {
         }
       }
     } catch (e) {
-      print("Erro ao tentar buscar a rota \(rotaId:\)e");
+      debugPrint("Erro ao tentar buscar a rota: $e");
     }
   }
 
@@ -283,11 +255,7 @@ class _ColetaCardState extends State<ColetaCard> {
     ).showSnackBar(SnackBar(content: Text(mensagem)));
   }
 
-  // ====================================================================
-  // 1. FUNÇÃO DO MODO NAVEGAÇÃO (Prepara o terreno para o Waze/Maps)
-  // ====================================================================
   Future _abrirModoNavegacao() async {
-    // 1. Atualiza o status em segundo plano com segurança total
     try {
       final String statusNorm = widget.item.status.toLowerCase();
       final bool isEmRota =
@@ -303,11 +271,11 @@ class _ColetaCardState extends State<ColetaCard> {
         controller.atualizarStatusColeta(widget.item.id, 'coletar_produto');
       }
     } catch (e) {
-      print("Aviso: Erro ignorado ao atualizar status pelo botão Navegar: $e");
+      debugPrint(
+        "Aviso: Erro ignorado ao atualizar status pelo botão Navegar: $e",
+      );
     }
 
-    // 2. MÁGICA: Usa a nossa função inteligente para garantir a coordenada
-    // (Mesmo que o Firebase ainda não tenha devolvido a atualização para a tela)
     PointLatLng? coordClinica = await _obterCoordenadas(
       widget.item.enderecoOrigemVisual,
       widget.item.latitudeOrigem,
@@ -323,7 +291,6 @@ class _ColetaCardState extends State<ColetaCard> {
     final double lat = coordClinica.latitude;
     final double lng = coordClinica.longitude;
 
-    // 3. Monta os Links Universais de Navegação (Concatenados com segurança)
     final Uri urlGoogleMaps = Uri.parse(
       "https://www.google.com/maps/dir/?api=1&destination=" +
           lat.toString() +
@@ -339,7 +306,6 @@ class _ColetaCardState extends State<ColetaCard> {
           "&navigate=yes",
     );
 
-    // 4. Trava de segurança para abrir o Modal
     if (!mounted) return;
 
     showModalBottomSheet(
@@ -403,13 +369,6 @@ class _ColetaCardState extends State<ColetaCard> {
     );
   }
 
-  // ====================================================================
-  // 2. O NOVO BUILD (Mais limpo, delegando a construção das partes)
-  // ====================================================================
-
-  // ====================================================================
-  // 2. O NOVO BUILD (Mais limpo, delegando a construção das partes)
-  // ====================================================================
   @override
   Widget build(BuildContext context) {
     String dataHoraFormatada = '--/-- --:--';
@@ -454,7 +413,6 @@ class _ColetaCardState extends State<ColetaCard> {
     final bool isRecusado =
         statusNorm.contains('recusad') || statusNorm.contains('cancel');
 
-    // 💡 RODAPÉ LIMPO: O ID já não está espremido aqui em baixo
     String rodapeTexto = isInsumo
         ? 'Pedido de Insumo'
         : (isUrgencia ? 'Coleta de Urgência' : 'Coleta de Exame');
@@ -531,9 +489,6 @@ class _ColetaCardState extends State<ColetaCard> {
     );
   }
 
-  // ====================================================================
-  // 3. LAYOUT UNIFICADO (Cabeçalho Redesenhado)
-  // ====================================================================
   Widget _buildLayoutUnificado(
     Color corTema,
     Color corFundoTema,
@@ -551,7 +506,6 @@ class _ColetaCardState extends State<ColetaCard> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // CABEÇALHO PODEROSO: ID Gigante + Data + Status
         Padding(
           padding: const EdgeInsets.only(
             left: 16,
@@ -566,7 +520,6 @@ class _ColetaCardState extends State<ColetaCard> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ID EM DESTAQUE GIGANTE
                   Expanded(
                     child: Text(
                       "#$codigoFormatado",
@@ -578,7 +531,6 @@ class _ColetaCardState extends State<ColetaCard> {
                       ),
                     ),
                   ),
-                  // DATA E HORA
                   Row(
                     children: [
                       Icon(
@@ -600,7 +552,6 @@ class _ColetaCardState extends State<ColetaCard> {
                 ],
               ),
               const SizedBox(height: 10),
-              // BADGE DE STATUS NA SEGUNDA LINHA
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 10,
@@ -625,7 +576,6 @@ class _ColetaCardState extends State<ColetaCard> {
         ),
         const Divider(height: 1, color: Color(0xFFF2F2F7), thickness: 1.5),
 
-        // MIOLO DINÂMICO: MAPA OU TEXTO (Continua a funcionar perfeitamente)
         Padding(
           padding: const EdgeInsets.all(16),
           child: _mostrarMapa
@@ -633,7 +583,6 @@ class _ColetaCardState extends State<ColetaCard> {
               : _buildVisorTextos(corTema),
         ),
 
-        // RODAPÉ COM DETALHES E BOTÕES
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
@@ -727,10 +676,18 @@ class _ColetaCardState extends State<ColetaCard> {
                             ),
                           ),
                           onPressed: () {
+                            // 💡 A MÁGICA ACONTECE AQUI: AVALIA SE É EXAME OU INSUMO
+                            final colecaoCorreta = widget.item.isInsumo
+                                ? 'pedidos_insumos'
+                                : 'chamados_coleta';
+
                             showDialog(
                               context: context,
-                              builder: (context) =>
-                                  ModalValidacaoEntrega(pedido: widget.item),
+                              builder: (context) => ModalValidacaoEntrega(
+                                pedido: widget.item,
+                                colecao:
+                                    colecaoCorreta, // 💡 E PASSA PARA A MODAL
+                              ),
                             );
                           },
                         ),
@@ -810,22 +767,17 @@ class _ColetaCardState extends State<ColetaCard> {
     );
   }
 
-  // ====================================================================
-  // 4. WIDGETS AUXILIARES E BOTÕES INTELIGENTES
-  // ====================================================================
   Widget _buildVisorMapa(Color corTema) {
     return Column(
       children: [
         SizedBox(
-          height: 220, // Altura perfeita para não quebrar a lista
+          height: 220,
           child: ClipRRect(
             borderRadius: BorderRadius.circular(12),
             child: Stack(
               children: [
                 GoogleMap(
-                  // Força o iOS a recriar o mapa limpo
                   key: UniqueKey(),
-
                   scrollGesturesEnabled: false,
                   zoomGesturesEnabled: false,
                   tiltGesturesEnabled: false,
@@ -844,39 +796,28 @@ class _ColetaCardState extends State<ColetaCard> {
                   polylines: Set.from(_polylines),
                   markers: Set.from(_markers),
                   myLocationEnabled: true,
-
                   onMapCreated: (GoogleMapController controller) {
-                    // 1. MÁGICA 1: Destrói o controlador velho e usa o novo!
-                    if (_mapController.isCompleted) {
+                    if (_mapController.isCompleted)
                       _mapController = Completer();
-                    }
                     _mapController.complete(controller);
-
-                    // 2. MÁGICA 2: Puxa o zoom de volta para a rota inteira!
-                    // 2. MÁGICA 2: Puxa o zoom de volta para a rota inteira!
                     if (_limitesRota != null) {
                       Future.delayed(const Duration(milliseconds: 400), () {
                         if (!mounted) return;
-
-                        // 💡 BLINDAGEM MÁXIMA: Tenta animar, mas se o mapa já tiver evaporado, ignora em silêncio.
                         try {
                           controller.animateCamera(
                             CameraUpdate.newLatLngBounds(_limitesRota!, 20.0),
                           );
                         } catch (e) {
-                          debugPrint(
-                            "Animação ignorada: O mapa já foi fechado pelo utilizador.",
-                          );
+                          debugPrint("Animação ignorada");
                         }
                       });
                     }
                   },
                 ),
-
                 if (_tempoViagem.isNotEmpty)
                   Positioned(
-                    bottom: 12, // Move para a base do mapa
-                    left: 12, // Move para a esquerda
+                    bottom: 12,
+                    left: 12,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                         vertical: 6,
@@ -1041,7 +982,6 @@ class _ColetaCardState extends State<ColetaCard> {
     );
   }
 
-  // O botão altera a sua função dependendo de já estarmos em rota ou não
   Widget _buildBotaoAcaoPrincipal(Color corTema) {
     final String statusNorm = widget.item.status.toLowerCase();
     final bool isEmRota =
@@ -1078,23 +1018,18 @@ class _ColetaCardState extends State<ColetaCard> {
           ? null
           : () async {
               setState(() => _mostrarMapa = true);
-
-              // 1. AVISAR O FIREBASE IMEDIATAMENTE (COM A TIPAGEM CORRETA)
               try {
                 final controller = Provider.of<ColetaController>(
                   context,
                   listen: false,
                 );
-                // Removemos o await para não travar a tela enquanto o banco processa
                 controller.atualizarStatusColeta(
                   widget.item.id,
                   'coletar_produto',
                 );
               } catch (e) {
-                print("Erro ao atualizar status: $e");
+                debugPrint("Erro ao atualizar status: $e");
               }
-
-              // 2. DESENHAR A ROTA NO MAPA COM CALMA
               if (!_rotaCalculada) {
                 await _iniciarNavegacao();
               }
@@ -1153,7 +1088,6 @@ class _ColetaCardState extends State<ColetaCard> {
                 context,
                 listen: false,
               );
-
               await controller.recusarColeta(item.id);
             },
             style: ElevatedButton.styleFrom(

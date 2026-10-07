@@ -137,7 +137,14 @@ class GestaoExamesColetaView extends StatelessWidget {
     List itens,
     bool isTelaPequena,
   ) {
-    // 💡 O SEGREDO: Se for tela pequena, fixa a largura em 340 pixels para proteger o cartão.
+    // 💡 ORDENAÇÃO: Mais antigos (com base na dataCriacao) aparecem primeiro (no topo)
+    final itensOrdenados = List.from(itens);
+    itensOrdenados.sort((a, b) {
+      final dataA = a.dataCriacao ?? DateTime.now();
+      final dataB = b.dataCriacao ?? DateTime.now();
+      return dataA.compareTo(dataB); // Crescente: antigo -> recente
+    });
+
     Widget containerColuna = Container(
       width: isTelaPequena ? 340 : null,
       decoration: BoxDecoration(
@@ -179,7 +186,7 @@ class GestaoExamesColetaView extends StatelessWidget {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    "${itens.length}",
+                    "${itensOrdenados.length}",
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       color: cor.shade800,
@@ -192,9 +199,9 @@ class GestaoExamesColetaView extends StatelessWidget {
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.all(12),
-              itemCount: itens.length,
+              itemCount: itensOrdenados.length,
               itemBuilder: (context, index) {
-                return ItemCardExameKanban(coleta: itens[index]);
+                return ItemCardExameKanban(coleta: itensOrdenados[index]);
               },
             ),
           ),
@@ -202,7 +209,6 @@ class GestaoExamesColetaView extends StatelessWidget {
       ),
     );
 
-    // Se NÃO for tela pequena, precisamos do Expanded para dividir o espaço horizontalmente
     return isTelaPequena ? containerColuna : Expanded(child: containerColuna);
   }
 

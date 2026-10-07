@@ -1,20 +1,22 @@
 import 'dart:io';
 import 'package:geocoding/geocoding.dart' as geo;
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:vet_route/controllers/entregador_controller.dart';
 import 'package:vet_route/models/coleta_model.dart';
 
 class ModalValidacaoEntrega extends StatefulWidget {
-  final Coleta
-  pedido; // Substitua pelos campos reais do seu Model se necessário
+  final Coleta pedido;
+  final String colecao; // 💡 AGORA A MODAL ACEITA A COLEÇÃO
 
-  const ModalValidacaoEntrega({super.key, required this.pedido});
+  const ModalValidacaoEntrega({
+    super.key,
+    required this.pedido,
+    required this.colecao, // 💡 OBRIGATÓRIO RECEBER
+  });
 
   @override
   State<ModalValidacaoEntrega> createState() => _ModalValidacaoEntregaState();
@@ -24,12 +26,11 @@ class _ModalValidacaoEntregaState extends State<ModalValidacaoEntrega> {
   File? _fotoEntregue;
   bool _processando = false;
 
-  // 📸 ABRE A CÂMARA E CAPTURA A PROVA
   Future _tirarFoto() async {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(
       source: ImageSource.camera,
-      imageQuality: 60, // Comprime para gastar pouca internet
+      imageQuality: 60,
     );
 
     if (pickedFile != null) {
@@ -39,7 +40,6 @@ class _ModalValidacaoEntregaState extends State<ModalValidacaoEntrega> {
     }
   }
 
-  // 🚀 CONCLUI A ROTA
   Future _finalizarEntrega() async {
     if (_fotoEntregue == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -56,16 +56,13 @@ class _ModalValidacaoEntregaState extends State<ModalValidacaoEntrega> {
     setState(() => _processando = true);
 
     try {
-      // 1. Pega o GPS exato da porta do destino
       Position posicao = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );
 
-      // 2. Regista o carimbo de tempo
       final agora = DateTime.now();
       final dataFormatada = DateFormat('dd/MM/yyyy HH:mm').format(agora);
 
-      // 3. TRADUZ AS COORDENADAS PARA NOME DE RUA
       String enderecoFormatado = "Endereço não capturado";
       try {
         List<geo.Placemark> placemarks = await geo.placemarkFromCoordinates(
@@ -81,15 +78,12 @@ class _ModalValidacaoEntregaState extends State<ModalValidacaoEntrega> {
               "Endereço desconhecido";
         }
       } catch (e) {
-        debugPrint("Erro ao converter coordenadas para rua: $e");
+        debugPrint("Erro ao converter coordenadas: $e");
         enderecoFormatado =
-            "GPS: " +
-            posicao.latitude.toStringAsFixed(5) +
-            ", " +
-            posicao.longitude.toStringAsFixed(5);
+            "GPS: ${posicao.latitude.toStringAsFixed(5)}, ${posicao.longitude.toStringAsFixed(5)}";
       }
 
-      // 4. DELEGA PARA O CONTROLLER
+      // 💡 DELEGA PARA O CONTROLLER PASSANDO A COLEÇÃO CORRETA
       await Provider.of<EntregadorController>(
         context,
         listen: false,
@@ -100,9 +94,9 @@ class _ModalValidacaoEntregaState extends State<ModalValidacaoEntrega> {
         lat: posicao.latitude,
         lng: posicao.longitude,
         dataFormatada: dataFormatada,
+        colecao: widget.colecao, // 👈 A COLEÇÃO É INJETADA AQUI!
       );
 
-      // 5. Fecha e avisa do sucesso
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -136,7 +130,6 @@ class _ModalValidacaoEntregaState extends State<ModalValidacaoEntrega> {
       child: Padding(
         padding: const EdgeInsets.all(24.0),
         child: SingleChildScrollView(
-          // Adicionado para evitar overflow em telas pequenas
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -158,14 +151,11 @@ class _ModalValidacaoEntregaState extends State<ModalValidacaoEntrega> {
               ),
               const SizedBox(height: 20),
 
-              // --- NOVO BLOCO: RESUMO DA COLETA E DESTINO ---
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors
-                      .blue
-                      .shade50, // Fundo levemente azul para destaque amigável
+                  color: Colors.blue.shade50,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: Colors.blue.shade100),
                 ),
@@ -192,7 +182,6 @@ class _ModalValidacaoEntregaState extends State<ModalValidacaoEntrega> {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            // Substitua .origem pela variável correta do seu modelo
                             "Origem: ${widget.pedido.origemVisual ?? 'Endereço da clínica'}",
                             style: TextStyle(
                               fontSize: 13,
@@ -214,7 +203,6 @@ class _ModalValidacaoEntregaState extends State<ModalValidacaoEntrega> {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            // Substitua .destino pela variável correta do seu modelo
                             "Destino: ${widget.pedido.destinoVisual ?? 'Endereço do laboratório'}",
                             style: TextStyle(
                               fontSize: 13,
@@ -229,12 +217,10 @@ class _ModalValidacaoEntregaState extends State<ModalValidacaoEntrega> {
               ),
               const SizedBox(height: 20),
 
-              // CAIXA DA FOTO
               GestureDetector(
                 onTap: _processando ? null : _tirarFoto,
                 child: Container(
-                  height:
-                      160, // Levemente reduzido para caber melhor com a nova área
+                  height: 160,
                   width: double.infinity,
                   decoration: BoxDecoration(
                     color: Colors.grey.shade100,
@@ -273,7 +259,6 @@ class _ModalValidacaoEntregaState extends State<ModalValidacaoEntrega> {
               ),
               const SizedBox(height: 24),
 
-              // BOTÕES
               _processando
                   ? const CircularProgressIndicator(color: Colors.green)
                   : Row(
