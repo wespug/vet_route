@@ -209,6 +209,42 @@ class _ModalAcaoPedidoInsumoState extends State<ModalAcaoPedidoInsumo> {
     pedido.textoStatus;
     final historico = (data['historico'] as List<dynamic>?) ?? [];
     final nomeEntregador = data['nomeEntregador']?.toString();
+    final String veiculo =
+        (data['veiculo']?.toString() ?? data['veiculoExterno']?.toString()) ??
+        'Não informado';
+    final String placa =
+        (data['placa']?.toString() ?? data['placaExterna']?.toString()) ??
+        'Não informada';
+
+    print("\n=== RAIO-X DO PEDIDO DE INSUMOS ===");
+    print("Pedido ID: ${pedido.codigo}");
+    print("Entregador Nome: $nomeEntregador");
+    print("Veiculo puro no DB: ${data['veiculo']}");
+    print("Placa pura no DB: ${data['placa']}");
+    print("===================================\n");
+
+    // 💡 INÍCIO DA SINCRONIZAÇÃO DE TEMPO COM O CARD
+    // 💡 INÍCIO DA SINCRONIZAÇÃO DE TEMPO COM O CARD
+    String dataHoraExibicao = pedido.formatarData(pedido.dataSolicitacao);
+    final statusAtualBusca = pedido.status.toLowerCase();
+
+    if (historico.isNotEmpty) {
+      for (var i = historico.length - 1; i >= 0; i--) {
+        final itemHist = historico[i] as Map<String, dynamic>;
+        final statusHist = (itemHist['status'] ?? '').toString().toLowerCase();
+        if (statusAtualBusca.contains(statusHist) ||
+            statusHist.contains(statusAtualBusca)) {
+          if (itemHist['data'] != null) {
+            dataHoraExibicao = widget.controller.formatarData(itemHist['data']);
+            break;
+          }
+        }
+      }
+    } else if (pedido.dataAtualizacao != null) {
+      dataHoraExibicao = widget.controller.formatarData(pedido.dataAtualizacao);
+    }
+
+    // 💡 FIM DA SINCRONIZAÇÃO
 
     // 💡 PADRONIZAÇÃO DO CÓDIGO (Igual à Tabela Unificada: 6 letras maiúsculas)
     final String codigoFormatado = pedido.codigo.length >= 6
@@ -328,7 +364,7 @@ class _ModalAcaoPedidoInsumoState extends State<ModalAcaoPedidoInsumo> {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            "Solicitado em: ${pedido.formatarData(pedido.dataSolicitacao)}",
+                            "Solicitado em: $dataHoraExibicao",
                             style: TextStyle(
                               color: Colors.grey.shade600,
                               fontSize: 12,
@@ -344,28 +380,106 @@ class _ModalAcaoPedidoInsumoState extends State<ModalAcaoPedidoInsumo> {
               if (nomeEntregador != null && nomeEntregador.isNotEmpty) ...[
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.amber.shade50,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.amber.shade300),
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Colors.indigo.withOpacity(0.15),
+                      width: 1.5,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.indigo.withOpacity(0.04),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
                   child: Row(
                     children: [
-                      Icon(
-                        Icons.sports_motorsports_rounded,
-                        color: Colors.orange.shade900,
-                        size: 24,
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.indigo.shade50,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.two_wheeler_rounded,
+                          color: Colors.indigo.shade600,
+                          size: 26,
+                        ),
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 16),
                       Expanded(
-                        child: Text(
-                          "Entregador Designado: $nomeEntregador",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.orange.shade900,
-                            fontSize: 14,
-                          ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "ENTREGADOR DESIGNADO",
+                              style: TextStyle(
+                                fontSize: 11,
+                                letterSpacing: 0.5,
+                                color: Colors.grey.shade500,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              nomeEntregador,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                                color: Colors.black87,
+                                fontSize: 16,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.directions_bike_rounded,
+                                  size: 14,
+                                  color: Colors.grey.shade500,
+                                ),
+                                const SizedBox(width: 4),
+                                Flexible(
+                                  child: Text(
+                                    veiculo,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: Colors.grey.shade700,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Container(
+                                  width: 4,
+                                  height: 4,
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey.shade300,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Icon(
+                                  Icons.pin_outlined,
+                                  size: 14,
+                                  color: Colors.grey.shade500,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  placa,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.black87,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -373,6 +487,7 @@ class _ModalAcaoPedidoInsumoState extends State<ModalAcaoPedidoInsumo> {
                 ),
                 const SizedBox(height: 16),
               ],
+
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
