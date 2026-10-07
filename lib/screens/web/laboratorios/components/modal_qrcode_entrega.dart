@@ -25,6 +25,7 @@ class ModalQrCodeEntrega extends StatefulWidget {
 
 class _ModalQrCodeEntregaState extends State<ModalQrCodeEntrega> {
   StreamSubscription<DocumentSnapshot>? _ouvinteDeStatus;
+  bool _jaFechou = false; // 💡 A TRAVA DE SEGURANÇA CONTRA A TELA BRANCA
 
   @override
   void initState() {
@@ -34,7 +35,6 @@ class _ModalQrCodeEntregaState extends State<ModalQrCodeEntrega> {
 
   // A MAGIA: Ouve o Firebase em tempo real
   void _escutarPosseDoMotoboy() {
-    // Liga-se ao documento do pedido na coleção "pedidos_insumos"
     _ouvinteDeStatus = FirebaseFirestore.instance
         .collection('pedidos_insumos')
         .doc(widget.pedido.id)
@@ -44,10 +44,12 @@ class _ModalQrCodeEntregaState extends State<ModalQrCodeEntrega> {
             final dados = snapshot.data() as Map;
             final String statusAtual = dados['status'] ?? '';
 
-            // Se o motoboy leu o QR Code e tirou a foto com sucesso...
-            if (statusAtual.toLowerCase() == 'em_transporte') {
+            // 💡 Se o status mudou E a tela ainda não foi fechada...
+            if (statusAtual.toLowerCase() == 'em_transporte' && !_jaFechou) {
+              _jaFechou =
+                  true; // Tranca a porta! Impede o segundo Navigator.pop()
+
               if (mounted) {
-                // Mostra o brinde de sucesso verde
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(
@@ -57,7 +59,7 @@ class _ModalQrCodeEntregaState extends State<ModalQrCodeEntrega> {
                     duration: const Duration(seconds: 4),
                   ),
                 );
-                // Fecha a janela na cara do laboratório
+                // Fecha a janela na cara do laboratório com segurança
                 Navigator.of(context).pop();
               }
             }

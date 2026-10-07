@@ -10,6 +10,7 @@ import 'package:vet_route/controllers/entregador_controller.dart';
 
 import 'package:vet_route/models/coleta_model.dart';
 import 'package:vet_route/controllers/coleta_controller.dart';
+import 'package:vet_route/screens/web/clinicas/modal/modal_validacao_entrega.dart';
 import 'package:vet_route/screens/web/entregadores/components/modal_detalhes_coleta_motoboy.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
@@ -453,14 +454,6 @@ class _ColetaCardState extends State<ColetaCard> {
     final bool isRecusado =
         statusNorm.contains('recusad') || statusNorm.contains('cancel');
 
-    // 💡 ID FORMATADO: Agora extraído cedo para enviarmos ao Cabeçalho
-    final String codigoOriginal = widget.item.codigo.isNotEmpty
-        ? widget.item.codigo
-        : (widget.item.codigoAcompanhamento ?? widget.item.id);
-    final String codigoFormatado = codigoOriginal.length >= 6
-        ? codigoOriginal.substring(0, 6).toUpperCase()
-        : codigoOriginal.toUpperCase();
-
     // 💡 RODAPÉ LIMPO: O ID já não está espremido aqui em baixo
     String rodapeTexto = isInsumo
         ? 'Pedido de Insumo'
@@ -528,7 +521,7 @@ class _ColetaCardState extends State<ColetaCard> {
           statusTexto,
           dataHoraFormatada,
           rodapeTexto,
-          codigoFormatado,
+          widget.item.codigoFormatado,
           isInsumo,
           isUrgencia,
           isRecusado,
@@ -734,19 +727,11 @@ class _ColetaCardState extends State<ColetaCard> {
                             ),
                           ),
                           onPressed: () {
-                            // DESLIGAR O RADAR COM O TRUQUE ANTI-ERRO
-                            try {
-                              EntregadorController entregadorCtrl =
-                                  Provider.of<EntregadorController>(
-                                    context,
-                                    listen: false,
-                                  );
-                              entregadorCtrl.pararRastreio();
-                            } catch (e) {
-                              debugPrint("Erro ao parar radar: $e");
-                            }
-
-                            print("Abrir fluxo de entrega final");
+                            showDialog(
+                              context: context,
+                              builder: (context) =>
+                                  ModalValidacaoEntrega(pedido: widget.item),
+                            );
                           },
                         ),
                       )

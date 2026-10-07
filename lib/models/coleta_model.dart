@@ -52,6 +52,9 @@ class Coleta {
             ? clinicaOrigem.nome
             : 'Clínica não informada');
 
+  String get origem => origemVisual;
+  String get codigo => codigoAcompanhamento ?? id;
+
   String get destinoVisual => isInsumo
       ? (clinicaOrigem.nome.isNotEmpty
             ? clinicaOrigem.nome
@@ -68,8 +71,16 @@ class Coleta {
       ? clinicaOrigem.endereco.enderecoCompleto
       : laboratorioDestino.endereco.enderecoCompleto;
 
+  String get codigoFormatado {
+    final String original = codigo.isNotEmpty ? codigo : id;
+    if (original.length >= 6) {
+      return original.substring(0, 6).toUpperCase();
+    }
+    return original.toUpperCase();
+  }
+
   String get nomeClinica => clinicaOrigem.nome;
-  String get codigo => codigoAcompanhamento ?? id;
+
   DateTime? get dataCriacao => dataSolicitacao;
 
   String get idDoEntregador => entregador?.id ?? '';

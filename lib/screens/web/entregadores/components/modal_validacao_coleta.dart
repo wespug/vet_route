@@ -19,42 +19,35 @@ class ModalValidacaoColeta extends StatefulWidget {
   const ModalValidacaoColeta({super.key, required this.item});
 
   @override
-  State createState() => _ModalValidacaoColetaState();
+  State<ModalValidacaoColeta> createState() => _ModalValidacaoColetaState();
 }
 
 class _ModalValidacaoColetaState extends State<ModalValidacaoColeta> {
   int _passoAtual = 1;
+  bool _sucessoFinal = false;
 
-  // Dados do Passo 1
-  String? _qrCodeLido;
+  final MobileScannerController _scannerController = MobileScannerController();
   bool _processandoQR = false;
 
-  // Dados do Passo 2
   File? _fotoProduto;
-  String _enderecoFormatado = "";
+  String _enderecoFormatado = "Buscando localização...";
   Position? _localizacaoFoto;
   DateTime? _dataHoraFoto;
   bool _carregandoCamera = false;
 
   // =======================================================================
-  // LÓGICA DO PASSO 1: LER QR CODE
+  // PASSO 1: LER QR CODE E ABRIR CÂMERA AUTOMATICAMENTE
   // =======================================================================
-
-  // =======================================================================
-  // LÓGICA DO PASSO 1: LER QR CODE COM SEGURANÇA
-  // =======================================================================
-  void _aoLerQrCode(BarcodeCapture capture) {
+  Future<void> _aoLerQrCode(BarcodeCapture capture) async {
     if (_processandoQR) return;
 
-    final List barcodes = capture.barcodes;
+    final List<Barcode> barcodes = capture.barcodes;
     if (barcodes.isNotEmpty && barcodes.first.rawValue != null) {
-      setState(() {
-        _processandoQR = true;
-        _qrCodeLido = barcodes.first.rawValue;
-      });
+      setState(() => _processandoQR = true);
 
       try {
-        final Map qrDados = json.decode(_qrCodeLido!);
+        final String qrCodeLido = barcodes.first.rawValue!;
+        final Map<String, dynamic> qrDados = json.decode(qrCodeLido);
         final String qrId = qrDados['id'] ?? '';
         final String qrAcao = qrDados['acao'] ?? '';
         final String qrCodigo = qrDados['codigo'] ?? '';
@@ -66,27 +59,20 @@ class _ModalValidacaoColetaState extends State<ModalValidacaoColeta> {
             ? codigoOriginal.substring(0, 6).toUpperCase()
             : codigoOriginal.toUpperCase();
 
-        // 💡 LOGS DE DEBUGGING (O RAIO-X)
-        print("=== DEBUG DE VALIDAÇÃO ===");
-        print("QR_ID: " + qrId);
-        print("QR_CODIGO: " + qrCodigo);
-        print("QR_ACAO: " + qrAcao);
-        print("--- ESPERADO PELO APP ---");
-        print("APP_ID: " + widget.item.id);
-        print("APP_CODIGO: " + codigoMotoboy);
-        print("==========================");
-
         if ((qrId == widget.item.id || qrCodigo == codigoMotoboy) &&
             qrAcao == "em_transporte") {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text("QR Code validado! Liberação autorizada."),
-              backgroundColor: Colors.green,
-            ),
-          );
+          await _scannerController.stop(); // Desliga a lente do QR Code
 
-          Future.delayed(const Duration(milliseconds: 600), () {
-            if (mounted) setState(() => _passoAtual = 2);
+          if (mounted) {
+            setState(() {
+              _passoAtual = 2; // Avança a tela
+              _processandoQR = false;
+            });
+          }
+
+          // Abre a câmera nativa de fotos automaticamente
+          Future.delayed(const Duration(milliseconds: 500), () {
+            if (mounted) _tirarFoto();
           });
         } else {
           _abortarLeituraInvalida("Este QR Code não pertence a este pedido!");
@@ -97,78 +83,77 @@ class _ModalValidacaoColetaState extends State<ModalValidacaoColeta> {
     }
   }
 
-  // Função auxiliar para recomeçar o scanner em caso de erro
   void _abortarLeituraInvalida(String mensagem) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(mensagem), backgroundColor: Colors.redAccent),
-    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(mensagem), backgroundColor: Colors.redAccent),
+      );
+    }
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) setState(() => _processandoQR = false);
     });
   }
 
   // =======================================================================
-  // LÓGICA DO PASSO 2: TIRAR FOTO COM DADOS DE GPS E TEMPO
+  // PASSO 2: TIRAR FOTO E BUSCAR GPS
   // =======================================================================
-  Future _tirarFoto() async {
+  Future<void> _tirarFoto() async {
     setState(() => _carregandoCamera = true);
 
     try {
-      // 1. Pega a localização exata naquele momento
-      _localizacaoFoto = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
-      _dataHoraFoto = DateTime.now();
-
-      if (_localizacaoFoto != null) {
-        _enderecoFormatado =
-            "Lat: " +
-            _localizacaoFoto!.latitude.toStringAsFixed(5) +
-            " / Lng: " +
-            _localizacaoFoto!.longitude.toStringAsFixed(5);
-        _buscarEndereco(
-          _localizacaoFoto!.latitude,
-          _localizacaoFoto!.longitude,
-        );
-      }
-
-      // 2. Abre a câmera nativa do dispositivo
       final ImagePicker picker = ImagePicker();
       final XFile? foto = await picker.pickImage(
         source: ImageSource.camera,
-        imageQuality: 70, // Reduz o tamanho do arquivo para o Firebase
+        imageQuality: 70,
       );
 
       if (foto != null) {
-        setState(() {
-          _fotoProduto = File(foto.path);
-        });
+        setState(() => _fotoProduto = File(foto.path));
+
+        // Pega os dados extras
+        _localizacaoFoto = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high,
+        );
+        _dataHoraFoto = DateTime.now();
+
+        if (_localizacaoFoto != null) {
+          _enderecoFormatado =
+              "Lat: ${_localizacaoFoto!.latitude.toStringAsFixed(5)} / Lng: ${_localizacaoFoto!.longitude.toStringAsFixed(5)}";
+          _buscarEndereco(
+            _localizacaoFoto!.latitude,
+            _localizacaoFoto!.longitude,
+          );
+        }
       }
     } catch (e) {
-      print("Erro ao capturar foto ou localização: $e");
+      debugPrint("Erro ao capturar foto: $e");
     } finally {
-      setState(() => _carregandoCamera = false);
+      if (mounted) setState(() => _carregandoCamera = false);
     }
   }
 
-  // =======================================================================
-  // FINALIZAR PROCESSO
-  // =======================================================================
+  Future<void> _buscarEndereco(double lat, double lng) async {
+    try {
+      final url =
+          "https://maps.googleapis.com/maps/api/geocode/json?latlng=$lat,$lng&key=${AppConfig.googleMapsApiKey}";
+      final response = await http.get(Uri.parse(url));
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['status'] == 'OK' && data['results'].isNotEmpty) {
+          String completo = data['results'][0]['formatted_address'];
+          if (mounted)
+            setState(() => _enderecoFormatado = completo.split('-')[0].trim());
+        }
+      }
+    } catch (e) {}
+  }
 
   // =======================================================================
-  // FINALIZAR PROCESSO: SUBIR PARA AS NUVENS
+  // FINALIZAR A OPERAÇÃO
   // =======================================================================
+  Future<void> _finalizarColeta() async {
+    if (_fotoProduto == null) return;
 
-  // =======================================================================
-  // FINALIZAR PROCESSO: SUBIR PARA AS NUVENS E LIGAR RADAR
-  // =======================================================================
-  // =======================================================================
-  // FINALIZAR PROCESSO: SUBIR PARA AS NUVENS E LIGAR RADAR
-  // =======================================================================
-  // =======================================================================
-  // FINALIZAR PROCESSO: SUBIR PARA AS NUVENS E LIGAR RADAR
-  // =======================================================================
-  Future _finalizarColeta() async {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -176,7 +161,6 @@ class _ModalValidacaoColetaState extends State<ModalValidacaoColeta> {
     );
 
     try {
-      // TRUQUE ANTI-ERRO: Declarar o tipo antes da variável!
       ColetaController coletaCtrl = Provider.of<ColetaController>(
         context,
         listen: false,
@@ -190,77 +174,36 @@ class _ModalValidacaoColetaState extends State<ModalValidacaoColeta> {
 
       await coletaCtrl.atualizarStatusColeta(widget.item.id, 'em_transporte');
 
-      // LIGAR O RADAR COM O TRUQUE ANTI-ERRO
       try {
         EntregadorController entregadorCtrl = Provider.of<EntregadorController>(
           context,
           listen: false,
         );
         String? entregadorId = FirebaseAuth.instance.currentUser?.uid;
-
-        if (entregadorId != null && entregadorId.isNotEmpty) {
+        if (entregadorId != null && entregadorId.isNotEmpty)
           entregadorCtrl.iniciarRastreioInteligente(entregadorId);
-        } else {
-          debugPrint("Aviso: Motoboy não autenticado.");
-        }
-      } catch (e) {
-        debugPrint("Erro ao ligar radar: $e");
-      }
-
-      if (mounted) Navigator.pop(context); // Fecha loading
+      } catch (e) {}
 
       if (mounted) {
-        Navigator.pop(context); // Fecha modal
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Coleta validada! Radar ativado. Boa viagem!"),
-            backgroundColor: Colors.green,
-          ),
-        );
+        Navigator.pop(context); // Fecha o loading
+        setState(
+          () => _sucessoFinal = true,
+        ); // Exibe o botão de fechar para o operador
       }
     } catch (e) {
       if (mounted) Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Erro ao confirmar posse: $e"),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text("Erro: $e"), backgroundColor: Colors.red),
       );
     }
   }
 
-  Future _buscarEndereco(double lat, double lng) async {
-    try {
-      final url =
-          "https://maps.googleapis.com/maps/api/geocode/json?latlng=" +
-          lat.toString() +
-          "," +
-          lng.toString() +
-          "&key=" +
-          AppConfig.googleMapsApiKey;
-
-      final response = await http.get(Uri.parse(url));
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data['status'] == 'OK' && data['results'].isNotEmpty) {
-          // Extrai o endereço formatado do Google
-          String completo = data['results'][0]['formatted_address'];
-          if (mounted) {
-            setState(() {
-              // Corta o texto para mostrar apenas "Rua e Número" (antes do traço do bairro)
-              _enderecoFormatado = completo.split('-')[0].trim();
-            });
-          }
-        }
-      }
-    } catch (e) {
-      print("Erro ao converter coordenadas: " + e.toString());
-    }
+  @override
+  void dispose() {
+    _scannerController.dispose();
+    super.dispose();
   }
 
-  // =======================================================================
-  // INTERFACE
-  // =======================================================================
   @override
   Widget build(BuildContext context) {
     return Dialog(
@@ -269,25 +212,30 @@ class _ModalValidacaoColetaState extends State<ModalValidacaoColeta> {
       insetPadding: const EdgeInsets.all(16),
       child: Container(
         width: double.infinity,
-        constraints: const BoxConstraints(maxHeight: 650),
+        constraints: BoxConstraints(maxHeight: _sucessoFinal ? 400 : 650),
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // CABEÇALHO
             Row(
               children: [
                 Icon(
-                  _passoAtual == 1 ? Icons.qr_code_scanner : Icons.camera_alt,
-                  color: Colors.indigo,
+                  _sucessoFinal
+                      ? Icons.check_circle
+                      : (_passoAtual == 1
+                            ? Icons.qr_code_scanner
+                            : Icons.camera_alt),
+                  color: _sucessoFinal ? Colors.green : Colors.indigo,
                   size: 28,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    _passoAtual == 1
-                        ? "Passo 1: Ler QR Code"
-                        : "Passo 2: Foto do Produto",
+                    _sucessoFinal
+                        ? "Sucesso!"
+                        : (_passoAtual == 1
+                              ? "1. Ler QR Code"
+                              : "2. Foto da Coleta"),
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -301,10 +249,12 @@ class _ModalValidacaoColetaState extends State<ModalValidacaoColeta> {
                 ),
               ],
             ),
-            const Divider(height: 32),
-
-            // CONTEÚDO DINÂMICO
-            Expanded(child: _passoAtual == 1 ? _buildPasso1() : _buildPasso2()),
+            const Divider(height: 24),
+            Expanded(
+              child: _sucessoFinal
+                  ? _buildTelaSucesso()
+                  : (_passoAtual == 1 ? _buildPasso1() : _buildPasso2()),
+            ),
           ],
         ),
       ),
@@ -315,19 +265,20 @@ class _ModalValidacaoColetaState extends State<ModalValidacaoColeta> {
     return Column(
       children: [
         const Text(
-          "Aponte a câmera para o QR Code da Clínica ou do Lote de Insumos.",
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 14, color: Colors.black87),
+          "Aponte a câmera para o QR Code.",
+          style: TextStyle(fontSize: 14),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 16),
         Expanded(
           child: ClipRRect(
             borderRadius: BorderRadius.circular(16),
             child: Stack(
               alignment: Alignment.center,
               children: [
-                MobileScanner(onDetect: _aoLerQrCode),
-                // Mira visual do QR Code
+                MobileScanner(
+                  controller: _scannerController,
+                  onDetect: _aoLerQrCode,
+                ),
                 Container(
                   width: 200,
                   height: 200,
@@ -349,12 +300,6 @@ class _ModalValidacaoColetaState extends State<ModalValidacaoColeta> {
             ),
           ),
         ),
-        const SizedBox(height: 16),
-        // Botão de pular apenas para testes (remover em produção)
-        TextButton(
-          onPressed: () => setState(() => _passoAtual = 2),
-          child: const Text("Pular (Modo Dev)"),
-        ),
       ],
     );
   }
@@ -364,29 +309,10 @@ class _ModalValidacaoColetaState extends State<ModalValidacaoColeta> {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         if (_fotoProduto == null) ...[
-          const Text(
-            "Tire uma foto clara do material coletado. A sua localização e horário serão registrados automaticamente.",
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 14, color: Colors.black87),
-          ),
-          const SizedBox(height: 32),
-          _carregandoCamera
-              ? const CircularProgressIndicator()
-              : ElevatedButton.icon(
-                  onPressed: _tirarFoto,
-                  icon: const Icon(Icons.camera_alt, size: 24),
-                  label: const Text("Abrir Câmera"),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.indigo,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 16,
-                    ),
-                  ),
-                ),
+          const CircularProgressIndicator(),
+          const SizedBox(height: 16),
+          const Text("Abrindo câmera...", style: TextStyle(fontSize: 15)),
         ] else ...[
-          // EXIBIÇÃO DA FOTO COM MARCA D'ÁGUA VIRTUAL
           Expanded(
             child: ClipRRect(
               borderRadius: BorderRadius.circular(12),
@@ -394,8 +320,6 @@ class _ModalValidacaoColetaState extends State<ModalValidacaoColeta> {
                 fit: StackFit.expand,
                 children: [
                   Image.file(_fotoProduto!, fit: BoxFit.cover),
-
-                  // Carimbo inferior escurecido para legibilidade
                   Positioned(
                     bottom: 0,
                     left: 0,
@@ -413,21 +337,21 @@ class _ModalValidacaoColetaState extends State<ModalValidacaoColeta> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            DateFormat(
-                              'dd/MM/yyyy HH:mm:ss',
-                            ).format(_dataHoraFoto!),
+                            _dataHoraFoto != null
+                                ? DateFormat(
+                                    'dd/MM/yyyy HH:mm:ss',
+                                  ).format(_dataHoraFoto!)
+                                : "",
                             style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          const SizedBox(height: 4),
                           Text(
                             _enderecoFormatado,
                             style: const TextStyle(
                               color: Colors.white70,
                               fontSize: 13,
-                              fontWeight: FontWeight.w500,
                             ),
                             maxLines: 2,
                           ),
@@ -445,50 +369,60 @@ class _ModalValidacaoColetaState extends State<ModalValidacaoColeta> {
               OutlinedButton.icon(
                 onPressed: _tirarFoto,
                 icon: const Icon(Icons.refresh, size: 18),
-                label: const Text(
-                  "Refazer",
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.indigo,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 14,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
+                label: const Text("Refazer"),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: ElevatedButton.icon(
                   onPressed: _finalizarColeta,
-                  icon: const Icon(Icons.check_circle_outline, size: 20),
-                  label: const FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      "Confirmar Coleta",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                      ),
-                    ),
+                  icon: const Icon(Icons.cloud_upload, size: 20),
+                  label: const Text(
+                    "Confirmar",
+                    style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green.shade600,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
                   ),
                 ),
               ),
             ],
           ),
         ],
+      ],
+    );
+  }
+
+  Widget _buildTelaSucesso() {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const Icon(Icons.check_circle, color: Colors.green, size: 80),
+        const SizedBox(height: 16),
+        const Text(
+          "Tudo Certo!\nColeta validada e radar ativado.",
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 32),
+        SizedBox(
+          width: double.infinity,
+          height: 54,
+          child: ElevatedButton(
+            onPressed: () => Navigator.pop(context),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.indigo,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text(
+              "FECHAR E VOLTAR",
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ),
       ],
     );
   }

@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../models/laboratorio_model.dart';
 import 'components/item_card_pedido_insumo.dart';
+import 'package:intl/intl.dart';
 
 class GestaoPedidosInsumosHub extends StatefulWidget {
   final Laboratorio labContexto;
@@ -195,13 +196,12 @@ class _GestaoPedidosInsumosHubState extends State<GestaoPedidosInsumosHub> {
                     return true;
                   }).toList();
 
-                  // RENDERIZAÇÃO: Kanban (Aba 0) ou Lista (Aba 1)
                   if (_selectedSegment == 0) {
                     return _construirKanbanBoard(pedidosFiltrados);
                   } else {
-                    return _construirListaVertical(
+                    return _construirHistoricoAgrupado(
                       pedidosFiltrados,
-                      "O histórico de pedidos está vazio.",
+                      "O histórico de finalizados está vazio.",
                     );
                   }
                 },
@@ -333,6 +333,164 @@ class _GestaoPedidosInsumosHubState extends State<GestaoPedidosInsumosHub> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _construirHistoricoAgrupado(
+    List<QueryDocumentSnapshot> pedidos,
+    String msgVazia,
+  ) {
+    if (pedidos.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              CupertinoIcons.archivebox,
+              size: 64,
+              color: Colors.grey.shade300,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              msgVazia,
+              style: TextStyle(
+                color: Colors.grey.shade500,
+                fontSize: 15,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // 1. AGRUPAMENTO: Organizar os pedidos pelo dia de entrega
+    final Map<String, List<QueryDocumentSnapshot>> grupos = {};
+
+    for (var doc in pedidos) {
+      final dataMap = doc.data() as Map<String, dynamic>;
+
+      // Dá prioridade ao momento da entrega (fallback para data de criação nos testes antigos)
+      final Timestamp? ts =
+          dataMap['timestampEntrega'] as Timestamp? ??
+          dataMap['dataSolicitacao'] as Timestamp?;
+
+      final DateTime dataObj = ts?.toDate() ?? DateTime.now();
+      final String chaveData = DateFormat('dd/MM/yyyy').format(dataObj);
+
+      if (!grupos.containsKey(chaveData)) {
+        grupos[chaveData] = [];
+      }
+      grupos[chaveData]!.add(doc);
+    }
+
+    // 2. ORDENAÇÃO DOS DIAS: Do mais recente (hoje) para o mais antigo
+    final chavesOrdenadas = grupos.keys.toList()
+      ..sort((a, b) {
+        final dataA = DateFormat('dd/MM/yyyy').parse(a);
+        final dataB = DateFormat('dd/MM/yyyy').parse(b);
+        return dataB.compareTo(dataA);
+      });
+
+    // 3. RENDERIZAÇÃO: Lista de cabeçalhos com grelhas dinâmicas lá dentro
+    return ListView.builder(
+      physics: const BouncingScrollPhysics(),
+      itemCount: chavesOrdenadas.length,
+      itemBuilder: (context, index) {
+        final chave = chavesOrdenadas[index];
+        final listaDoDia = grupos[chave]!;
+
+        // Ordenar os cartões dentro do próprio dia (Hora exata mais recente primeiro)
+        listaDoDia.sort((a, b) {
+          final tsA =
+              (a.data() as Map)['timestampEntrega'] as Timestamp? ??
+              (a.data() as Map)['dataSolicitacao'] as Timestamp?;
+          final tsB =
+              (b.data() as Map)['timestampEntrega'] as Timestamp? ??
+              (b.data() as Map)['dataSolicitacao'] as Timestamp?;
+          if (tsA == null || tsB == null) return 0;
+          return tsB.compareTo(tsA);
+        });
+
+        // Deteta se o bloco pertence a "Hoje" para ficar mais amigável
+        final hojeStr = DateFormat('dd/MM/yyyy').format(DateTime.now());
+        final tituloDia = chave == hojeStr ? "Hoje, $chave" : chave;
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 32.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // --- CABEÇALHO DA DATA ---
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.indigo.withOpacity(0.06),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.event_available,
+                      size: 20,
+                      color: Colors.indigo,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      tituloDia,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.indigo,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Colors.indigo.withOpacity(0.1),
+                        ),
+                      ),
+                      child: Text(
+                        "${listaDoDia.length} entrega(s)",
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.indigo.shade700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // --- GRELHA DE CARTÕES LADO A LADO ---
+              Wrap(
+                spacing: 16, // Espaço horizontal entre os cartões
+                runSpacing: 16, // Espaço vertical entre as linhas de cartões
+                children: listaDoDia.map((doc) {
+                  return SizedBox(
+                    width:
+                        380, // Largura restrita para caberem 2 a 3 por linha no ecrã Web
+                    child: ItemCardPedidoInsumo(doc: doc),
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 

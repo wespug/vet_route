@@ -874,7 +874,7 @@ class _ModalAcaoPedidoInsumoState extends State<ModalAcaoPedidoInsumo> {
                                       ),
                                       const SizedBox(width: 4),
                                       Text(
-                                        "Validado em: " +
+                                        "Coletado em: " +
                                             widget.controller.formatarData(
                                               data['comprovanteData'],
                                             ),
@@ -899,10 +899,123 @@ class _ModalAcaoPedidoInsumoState extends State<ModalAcaoPedidoInsumo> {
                                       const SizedBox(width: 4),
                                       Expanded(
                                         child: Text(
-                                          "Local da posse:\n" +
+                                          "Local da Coleta:\n" +
                                               (data['comprovanteEndereco']
                                                       ?.toString() ??
                                                   "Endereço não capturado"),
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey.shade700,
+                                            height: 1.3,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+
+                // Só mostra o bloco se o status for concluído e existir link da foto de entrega
+                if (pedido.status == 'concluido' &&
+                    pedido.fotoUrlEntrega != null) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      border: Border.all(
+                        color: Colors.blue.shade300,
+                      ), // Cor azul para diferenciar da coleta
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.verified_user_rounded,
+                              color: Colors.blue.shade700,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              "Comprovante de Entrega no Destino",
+                              style: TextStyle(
+                                color: Colors.blue.shade700,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // A FOTO DA ENTREGA
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.network(
+                                pedido.fotoUrlEntrega!,
+                                width: 100,
+                                height: 100,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) =>
+                                    Container(
+                                      width: 100,
+                                      height: 100,
+                                      color: Colors.grey.shade200,
+                                      child: const Icon(
+                                        Icons.broken_image,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            // OS DADOS DE DATA E LOCAL
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.access_time,
+                                        size: 16,
+                                        color: Colors.grey,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        "Entregue em: ${pedido.dataEntrega ?? 'Data indisponível'}",
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Icon(
+                                        Icons.location_on,
+                                        size: 16,
+                                        color: Colors.redAccent,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Expanded(
+                                        child: Text(
+                                          "Local da entrega:\n${pedido.enderecoEntrega ?? 'Endereço não capturado'}",
                                           style: TextStyle(
                                             fontSize: 12,
                                             color: Colors.grey.shade700,

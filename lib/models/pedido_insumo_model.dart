@@ -12,6 +12,12 @@ class PedidoInsumoModel {
   final String status;
   final DateTime dataSolicitacao;
   final DateTime? dataAtualizacao;
+  // 🔹 Campos de conclusão da entrega
+  final String? fotoUrlEntrega;
+  final String? dataEntrega;
+  final double? latEntrega;
+  final double? lngEntrega;
+  final String? enderecoEntrega;
 
   // 🔹 Campos adicionados para cobrir todas as informações do Modal e Histórico
   final String usuarioSolicitante;
@@ -33,6 +39,11 @@ class PedidoInsumoModel {
     required this.justificativaLab,
     required this.usuarioLabObs,
     this.dataLabObs,
+    this.fotoUrlEntrega,
+    this.dataEntrega,
+    this.latEntrega,
+    this.lngEntrega,
+    this.enderecoEntrega,
   });
 
   factory PedidoInsumoModel.fromFirestore(DocumentSnapshot doc) {
@@ -71,6 +82,13 @@ class PedidoInsumoModel {
           data['usuarioRespostaLab'] ??
           data['laboratorioUsuario'] ??
           '',
+
+      fotoUrlEntrega: data['fotoUrlEntrega'],
+      dataEntrega: data['dataEntrega'],
+      // O 'as num?' garante que não quebra quer seja int ou double no Firebase
+      latEntrega: (data['latEntrega'] as num?)?.toDouble(),
+      lngEntrega: (data['lngEntrega'] as num?)?.toDouble(),
+      enderecoEntrega: data['enderecoEntrega'],
       dataLabObs: parseData(
         data['dataObservacaoLab'] ?? data['dataRespostaLab'],
       ),
@@ -91,6 +109,11 @@ class PedidoInsumoModel {
       'justificativaLab': justificativaLab,
       'usuarioObservacaoLab': usuarioLabObs,
       'dataObservacaoLab': dataLabObs,
+      'fotoUrlEntrega': fotoUrlEntrega,
+      'dataEntrega': dataEntrega,
+      'latEntrega': latEntrega,
+      'lngEntrega': lngEntrega,
+      'enderecoEntrega': enderecoEntrega,
     };
   }
 

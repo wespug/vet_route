@@ -1,3 +1,6 @@
+import 'dart:io';
+import 'package:firebase_storage/firebase_storage.dart';
+
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -266,10 +269,66 @@ class EntregadorController extends ChangeNotifier {
         });
   }
 
+  Future confirmarEntregaComFoto({
+    required String pedidoId,
+    required File foto,
+    required String enderecoGeo,
+    required double lat,
+    required double lng,
+    required String dataFormatada,
+  }) async {
+    try {
+      // 1. Cria o caminho no Storage (Padrão idêntico ao da Coleta)
+      final storageRef = FirebaseStorage.instance
+          .ref()
+          .child('comprovantes_entrega')
+          .child(
+            'entrega_\({pedidoId}_\){DateTime.now().millisecondsSinceEpoch}.jpg',
+          );
+
+      // 2. Sobe a foto original e pega o Link
+      final uploadTask = await storageRef.putFile(foto);
+      final urlFoto = await uploadTask.ref.getDownloadURL();
+
+      // 3. A MÁGICA: Prepara os dados de conclusão
+      final Map<String, dynamic> dadosAtualizacao = {
+        'status': 'concluido',
+        'fotoUrlEntrega': urlFoto,
+        'enderecoEntrega': enderecoGeo,
+        'latEntrega': lat,
+        'lngEntrega': lng,
+        'dataEntrega': dataFormatada,
+        'timestampEntrega': FieldValue.serverTimestamp(),
+      };
+
+      // 4. Atualiza no banco de dados (Ajuste para o seu repositório se usar um, igual na Coleta)
+      await FirebaseFirestore.instance
+          .collection('pedidos_insumos')
+          .doc(pedidoId)
+          .update(dadosAtualizacao);
+
+      // 5. Desliga o radar pois a entrega acabou
+      pararRastreioInteligente();
+
+      notifyListeners();
+    } catch (e) {
+      debugPrint("Erro ao subir foto da entrega: $e");
+      rethrow;
+    }
+  }
+
   void pararRastreio() {
     _rastreioGPS?.cancel();
     _rastreioGPS = null;
     debugPrint("🛑 [GPS] Viagem concluída. Rastreio Desligado.");
+  }
+
+  void pararRastreioInteligente() {
+    if (_rastreioGPS != null) {
+      _rastreioGPS!.cancel();
+      _rastreioGPS = null;
+      debugPrint("🛑 [GPS] Rastreio desligado. Bateria poupada!");
+    }
   }
 
   void dispose() {
