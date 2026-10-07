@@ -2,18 +2,22 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>CLIENT_ID</key>
+	<string>72038043623-e00duugat4qcll79hunqkeutb3mis8lp.apps.googleusercontent.com</string>
+	<key>REVERSED_CLIENT_ID</key>
+	<string>com.googleusercontent.apps.72038043623-e00duugat4qcll79hunqkeutb3mis8lp</string>
 	<key>API_KEY</key>
-	<string>AIzaSyD2qb6RipKcg_8ocObLZRnQPmF_c3n7QTU</string>
+	<string>AIzaSyDeDTxrzytZZ6uwo_vX_iMl2ZDN5TqyDEE</string>
 	<key>GCM_SENDER_ID</key>
-	<string>848749838205</string>
+	<string>72038043623</string>
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
 	<string>com.example.vetRoute</string>
 	<key>PROJECT_ID</key>
-	<string>vet-route-f20a4</string>
+	<string>vet-route-prod</string>
 	<key>STORAGE_BUCKET</key>
-	<string>vet-route-f20a4.firebasestorage.app</string>
+	<string>vet-route-prod.firebasestorage.app</string>
 	<key>IS_ADS_ENABLED</key>
 	<false></false>
 	<key>IS_ANALYTICS_ENABLED</key>
@@ -25,6 +29,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:848749838205:ios:1b94ed32dd407564281614</string>
+	<string>1:72038043623:ios:0daedae26f6f75f2ee7742</string>
 </dict>
 </plist>

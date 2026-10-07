@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart' as dev;
+import 'firebase_options_prod.dart' as prod;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
@@ -18,28 +21,28 @@ import 'package:vet_route/theme/app_theme.dart';
 import 'package:vet_route/screens/login_screen.dart';
 import 'firebase_options.dart';
 
+const String environment = String.fromEnvironment('ENV', defaultValue: 'dev');
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // Variável para guardar a chave escolhida
+  FirebaseOptions currentOptions;
+
+  // A mágica acontece aqui:
+  if (environment == 'prod') {
+    currentOptions = prod.DefaultFirebaseOptions.currentPlatform;
+    print("A iniciar Firebase em modo PRODUÇÃO");
+  } else {
+    currentOptions = dev.DefaultFirebaseOptions.currentPlatform;
+    print("A iniciar Firebase em modo HOMOLOGAÇÃO");
+  }
+
+  await Firebase.initializeApp(options: currentOptions);
 
   runApp(
-    MultiProvider(
-      providers: [
-        // 1. Injeção da Interface com a Implementação Concreta
-        Provider<ColetaRepository>(create: (_) => FirestoreColetaRepository()),
-        // 2. Controller que consome a interface ColetaRepository
-        ChangeNotifierProvider<ColetaController>(
-          create: (context) =>
-              ColetaController(context.read<ColetaRepository>()),
-        ),
-
-        ChangeNotifierProvider<EntregadorController>(
-          create: (_) => EntregadorController(),
-        ),
-      ],
-      child: const VetRouteAPP(),
-    ),
-  );
+    const MyApp(),
+  ); // ATENÇÃO: Verifique se a sua classe se chama MyApp ou altere para o nome correto
 }
 
 class VetRouteAPP extends StatelessWidget {

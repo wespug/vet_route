@@ -1,26 +1,36 @@
 {
   "project_info": {
-    "project_number": "848749838205",
-    "project_id": "vet-route-f20a4",
-    "storage_bucket": "vet-route-f20a4.firebasestorage.app"
+    "project_number": "72038043623",
+    "project_id": "vet-route-prod",
+    "storage_bucket": "vet-route-prod.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:848749838205:android:43b20ef791c7009c281614",
+        "mobilesdk_app_id": "1:72038043623:android:d9eed15e1e735835ee7742",
         "android_client_info": {
           "package_name": "com.example.vet_route"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "72038043623-83ioa1j276r3skhsst77kjl109agpp8o.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
-          "current_key": "AIzaSyD2K1E-oxWYJ-WC5Y3BywO_0XqaNWCcB_s"
+          "current_key": "AIzaSyCH3y7wzkcJGpZblKbPXRzfUzX8I4u9vj4"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "72038043623-83ioa1j276r3skhsst77kjl109agpp8o.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
