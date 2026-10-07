@@ -3,33 +3,26 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart' as dev;
 import 'firebase_options_prod.dart' as prod;
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:vet_route/controllers/entregador_controller.dart';
-import 'package:vet_route/controllers/entregador_controller.dart';
-
 import 'package:vet_route/repositories/coleta_repository.dart';
 import 'package:vet_route/repositories/firestore_coleta_repository.dart';
 import 'package:vet_route/controllers/coleta_controller.dart';
-
 import 'package:vet_route/l10n/app_localizations.dart';
 import 'package:vet_route/screens/web/admin_chassi.dart';
 import 'package:vet_route/screens/web/mobile_chassi.dart';
 import 'package:vet_route/theme/app_theme.dart';
 import 'package:vet_route/screens/login_screen.dart';
-import 'firebase_options.dart';
 
 const String environment = String.fromEnvironment('ENV', defaultValue: 'dev');
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Variável para guardar a chave escolhida
   FirebaseOptions currentOptions;
 
-  // A mágica acontece aqui:
   if (environment == 'prod') {
     currentOptions = prod.DefaultFirebaseOptions.currentPlatform;
     print("A iniciar Firebase em modo PRODUÇÃO");
@@ -40,10 +33,10 @@ void main() async {
 
   await Firebase.initializeApp(options: currentOptions);
 
-  runApp(
-    const MyApp(),
-  ); // ATENÇÃO: Verifique se a sua classe se chama MyApp ou altere para o nome correto
+  runApp(const VetRouteAPP()); // Erro corrigido aqui!
 }
+
+class VetRouteAPP extends StatelessWidget {
 
 class VetRouteAPP extends StatelessWidget {
   const VetRouteAPP({super.key});
