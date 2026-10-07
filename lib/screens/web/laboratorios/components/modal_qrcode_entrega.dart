@@ -180,25 +180,54 @@ class _ModalQrCodeEntregaState extends State<ModalQrCodeEntrega> {
                   ),
                 ),
                 pw.SizedBox(height: 10),
-                ...widget.pedido.itens.map((item) {
-                  final qtd =
-                      item['quantidade'] ??
-                      item['quantidadeSolicitada'] ??
-                      item['qtd'] ??
-                      0;
-                  final nome =
-                      item['descricao'] ??
-                      item['nomeInsumo'] ??
-                      item['nome'] ??
-                      'Insumo';
-                  return pw.Padding(
-                    padding: const pw.EdgeInsets.only(bottom: 6),
-                    child: pw.Text(
-                      "• \(qtd un. -\)nome",
-                      style: const pw.TextStyle(fontSize: 14),
+
+                // 💡 NOVO: Tabela elegante para os itens no PDF
+                pw.Container(
+                  padding: const pw.EdgeInsets.all(12),
+                  decoration: pw.BoxDecoration(
+                    border: pw.Border.all(color: PdfColors.grey300),
+                    borderRadius: const pw.BorderRadius.all(
+                      pw.Radius.circular(8),
                     ),
-                  );
-                }).toList(),
+                  ),
+                  child: pw.Column(
+                    children: widget.pedido.itens.map((item) {
+                      final qtd =
+                          item['quantidade'] ??
+                          item['quantidadeSolicitada'] ??
+                          item['qtd'] ??
+                          0;
+                      final nome =
+                          item['descricao'] ??
+                          item['nomeInsumo'] ??
+                          item['nome'] ??
+                          'Insumo';
+
+                      return pw.Padding(
+                        padding: const pw.EdgeInsets.symmetric(vertical: 4),
+                        child: pw.Row(
+                          crossAxisAlignment: pw.CrossAxisAlignment.start,
+                          children: [
+                            pw.Text(
+                              "$qtd un.",
+                              style: pw.TextStyle(
+                                fontWeight: pw.FontWeight.bold,
+                                fontSize: 13,
+                              ),
+                            ),
+                            pw.SizedBox(width: 12),
+                            pw.Expanded(
+                              child: pw.Text(
+                                " -  $nome",
+                                style: const pw.TextStyle(fontSize: 13),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
 
                 pw.Spacer(),
 
@@ -221,8 +250,9 @@ class _ModalQrCodeEntregaState extends State<ModalQrCodeEntrega> {
                         height: 150,
                       ),
                       pw.SizedBox(height: 10),
+                      // 💡 CORRIGIDO: Injetando as variáveis de data e hora reais
                       pw.Text(
-                        "Gerado em: \(data às\)hora",
+                        "Gerado em: $data às $hora",
                         style: const pw.TextStyle(
                           fontSize: 10,
                           color: PdfColors.grey600,
@@ -244,6 +274,9 @@ class _ModalQrCodeEntregaState extends State<ModalQrCodeEntrega> {
     );
   }
 
+  // ===========================================================================
+  // INTERFACE VISUAL (TELA)
+  // ===========================================================================
   // ===========================================================================
   // INTERFACE VISUAL (TELA)
   // ===========================================================================
@@ -272,218 +305,241 @@ class _ModalQrCodeEntregaState extends State<ModalQrCodeEntrega> {
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       backgroundColor: Colors.white,
-      child: Container(
-        width: 500, // Um pouco mais largo para acomodar os dados
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // CABEÇALHO
-            const Icon(
-              Icons.inventory_2_rounded,
-              size: 42,
-              color: Colors.indigo,
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              "Liberar Pacote",
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-            ),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(
+          maxHeight: 750,
+        ), // Evita que cresça infinitamente
+        child: Container(
+          width: 500,
+          padding: const EdgeInsets.all(24),
+          child: SingleChildScrollView(
+            // 💡 A SOLUÇÃO MÁGICA: Permite fazer scroll se faltar espaço!
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // CABEÇALHO
+                const Icon(
+                  Icons.inventory_2_rounded,
+                  size: 42,
+                  color: Colors.indigo,
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  "Liberar Pacote",
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                ),
 
-            const SizedBox(height: 24),
+                const SizedBox(height: 24),
 
-            // CAIXA DE DESTAQUE COM OS DADOS LOGÍSTICOS
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.indigo.shade50,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.indigo.shade100),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                // CAIXA DE DESTAQUE COM OS DADOS LOGÍSTICOS
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.indigo.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.indigo.shade100),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            "DESTINO",
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.indigo.shade300,
-                            ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "DESTINO",
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.indigo.shade300,
+                                ),
+                              ),
+                              Text(
+                                widget.pedido.clinicaNome,
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w900,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                            ],
                           ),
-                          Text(
-                            widget.pedido.clinicaNome,
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w900,
-                              color: Colors.black87,
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.indigo,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              "#$codigoFormatado",
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w900,
+                                color: Colors.white,
+                              ),
                             ),
                           ),
                         ],
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.indigo,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          "#$codigoFormatado",
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w900,
-                            color: Colors.white,
+                      const Divider(height: 24),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.sports_motorsports,
+                            size: 18,
+                            color: Colors.orange.shade800,
                           ),
-                        ),
+                          const SizedBox(width: 8),
+                          Text(
+                            "Entregador: ",
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey.shade700,
+                            ),
+                          ),
+                          Text(
+                            entregadorLabel,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.orange.shade900,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
-                  ),
-                  const Divider(height: 24),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.sports_motorsports,
-                        size: 18,
-                        color: Colors.orange.shade800,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        "Entregador: ",
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.grey.shade700,
-                        ),
-                      ),
-                      Text(
-                        entregadorLabel,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.orange.shade900,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // LISTA ROLÁVEL DE ITENS
-            Container(
-              height:
-                  100, // Altura fixa para não quebrar a tela se houver muitos itens
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.shade200),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: ListView.separated(
-                padding: const EdgeInsets.all(12),
-                itemCount: widget.pedido.itens.length,
-                separatorBuilder: (context, index) => const Divider(height: 16),
-                itemBuilder: (context, index) {
-                  final item = widget.pedido.itens[index];
-                  final qtd =
-                      item['quantidade'] ??
-                      item['quantidadeSolicitada'] ??
-                      item['qtd'] ??
-                      0;
-                  final nome =
-                      item['descricao'] ??
-                      item['nomeInsumo'] ??
-                      item['nome'] ??
-                      'Insumo';
-
-                  return Row(
-                    children: [
-                      Text(
-                        "${qtd}x",
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.indigo,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          nome,
-                          style: const TextStyle(fontSize: 13),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // O GERADOR DE QR CODE
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey.shade300, width: 2),
-              ),
-              child: QrImageView(
-                data: dadosQrCode,
-                version: QrVersions.auto,
-                size: 260.0,
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // BOTÕES DE AÇÃO
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => _imprimirQrCode(
-                      dadosQrCode,
-                      dataFormatada,
-                      horaFormatada,
-                      codigoFormatado,
-                    ),
-                    icon: const Icon(Icons.print, size: 18),
-                    label: const Text("Imprimir"),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      foregroundColor: Colors.indigo,
-                    ),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.indigo,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      elevation: 0,
-                    ),
-                    child: const Text(
-                      "Concluir",
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
+
+                const SizedBox(height: 16),
+
+                // 💡 NOVA LISTA DE ITENS NA TELA
+                Container(
+                  height: 130, // Um pouco mais de espaço
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50, // Fundo subtil
+                    border: Border.all(color: Colors.grey.shade200),
+                    borderRadius: BorderRadius.circular(8),
                   ),
+                  child: ListView.separated(
+                    padding: const EdgeInsets.all(12),
+                    itemCount: widget.pedido.itens.length,
+                    separatorBuilder: (context, index) =>
+                        const Divider(height: 16, color: Colors.black12),
+                    itemBuilder: (context, index) {
+                      final item = widget.pedido.itens[index];
+                      final qtd =
+                          item['quantidade'] ??
+                          item['quantidadeSolicitada'] ??
+                          item['qtd'] ??
+                          0;
+                      final nome =
+                          item['descricao'] ??
+                          item['nomeInsumo'] ??
+                          item['nome'] ??
+                          'Insumo';
+
+                      return Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.indigo.shade100,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              "${qtd}x",
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.indigo.shade900,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              nome,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                // O GERADOR DE QR CODE
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade300, width: 2),
+                  ),
+                  child: QrImageView(
+                    data: dadosQrCode,
+                    version: QrVersions.auto,
+                    size: 240.0, // Reduzi um bocadinho para caber melhor
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                // BOTÕES DE AÇÃO
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => _imprimirQrCode(
+                          dadosQrCode,
+                          dataFormatada,
+                          horaFormatada,
+                          codigoFormatado,
+                        ),
+                        icon: const Icon(Icons.print, size: 18),
+                        label: const Text("Imprimir"),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          foregroundColor: Colors.indigo,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.indigo,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          elevation: 0,
+                        ),
+                        child: const Text(
+                          "Concluir",
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
-          ],
+          ),
         ),
       ),
     );

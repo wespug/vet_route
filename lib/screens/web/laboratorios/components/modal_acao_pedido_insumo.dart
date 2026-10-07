@@ -223,28 +223,16 @@ class _ModalAcaoPedidoInsumoState extends State<ModalAcaoPedidoInsumo> {
     print("Placa pura no DB: ${data['placa']}");
     print("===================================\n");
 
-    // 💡 INÍCIO DA SINCRONIZAÇÃO DE TEMPO COM O CARD
-    // 💡 INÍCIO DA SINCRONIZAÇÃO DE TEMPO COM O CARD
+    // 💡 GARANTIA DO HORÁRIO DE NASCIMENTO DO PEDIDO
     String dataHoraExibicao = pedido.formatarData(pedido.dataSolicitacao);
-    final statusAtualBusca = pedido.status.toLowerCase();
 
     if (historico.isNotEmpty) {
-      for (var i = historico.length - 1; i >= 0; i--) {
-        final itemHist = historico[i] as Map<String, dynamic>;
-        final statusHist = (itemHist['status'] ?? '').toString().toLowerCase();
-        if (statusAtualBusca.contains(statusHist) ||
-            statusHist.contains(statusAtualBusca)) {
-          if (itemHist['data'] != null) {
-            dataHoraExibicao = widget.controller.formatarData(itemHist['data']);
-            break;
-          }
-        }
+      // Puxa sempre o primeiro evento (a criação) em vez do último
+      final primeiroHist = historico.first as Map<String, dynamic>;
+      if (primeiroHist['data'] != null) {
+        dataHoraExibicao = widget.controller.formatarData(primeiroHist['data']);
       }
-    } else if (pedido.dataAtualizacao != null) {
-      dataHoraExibicao = widget.controller.formatarData(pedido.dataAtualizacao);
     }
-
-    // 💡 FIM DA SINCRONIZAÇÃO
 
     // 💡 PADRONIZAÇÃO DO CÓDIGO (Igual à Tabela Unificada: 6 letras maiúsculas)
     final String codigoFormatado = pedido.codigo.length >= 6
