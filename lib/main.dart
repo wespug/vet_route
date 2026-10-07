@@ -37,8 +37,6 @@ void main() async {
 }
 
 class VetRouteAPP extends StatelessWidget {
-
-class VetRouteAPP extends StatelessWidget {
   const VetRouteAPP({super.key});
 
   @override
