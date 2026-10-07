@@ -4,7 +4,9 @@ import 'package:intl/intl.dart';
 import 'package:vet_route/models/clinica_model.dart';
 import 'package:vet_route/controllers/chamado_coleta_controller.dart';
 import 'package:vet_route/models/item_logistica_model.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+
+// 💡 1. IMPORTAMOS O NOVO COMPONENTE LINDÃO AQUI
+import 'package:vet_route/screens/widgets/card_rastreio_live.dart';
 import 'modal_qrcode_coleta.dart';
 
 class ModalDetalhesItemView extends StatelessWidget {
@@ -518,11 +520,14 @@ class ModalDetalhesItemView extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: 16),
+                          // 💡 2. ENVIAMOS ORIGEM E DESTINO AQUI PARA A FUNÇÃO
                           _buildHistoricoLista(
                             logsRealTime,
                             data,
                             statusRealTime,
                             context,
+                            enderecoOrigem,
+                            enderecoDestino,
                           ),
                         ],
                       ),
@@ -600,9 +605,6 @@ class ModalDetalhesItemView extends StatelessWidget {
     );
   }
 
-  // =========================================================================
-  // 💡 EXTRATOR SEGURO BLINDADO PARA O VEÍCULO (Evita o erro de TypeMap)
-  // =========================================================================
   Widget _buildEntregadorCardLive(
     Map<String, dynamic> data,
     String nomeEntregador,
@@ -610,7 +612,6 @@ class ModalDetalhesItemView extends StatelessWidget {
     final bool isAppExterno = data['isTransporteExterno'] ?? false;
     final String entregadorId = data['entregadorId']?.toString() ?? '';
 
-    // Função para extrair o veículo com segurança quer seja texto ou objeto/map
     String extrairVeiculo(dynamic v) {
       if (v == null) return '';
       if (v is String) return v;
@@ -859,11 +860,14 @@ class ModalDetalhesItemView extends StatelessWidget {
     );
   }
 
+  // 💡 3. ATUALIZADA A ASSINATURA PARA RECEBER ORIGEM E DESTINO
   Widget _buildHistoricoLista(
     List<HistoricoStatusLog> logs,
     Map<String, dynamic> data,
     String statusRealTime,
     BuildContext context,
+    String endOrigem,
+    String endDestino,
   ) {
     if (logs.isEmpty)
       return const Text(
@@ -976,7 +980,13 @@ class ModalDetalhesItemView extends StatelessWidget {
                           statusRealTime.toLowerCase() == 'em_transporte' &&
                           data['entregadorId'] != null) ...[
                         const SizedBox(height: 16),
-                        _buildCardMapa(data),
+                        // 💡 4. CHAMAMOS O NOVO MÉTODO AQUI COM TUDO O QUE ELE PRECISA
+                        _buildCardMapa(
+                          data,
+                          statusRealTime,
+                          endOrigem,
+                          endDestino,
+                        ),
                       ],
                       if (index == indexEntrega &&
                           data['fotoUrlEntrega'] != null &&
@@ -1166,106 +1176,18 @@ class ModalDetalhesItemView extends StatelessWidget {
     );
   }
 
-  Widget _buildCardMapa(Map<String, dynamic> data) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.blue.shade200, width: 1.5),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.radar_rounded, color: Colors.blue.shade700, size: 20),
-              const SizedBox(width: 8),
-              Text(
-                "Rastreio em Tempo Real",
-                style: TextStyle(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 14,
-                  color: Colors.blue.shade800,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Container(
-            height: 200,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey.shade300),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: StreamBuilder<DocumentSnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection('usuarios')
-                    .doc(data['entregadorId'].toString())
-                    .snapshots(),
-                builder: (context, mapSnapshot) {
-                  if (mapSnapshot.connectionState == ConnectionState.waiting)
-                    return const Center(child: CircularProgressIndicator());
-                  if (!mapSnapshot.hasData || !mapSnapshot.data!.exists)
-                    return const Center(
-                      child: Text(
-                        "Aguardando sinal do GPS...",
-                        style: TextStyle(color: Colors.grey),
-                      ),
-                    );
-                  final entregadorData = mapSnapshot.data!.data() as Map?;
-                  if (entregadorData == null ||
-                      !entregadorData.containsKey('latitudeAtual') ||
-                      !entregadorData.containsKey('longitudeAtual')) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.location_off_rounded,
-                            color: Colors.grey.shade400,
-                            size: 36,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            "Sinal de GPS ainda não recebido.",
-                            style: TextStyle(color: Colors.grey.shade600),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-                  final double lat = entregadorData['latitudeAtual'];
-                  final double lng = entregadorData['longitudeAtual'];
-                  return GoogleMap(
-                    initialCameraPosition: CameraPosition(
-                      target: LatLng(lat, lng),
-                      zoom: 16.5,
-                    ),
-                    markers: {
-                      Marker(
-                        markerId: const MarkerId('motoboy_live'),
-                        position: LatLng(lat, lng),
-                        icon: BitmapDescriptor.defaultMarkerWithHue(
-                          BitmapDescriptor.hueBlue,
-                        ),
-                      ),
-                    },
-                    zoomControlsEnabled: true,
-                    mapToolbarEnabled: false,
-                    myLocationButtonEnabled: false,
-                  );
-                },
-              ),
-            ),
-          ),
-        ],
-      ),
+  // 💡 5. A NOVA FUNÇÃO LIMPA QUE DELEGA O TRABALHO PARA O COMPONENTE
+  Widget _buildCardMapa(
+    Map<String, dynamic> data,
+    String statusRealTime,
+    String endOrigem,
+    String endDestino,
+  ) {
+    return CardRastreioLive(
+      entregadorId: data['entregadorId'].toString(),
+      enderecoOrigem: endOrigem,
+      enderecoDestino: endDestino,
+      status: statusRealTime,
     );
   }
 
