@@ -265,6 +265,9 @@ class _ModalNovoChamadoState extends State<ModalNovoChamado> {
   }
 
   Future<void> _processarCriacaoERoteamento() async {
+    // 💡 BLINDAGEM CONTRA CLIQUE DUPLO: Se já estiver a enviar, aborta a chamada
+    if (enviando) return;
+
     if (_labIdSelecionado == null || _labSelecionado == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Selecione o Laboratório destino!")),
@@ -272,6 +275,7 @@ class _ModalNovoChamadoState extends State<ModalNovoChamado> {
       return;
     }
 
+    // Trava o ecrã imediatamente
     setState(() => enviando = true);
 
     try {
@@ -299,7 +303,7 @@ class _ModalNovoChamadoState extends State<ModalNovoChamado> {
           );
 
       if (context.mounted) {
-        Navigator.pop(context);
+        Navigator.pop(context); // O pop só acontece se tudo correr bem
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(mensagemSucesso),
@@ -318,7 +322,10 @@ class _ModalNovoChamadoState extends State<ModalNovoChamado> {
         );
       }
     } finally {
-      if (mounted) setState(() => enviando = false);
+      // Liberta a trava (caso não tenha fechado a modal por erro)
+      if (mounted) {
+        setState(() => enviando = false);
+      }
     }
   }
 }

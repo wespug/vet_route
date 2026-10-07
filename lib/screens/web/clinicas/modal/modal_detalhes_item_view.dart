@@ -5,6 +5,7 @@ import 'package:vet_route/models/clinica_model.dart';
 import 'package:vet_route/controllers/chamado_coleta_controller.dart';
 import 'package:vet_route/models/item_logistica_model.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'modal_qrcode_coleta.dart';
 
 class ModalDetalhesItemView extends StatelessWidget {
   final ItemLogisticaModel item;
@@ -20,42 +21,32 @@ class ModalDetalhesItemView extends StatelessWidget {
     required this.controller,
   });
 
-  // 💡 1. FORMATADOR UNIVERSAL DE STATUS
   Map<String, dynamic> _obterConfigStatus(String statusRaw) {
     final s = statusRaw.toLowerCase().trim();
-    if (s.contains('pendente') || s.contains('analise')) {
+    if (s.contains('pendente') || s.contains('analise'))
       return {'texto': 'Pendente / Em Análise', 'cor': Colors.orange.shade800};
-    }
     if (s.contains('separacao') ||
         s.contains('separação') ||
-        s.contains('aprovado')) {
+        s.contains('aprovado'))
       return {'texto': 'Em Separação', 'cor': Colors.indigo};
-    }
-    if (s.contains('aguardando_coleta') ||
-        s.contains('aguardando_entregador')) {
+    if (s.contains('aguardando_coleta') || s.contains('aguardando_entregador'))
       return {'texto': 'Aguardando Entregador', 'cor': Colors.amber.shade900};
-    }
-    if (s.contains('coletar')) {
+    if (s.contains('coletar'))
       return {'texto': 'Motoboy no Local', 'cor': Colors.purple.shade700};
-    }
-    if (s.contains('transporte') || s.contains('rota')) {
+    if (s.contains('transporte') || s.contains('rota'))
       return {'texto': 'Em Transporte', 'cor': Colors.green.shade800};
-    }
     if (s.contains('entregue') ||
         s.contains('concluido') ||
-        s.contains('concluído')) {
+        s.contains('concluído'))
       return {'texto': 'Concluído', 'cor': Colors.teal.shade800};
-    }
-    if (s.contains('cancelado') || s.contains('recusado')) {
+    if (s.contains('cancelado') || s.contains('recusado'))
       return {'texto': 'Cancelado / Recusado', 'cor': Colors.red.shade700};
-    }
     return {
       'texto': statusRaw.replaceAll('_', ' ').toUpperCase(),
       'cor': Colors.grey.shade800,
     };
   }
 
-  // 💡 2. TRAVA DE CANCELAMENTO BLINDADA
   bool _verificarSePodeCancelar(String statusRaw) {
     final s = statusRaw.toLowerCase();
     return !s.contains('coletado') &&
@@ -91,20 +82,16 @@ class ModalDetalhesItemView extends StatelessWidget {
                 .doc(item.id)
                 .snapshots(),
             builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
+              if (snapshot.connectionState == ConnectionState.waiting)
                 return const Center(
                   child: CircularProgressIndicator(color: Colors.indigo),
                 );
-              }
-
-              if (!snapshot.hasData || !snapshot.data!.exists) {
+              if (!snapshot.hasData || !snapshot.data!.exists)
                 return const Center(
                   child: Text("Erro ao carregar dados em tempo real."),
                 );
-              }
 
               final data = snapshot.data!.data() as Map<String, dynamic>;
-
               final String statusRealTime = (data['status'] ?? item.status)
                   .toString();
               final configStatus = _obterConfigStatus(statusRealTime);
@@ -112,21 +99,67 @@ class ModalDetalhesItemView extends StatelessWidget {
                 statusRealTime,
               );
 
+              final bool isMotoboyNoLocal = statusRealTime
+                  .toLowerCase()
+                  .contains('coletar');
+
               final String clinicaNome =
-                  data['clinicaNome'] ?? clinicaContexto.nome;
+                  data['clinicaNome']?.toString() ?? clinicaContexto.nome;
               final String laboratorioNome =
-                  data['laboratorioNome'] ?? item.laboratorioNome;
+                  data['laboratorioNome']?.toString() ?? item.laboratorioNome;
               final String? nomeEntregador = data['nomeEntregador']?.toString();
+              final String observacao = data['observacao']?.toString() ?? '';
 
-              final bool isAppExterno = data['isTransporteExterno'] ?? false;
-              final String? veiculo =
-                  data['veiculo']?.toString() ??
-                  data['veiculoExterno']?.toString();
-              final String? placa =
-                  data['placa']?.toString() ?? data['placaExterna']?.toString();
+              final List<dynamic> rawLogs = List.from(
+                data['historicoLogs'] ?? data['historico'] ?? [],
+              );
 
-              final List<dynamic> rawLogs =
-                  data['historicoLogs'] ?? data['historico'] ?? [];
+              if (data['comprovanteColetaUrl'] != null &&
+                  data['comprovanteColetaUrl'].toString().isNotEmpty) {
+                final temLogColeta = rawLogs.any(
+                  (l) =>
+                      (l['status'] ?? '').toString().toLowerCase().contains(
+                        'transporte',
+                      ) ||
+                      (l['status'] ?? '').toString().toLowerCase().contains(
+                        'rota',
+                      ) ||
+                      (l['status'] ?? '').toString().toLowerCase().contains(
+                        'coletad',
+                      ),
+                );
+                if (!temLogColeta) {
+                  rawLogs.add({
+                    'status': 'em_transporte',
+                    'usuario': nomeEntregador ?? 'Entregador',
+                    'data': data['comprovanteData'] ?? Timestamp.now(),
+                    'observacao':
+                        'Pacote coletado e validado. Entregador a caminho do destino.',
+                  });
+                }
+              }
+
+              if (data['fotoUrlEntrega'] != null &&
+                  data['fotoUrlEntrega'].toString().isNotEmpty) {
+                final temLogEntrega = rawLogs.any(
+                  (l) =>
+                      (l['status'] ?? '').toString().toLowerCase().contains(
+                        'concluido',
+                      ) ||
+                      (l['status'] ?? '').toString().toLowerCase().contains(
+                        'entregue',
+                      ),
+                );
+                if (!temLogEntrega) {
+                  rawLogs.add({
+                    'status': 'concluido',
+                    'usuario': nomeEntregador ?? 'Entregador',
+                    'data': data['dataEntrega'] ?? Timestamp.now(),
+                    'observacao': 'Pacote entregue e finalizado com sucesso.',
+                  });
+                }
+              }
+
               final List<HistoricoStatusLog> logsRealTime = rawLogs
                   .map(
                     (e) => HistoricoStatusLog.fromMap(
@@ -369,160 +402,7 @@ class ModalDetalhesItemView extends StatelessWidget {
 
                           if (nomeEntregador != null &&
                               nomeEntregador.isNotEmpty)
-                            Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: isAppExterno
-                                      ? Colors.purple.shade200
-                                      : Colors.green.shade300,
-                                  width: 1.5,
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color:
-                                        (isAppExterno
-                                                ? Colors.purple
-                                                : Colors.green)
-                                            .withOpacity(0.04),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      color: isAppExterno
-                                          ? Colors.purple.shade50
-                                          : Colors.green.shade50,
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: Icon(
-                                      isAppExterno
-                                          ? Icons.local_taxi_rounded
-                                          : Icons.two_wheeler_rounded,
-                                      color: isAppExterno
-                                          ? Colors.purple.shade700
-                                          : Colors.green.shade700,
-                                      size: 26,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          children: [
-                                            Text(
-                                              "ENTREGADOR DESIGNADO",
-                                              style: TextStyle(
-                                                fontSize: 11,
-                                                letterSpacing: 0.5,
-                                                color: Colors.grey.shade500,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                            if (isAppExterno) ...[
-                                              const SizedBox(width: 8),
-                                              Container(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                      horizontal: 6,
-                                                      vertical: 2,
-                                                    ),
-                                                decoration: BoxDecoration(
-                                                  color: Colors.purple.shade700,
-                                                  borderRadius:
-                                                      BorderRadius.circular(4),
-                                                ),
-                                                child: const Text(
-                                                  "APP EXTERNO",
-                                                  style: TextStyle(
-                                                    color: Colors.white,
-                                                    fontSize: 9,
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          ],
-                                        ),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          nomeEntregador,
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w800,
-                                            color: Colors.black87,
-                                            fontSize: 16,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Row(
-                                          children: [
-                                            Icon(
-                                              isAppExterno
-                                                  ? Icons.directions_car_rounded
-                                                  : Icons
-                                                        .directions_bike_rounded,
-                                              size: 14,
-                                              color: Colors.grey.shade500,
-                                            ),
-                                            const SizedBox(width: 4),
-                                            Flexible(
-                                              child: Text(
-                                                veiculo != null &&
-                                                        veiculo.isNotEmpty
-                                                    ? veiculo
-                                                    : 'Veículo não informado',
-                                                style: TextStyle(
-                                                  fontSize: 13,
-                                                  color: Colors.grey.shade700,
-                                                  fontWeight: FontWeight.w500,
-                                                ),
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ),
-                                            const SizedBox(width: 12),
-                                            Container(
-                                              width: 4,
-                                              height: 4,
-                                              decoration: BoxDecoration(
-                                                color: Colors.grey.shade300,
-                                                shape: BoxShape.circle,
-                                              ),
-                                            ),
-                                            const SizedBox(width: 12),
-                                            Icon(
-                                              Icons.pin_outlined,
-                                              size: 14,
-                                              color: Colors.grey.shade500,
-                                            ),
-                                            const SizedBox(width: 4),
-                                            Text(
-                                              placa != null && placa.isNotEmpty
-                                                  ? placa
-                                                  : 'S/ Placa',
-                                              style: const TextStyle(
-                                                fontSize: 13,
-                                                color: Colors.black87,
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            )
+                            _buildEntregadorCardLive(data, nomeEntregador)
                           else
                             Container(
                               padding: const EdgeInsets.all(16),
@@ -590,9 +470,9 @@ class ModalDetalhesItemView extends StatelessWidget {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: item.itensInsumo.map((insumo) {
                                   final nomeInsumo =
-                                      insumo['descricao'] ??
-                                      insumo['nomeInsumo'] ??
-                                      insumo['nome'] ??
+                                      insumo['descricao']?.toString() ??
+                                      insumo['nomeInsumo']?.toString() ??
+                                      insumo['nome']?.toString() ??
                                       'Insumo';
                                   final qtd =
                                       insumo['quantidade'] ??
@@ -638,8 +518,6 @@ class ModalDetalhesItemView extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: 16),
-
-                          // 💡 O SUPER HISTÓRICO: AGORA 100% BLINDADO CONTRA CORTES
                           _buildHistoricoLista(
                             logsRealTime,
                             data,
@@ -677,13 +555,39 @@ class ModalDetalhesItemView extends StatelessWidget {
                                 color: Colors.grey,
                               ),
                             ),
-                      ElevatedButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.indigo,
-                          foregroundColor: Colors.white,
-                        ),
-                        child: const Text("Fechar"),
+
+                      Row(
+                        children: [
+                          if (isMotoboyNoLocal)
+                            ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.green.shade600,
+                                foregroundColor: Colors.white,
+                              ),
+                              icon: const Icon(Icons.qr_code_scanner, size: 18),
+                              label: const Text("Liberar p/ Motoboy"),
+                              onPressed: () {
+                                Navigator.pop(context);
+                                showDialog(
+                                  context: context,
+                                  builder: (_) => ModalQrCodeColeta(
+                                    item: item,
+                                    nomeEntregador: nomeEntregador,
+                                    observacao: observacao,
+                                  ),
+                                );
+                              },
+                            ),
+                          if (isMotoboyNoLocal) const SizedBox(width: 12),
+                          ElevatedButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.indigo,
+                              foregroundColor: Colors.white,
+                            ),
+                            child: const Text("Fechar"),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -693,6 +597,222 @@ class ModalDetalhesItemView extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  // =========================================================================
+  // 💡 EXTRATOR SEGURO BLINDADO PARA O VEÍCULO (Evita o erro de TypeMap)
+  // =========================================================================
+  Widget _buildEntregadorCardLive(
+    Map<String, dynamic> data,
+    String nomeEntregador,
+  ) {
+    final bool isAppExterno = data['isTransporteExterno'] ?? false;
+    final String entregadorId = data['entregadorId']?.toString() ?? '';
+
+    // Função para extrair o veículo com segurança quer seja texto ou objeto/map
+    String extrairVeiculo(dynamic v) {
+      if (v == null) return '';
+      if (v is String) return v;
+      if (v is Map) {
+        final marca = v['marca']?.toString() ?? '';
+        final modelo = v['modelo']?.toString() ?? '';
+        final str = "$marca $modelo".trim();
+        return str;
+      }
+      return v.toString();
+    }
+
+    final String vFirebase = extrairVeiculo(data['veiculo']);
+    final String fallbackVeiculo = vFirebase.isNotEmpty
+        ? vFirebase
+        : (data['veiculoExterno']?.toString() ?? 'Veículo não informado');
+    final String fallbackPlaca =
+        data['placa']?.toString() ??
+        data['placaExterna']?.toString() ??
+        'Não informada';
+
+    Widget renderContainer(String veiculo, String placa) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isAppExterno
+                ? Colors.purple.shade200
+                : Colors.green.shade300,
+            width: 1.5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: (isAppExterno ? Colors.purple : Colors.green).withOpacity(
+                0.04,
+              ),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: isAppExterno
+                    ? Colors.purple.shade50
+                    : Colors.green.shade50,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                isAppExterno
+                    ? Icons.local_taxi_rounded
+                    : Icons.two_wheeler_rounded,
+                color: isAppExterno
+                    ? Colors.purple.shade700
+                    : Colors.green.shade700,
+                size: 26,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        "ENTREGADOR DESIGNADO",
+                        style: TextStyle(
+                          fontSize: 11,
+                          letterSpacing: 0.5,
+                          color: Colors.grey.shade500,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      if (isAppExterno) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.purple.shade700,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Text(
+                            "APP EXTERNO",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    nomeEntregador,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: Colors.black87,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Icon(
+                        isAppExterno
+                            ? Icons.directions_car_rounded
+                            : Icons.directions_bike_rounded,
+                        size: 14,
+                        color: Colors.grey.shade500,
+                      ),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          veiculo,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey.shade700,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Container(
+                        width: 4,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade300,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Icon(
+                        Icons.pin_outlined,
+                        size: 14,
+                        color: Colors.grey.shade500,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        placa,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Colors.black87,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (entregadorId.isEmpty)
+      return renderContainer(fallbackVeiculo, fallbackPlaca);
+
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('usuarios')
+          .doc(entregadorId)
+          .snapshots(),
+      builder: (context, snapshot) {
+        String veiculo = fallbackVeiculo;
+        String placa = fallbackPlaca;
+
+        if (snapshot.hasData && snapshot.data!.exists) {
+          final uData = snapshot.data!.data() as Map<String, dynamic>;
+
+          if (uData['veiculo'] != null) {
+            final v = uData['veiculo'];
+            if (v is String && v.trim().isNotEmpty) {
+              veiculo = v;
+            } else if (v is Map) {
+              final marca = v['marca']?.toString() ?? '';
+              final modelo = v['modelo']?.toString() ?? '';
+              final str = "$marca $modelo".trim();
+              if (str.isNotEmpty) veiculo = str;
+              if (v['placa'] != null) placa = v['placa'].toString();
+            }
+          }
+
+          if (uData['placa'] != null &&
+              uData['placa'].toString().trim().isNotEmpty) {
+            placa = uData['placa'].toString();
+          }
+        }
+        return renderContainer(veiculo, placa);
+      },
     );
   }
 
@@ -739,39 +859,32 @@ class ModalDetalhesItemView extends StatelessWidget {
     );
   }
 
-  // =========================================================================
-  // 💡 A NOVA TIMELINE: Com trava de segurança (Fallback) para os cartões
-  // =========================================================================
   Widget _buildHistoricoLista(
     List<HistoricoStatusLog> logs,
     Map<String, dynamic> data,
     String statusRealTime,
     BuildContext context,
   ) {
-    if (logs.isEmpty) {
+    if (logs.isEmpty)
       return const Text(
         "Nenhum histórico disponível.",
         style: TextStyle(color: Colors.grey),
       );
-    }
 
-    // 💡 O SEGREDO: Se não encontrar a palavra exata 'transporte', cola no último evento!
     int indexColeta = logs.indexWhere(
       (l) =>
           l.status.toLowerCase().contains('transporte') ||
           l.status.toLowerCase().contains('rota') ||
           l.status.toLowerCase().contains('coletado'),
     );
-    if (indexColeta == -1)
-      indexColeta = logs.length - 1; // 👈 O salva-vidas da foto!
+    if (indexColeta == -1) indexColeta = logs.length - 1;
 
     int indexEntrega = logs.indexWhere(
       (l) =>
           l.status.toLowerCase().contains('concluido') ||
           l.status.toLowerCase().contains('entregue'),
     );
-    if (indexEntrega == -1)
-      indexEntrega = logs.length - 1; // 👈 O salva-vidas da entrega!
+    if (indexEntrega == -1) indexEntrega = logs.length - 1;
 
     return ListView.builder(
       shrinkWrap: true,
@@ -851,7 +964,6 @@ class ModalDetalhesItemView extends StatelessWidget {
                         ),
                       ],
 
-                      // 💡 CARTÃO DA COLETA (Agora 100% garantido de aparecer)
                       if (index == indexColeta &&
                           data['comprovanteColetaUrl'] != null &&
                           data['comprovanteColetaUrl']
@@ -860,16 +972,12 @@ class ModalDetalhesItemView extends StatelessWidget {
                         const SizedBox(height: 16),
                         _buildCardColeta(data, context),
                       ],
-
-                      // 💡 CARTÃO DO MAPA (Apenas se estiver ativo)
                       if (isUltimo &&
                           statusRealTime.toLowerCase() == 'em_transporte' &&
                           data['entregadorId'] != null) ...[
                         const SizedBox(height: 16),
                         _buildCardMapa(data),
                       ],
-
-                      // 💡 CARTÃO DE ENTREGA
                       if (index == indexEntrega &&
                           data['fotoUrlEntrega'] != null &&
                           data['fotoUrlEntrega'].toString().isNotEmpty) ...[
@@ -886,8 +994,6 @@ class ModalDetalhesItemView extends StatelessWidget {
       },
     );
   }
-
-  // --- Sub-widgets para os Cartões Integrados na Timeline ---
 
   Widget _buildCardColeta(Map<String, dynamic> data, BuildContext context) {
     return Container(
@@ -1112,7 +1218,6 @@ class ModalDetalhesItemView extends StatelessWidget {
                         style: TextStyle(color: Colors.grey),
                       ),
                     );
-
                   final entregadorData = mapSnapshot.data!.data() as Map?;
                   if (entregadorData == null ||
                       !entregadorData.containsKey('latitudeAtual') ||
@@ -1137,7 +1242,6 @@ class ModalDetalhesItemView extends StatelessWidget {
                   }
                   final double lat = entregadorData['latitudeAtual'];
                   final double lng = entregadorData['longitudeAtual'];
-
                   return GoogleMap(
                     initialCameraPosition: CameraPosition(
                       target: LatLng(lat, lng),
@@ -1169,9 +1273,8 @@ class ModalDetalhesItemView extends StatelessWidget {
     final fotoUrl = data['fotoUrlEntrega']?.toString() ?? '';
     final endEntrega =
         data['enderecoEntrega']?.toString() ?? 'Endereço não capturado';
-    final dataEnt = data['dataEntrega'];
-    final strDataEntrega = dataEnt != null
-        ? item.formatarData(_parseData(dataEnt))
+    final strDataEntrega = data['dataEntrega'] != null
+        ? item.formatarData(_parseData(data['dataEntrega']))
         : 'Data indisponível';
 
     return Container(
@@ -1367,14 +1470,13 @@ class ModalDetalhesItemView extends StatelessWidget {
                   );
                 }
               } catch (e) {
-                if (context.mounted) {
+                if (context.mounted)
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text("Erro: $e"),
                       backgroundColor: Colors.red,
                     ),
                   );
-                }
               }
             },
             child: const Text("Sim, Cancelar"),

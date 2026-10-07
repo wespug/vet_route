@@ -358,8 +358,6 @@ class ChamadoColetaController {
 
       await _db.collection('chamados_coleta').add(payload);
 
-      await _db.collection('chamados_coleta').add(payload);
-
       if (temMotoboy) {
         return dataFoiAjustada
             ? "Coleta confirmada para o próximo dia útil da rota."
