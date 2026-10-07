@@ -10,20 +10,48 @@ class ItemCardExameKanban extends StatelessWidget {
 
   const ItemCardExameKanban({super.key, required this.coleta});
 
+  // 💡 FORMATADOR UNIVERSAL LIMPO E ELEGANTE (Remove Underscores)
+  Map<String, dynamic> _obterConfigStatus(String statusRaw) {
+    final s = statusRaw.toLowerCase().trim();
+    if (s.contains('pendente') || s.contains('analise'))
+      return {'texto': 'Pendente', 'cor': Colors.orange.shade800};
+    if (s.contains('separacao') ||
+        s.contains('separação') ||
+        s.contains('aprovado'))
+      return {'texto': 'Em Separação', 'cor': Colors.indigo};
+    if (s.contains('aguardando_coleta') || s.contains('aguardando_entregador'))
+      return {'texto': 'Aguardando Entregador', 'cor': Colors.amber.shade900};
+    if (s.contains('coletar'))
+      return {'texto': 'Motoboy no Local', 'cor': Colors.purple.shade700};
+    if (s.contains('transporte') || s.contains('rota'))
+      return {'texto': 'Em Transporte', 'cor': Colors.blue.shade800};
+    if (s.contains('entregue') ||
+        s.contains('concluido') ||
+        s.contains('concluído'))
+      return {'texto': 'Concluído', 'cor': Colors.teal.shade800};
+    if (s.contains('cancelado') || s.contains('recusado'))
+      return {'texto': 'Cancelado', 'cor': Colors.red.shade700};
+    return {
+      'texto': statusRaw.replaceAll('_', ' ').toUpperCase(),
+      'cor': Colors.grey.shade800,
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     final formatadorHora = DateFormat('dd/MM HH:mm');
     final isUrgente = coleta.isEmergencia;
 
-    final Color corTema = isUrgente ? Colors.redAccent.shade700 : Colors.indigo;
-    final Color corFundoTema = isUrgente
-        ? Colors.red.shade50
-        : Colors.indigo.shade50;
-
     final String codigoRaw = coleta.codigoAcompanhamento ?? coleta.id;
     final String codigoFormatado = codigoRaw.length >= 6
         ? codigoRaw.substring(0, 6).toUpperCase()
         : codigoRaw.toUpperCase();
+
+    final configStatus = _obterConfigStatus(coleta.status);
+    final corTema = isUrgente ? Colors.redAccent.shade700 : configStatus['cor'];
+    final corFundoTema = isUrgente
+        ? Colors.red.shade50
+        : configStatus['cor'].withOpacity(0.1);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -47,7 +75,6 @@ class ItemCardExameKanban extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 💡 TARJA DE URGÊNCIA ESCANDALOSA NO TOPO
           if (isUrgente)
             Container(
               width: double.infinity,
@@ -81,7 +108,6 @@ class ItemCardExameKanban extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Flexible(
-                  // 💡 Evita overflow no badge de status longo
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 10,
@@ -92,7 +118,8 @@ class ItemCardExameKanban extends StatelessWidget {
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
-                      coleta.status.toUpperCase(),
+                      configStatus['texto']
+                          .toUpperCase(), // 💡 STATUS LIMPO (Adeus EM_TRANSPORTE)
                       style: TextStyle(
                         color: corTema,
                         fontWeight: FontWeight.w800,
@@ -111,7 +138,7 @@ class ItemCardExameKanban extends StatelessWidget {
                       size: 14,
                       color: isUrgente
                           ? Colors.redAccent
-                          : Colors.grey.shade400,
+                          : Colors.grey.shade500,
                     ),
                     const SizedBox(width: 4),
                     Text(
@@ -121,8 +148,8 @@ class ItemCardExameKanban extends StatelessWidget {
                       style: TextStyle(
                         color: isUrgente
                             ? Colors.redAccent.shade700
-                            : Colors.grey.shade500,
-                        fontWeight: FontWeight.w700,
+                            : Colors.grey.shade600,
+                        fontWeight: FontWeight.bold,
                         fontSize: 12,
                       ),
                     ),
@@ -141,7 +168,11 @@ class ItemCardExameKanban extends StatelessWidget {
               children: [
                 Column(
                   children: [
-                    Icon(Icons.radio_button_checked, color: corTema, size: 18),
+                    Icon(
+                      Icons.radio_button_checked,
+                      color: isUrgente ? corTema : Colors.indigo.shade400,
+                      size: 18,
+                    ),
                     Container(
                       width: 2,
                       height: 28,
@@ -211,7 +242,9 @@ class ItemCardExameKanban extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: corFundoTema,
+              color: isUrgente
+                  ? corFundoTema
+                  : Colors.indigo.shade50.withOpacity(0.5),
               borderRadius: BorderRadius.only(
                 bottomLeft: const Radius.circular(14),
                 bottomRight: const Radius.circular(14),
@@ -223,7 +256,6 @@ class ItemCardExameKanban extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Expanded(
-                  // 💡 BLINDAGEM DO RODAPÉ
                   child: Row(
                     children: [
                       Icon(
@@ -231,17 +263,17 @@ class ItemCardExameKanban extends StatelessWidget {
                             ? Icons.warning_rounded
                             : Icons.science_rounded,
                         size: 16,
-                        color: corTema,
+                        color: isUrgente ? corTema : Colors.indigo.shade600,
                       ),
                       const SizedBox(width: 6),
+                      // 💡 ID FICA MAIS CURTO SE PRECISAR, MAS NÃO CORTA FACILMENTE
                       Expanded(
-                        // 💡 Ativa o TextOverflow.ellipsis no texto longo
                         child: Text(
-                          "${isUrgente ? 'Coleta Urgente' : 'Coleta de Exame'} • ID: #$codigoFormatado",
+                          "ID: #$codigoFormatado",
                           style: TextStyle(
-                            color: corTema.withOpacity(0.9),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
+                            color: isUrgente ? corTema : Colors.indigo.shade800,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w900,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -249,21 +281,18 @@ class ItemCardExameKanban extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(width: 8), // 💡 Respiro antes do botão
+                const SizedBox(width: 8),
                 InkWell(
                   onTap: () {
-                    // 💡 Captura a controladora que já está provida na tela principal
                     final controller = Provider.of<GestaoExamesLabController>(
                       context,
                       listen: false,
                     );
-
                     showDialog(
                       context: context,
                       builder: (_) => ModalDetalhesExameLab(
                         coleta: coleta,
-                        controller:
-                            controller, // 💡 Injeta a controladora corretamente
+                        controller: controller,
                       ),
                     );
                   },
@@ -278,7 +307,7 @@ class ItemCardExameKanban extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
-                        color: corTema,
+                        color: isUrgente ? corTema : Colors.indigo.shade700,
                       ),
                     ),
                   ),
