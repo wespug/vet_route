@@ -12,12 +12,10 @@ jobs:
     steps:
     steps:
       - uses: actions/checkout@v4
-      # ADICIONE ESTAS 3 LINHAS ABAIXO:
       - uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
       # DEIXE O SEU COMANDO RUN COMO ESTÁ:
-      - uses: actions/checkout@v4
       - run: flutter pub get && flutter build web --dart-define=ENV=prod
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
