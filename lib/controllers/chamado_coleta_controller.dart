@@ -227,6 +227,8 @@ class ChamadoColetaController {
 
       String? motoboyId;
       String? motoboyNome;
+      String? motoboyVeiculo; // 💡 NOVO: Variável do Veículo
+      String? motoboyPlaca; // 💡 NOVO: Variável da Placa
       List diasOperacao = [1, 2, 3, 4, 5];
 
       for (var doc in rotasSnapshot.docs) {
@@ -236,12 +238,16 @@ class ChamadoColetaController {
         final atendeClinica = paradas.any((p) {
           final pMap = p as Map;
           final pClinicaId = (pMap['clinicaId'] ?? '').toString().trim();
-          return pClinicaId == clinica.id; // Acessando via objeto
+          return pClinicaId == clinica.id;
         });
 
         if (atendeClinica) {
           motoboyId = rotaData['entregadorId'];
           motoboyNome = rotaData['nomeEntregador'];
+          // 💡 CAPTURA: Tenta puxar do documento da rota
+          motoboyVeiculo = rotaData['veiculo'];
+          motoboyPlaca = rotaData['placa'];
+
           if (rotaData['diasOperacao'] != null) {
             diasOperacao = List.from(rotaData['diasOperacao']);
           }
@@ -253,6 +259,10 @@ class ChamadoColetaController {
         final primeiraRota = rotasSnapshot.docs.first.data();
         motoboyId = primeiraRota['entregadorId'];
         motoboyNome = primeiraRota['nomeEntregador'];
+        // 💡 CAPTURA: Tenta puxar da primeira rota como fallback
+        motoboyVeiculo = primeiraRota['veiculo'];
+        motoboyPlaca = primeiraRota['placa'];
+
         if (primeiraRota['diasOperacao'] != null) {
           diasOperacao = List.from(primeiraRota['diasOperacao']);
         }
@@ -322,7 +332,31 @@ class ChamadoColetaController {
       if (temMotoboy) {
         payload['entregadorId'] = motoboyId!;
         payload['nomeEntregador'] = motoboyNome!;
+
+        // 💡 BUSCA RÁPIDA (Garantia): Se a rota não tiver os dados do veículo, vai buscar diretamente ao perfil do utilizador!
+        if (motoboyVeiculo == null || motoboyPlaca == null) {
+          try {
+            // Nota: Se a sua coleção de utilizadores tiver outro nome (ex: 'entregadores'), troque 'usuarios' abaixo.
+            final entregadorDoc = await _db
+                .collection('usuarios')
+                .doc(motoboyId)
+                .get();
+            if (entregadorDoc.exists) {
+              final dadosEntregador = entregadorDoc.data()!;
+              motoboyVeiculo ??= dadosEntregador['veiculo'];
+              motoboyPlaca ??= dadosEntregador['placa'];
+            }
+          } catch (e) {
+            debugPrint("Aviso: Não foi possível buscar a placa no perfil: $e");
+          }
+        }
+
+        // 💡 INJEÇÃO FINAL: Grava no documento do Firebase para a Modal ler
+        payload['veiculo'] = motoboyVeiculo ?? 'Não informado';
+        payload['placa'] = motoboyPlaca ?? 'Não informada';
       }
+
+      await _db.collection('chamados_coleta').add(payload);
 
       await _db.collection('chamados_coleta').add(payload);
 
