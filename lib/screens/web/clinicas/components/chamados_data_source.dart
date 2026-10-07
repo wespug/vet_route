@@ -3,6 +3,7 @@ import 'package:vet_route/controllers/chamado_coleta_controller.dart';
 import 'package:vet_route/models/item_logistica_model.dart';
 import 'package:vet_route/models/clinica_model.dart';
 import 'package:vet_route/screens/web/clinicas/modal/modal_detalhes_item_view.dart';
+import 'package:vet_route/controllers/pedido_insumo_controller.dart';
 
 class ChamadosDataSource extends DataTableSource {
   final BuildContext context;
@@ -21,6 +22,9 @@ class ChamadosDataSource extends DataTableSource {
   DataRow? getRow(int index) {
     if (index >= itens.length) return null;
     final item = itens[index];
+    final _formatador = PedidoInsumoController(); // 💡 INJETAMOS AQUI
+    final statusAmigavel = _formatador.formatarStatusAmigavel(item.status);
+    final estilo = _formatador.obterEstiloStatus(item.status);
 
     // Detecta se é urgência com base nas flags/textos do modelo
     bool isUrgencia =
@@ -108,18 +112,21 @@ class ChamadosDataSource extends DataTableSource {
         // Coluna Data
         DataCell(Text(item.formatarData(item.dataCriacao))),
         // Coluna Status
+        // Coluna Status
         DataCell(
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
-              color: item.corStatus.withOpacity(0.1),
+              color: estilo['bgBadge'], // 💡 Fundo dinâmico da controladora
               borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: item.corStatus.withOpacity(0.4)),
+              border: Border.all(
+                color: estilo['borderBadge'],
+              ), // 💡 Borda dinâmica
             ),
             child: Text(
-              item.textoStatus,
+              statusAmigavel, // 💡 O texto já formatado sem underlines!
               style: TextStyle(
-                color: item.corStatus,
+                color: estilo['cor'], // 💡 Cor do texto dinâmica
                 fontWeight: FontWeight.bold,
                 fontSize: 12,
               ),

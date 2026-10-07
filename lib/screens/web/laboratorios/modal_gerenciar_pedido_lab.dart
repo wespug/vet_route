@@ -31,11 +31,16 @@ class _ModalGerenciarPedidoLabState extends State<ModalGerenciarPedidoLab> {
   bool _salvando = false;
 
   // Helper para formatar datas e horas com segurança
+  // Helper para formatar datas e horas com segurança
   String _formatarDataHora(dynamic valorData) {
     if (valorData == null) return 'Data não disponível';
     try {
       if (valorData is Timestamp) {
         return DateFormat('dd/MM/yyyy HH:mm').format(valorData.toDate());
+      } else if (valorData is String) {
+        return DateFormat('dd/MM/yyyy HH:mm').format(
+          DateTime.parse(valorData),
+        ); // 💡 Agora lê Strings perfeitamente!
       } else if (valorData is DateTime) {
         return DateFormat('dd/MM/yyyy HH:mm').format(valorData);
       }
@@ -65,9 +70,19 @@ class _ModalGerenciarPedidoLabState extends State<ModalGerenciarPedidoLab> {
         data['usuarioLogado'] ??
         'Usuário não informado';
 
-    final String dataPedidoFormatada = _formatarDataHora(
-      data['dataSolicitacao'] ?? data['dataCriacao'] ?? data['dataPedido'],
-    );
+    // 💡 GARANTIA DO HORÁRIO DE NASCIMENTO (Primeiro registo do histórico)
+    final List historico = data['historico'] ?? [];
+    dynamic dataRealSolicitacao =
+        data['dataSolicitacao'] ?? data['dataCriacao'] ?? data['dataPedido'];
+
+    if (historico.isNotEmpty) {
+      final primeiroHist = historico.first as Map<String, dynamic>;
+      if (primeiroHist['data'] != null) {
+        dataRealSolicitacao = primeiroHist['data'];
+      }
+    }
+
+    final String dataPedidoFormatada = _formatarDataHora(dataRealSolicitacao);
 
     final statusLower = statusAtual.toLowerCase();
     final isPendente = ['pendente', 'aguardando_analise'].contains(statusLower);

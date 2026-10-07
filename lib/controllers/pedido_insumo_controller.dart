@@ -235,6 +235,8 @@ class PedidoInsumoController extends ChangeNotifier {
     required String observacao,
     String? entregadorId,
     String? nomeEntregador,
+    String? veiculo, // 💡 Novo campo
+    String? placa, // 💡 Novo campo
   }) async {
     try {
       final dataAtual = DateTime.now().toIso8601String();
@@ -250,6 +252,8 @@ class PedidoInsumoController extends ChangeNotifier {
       if (nomeEntregador != null) {
         itemHistorico['nomeEntregador'] = nomeEntregador;
       }
+      if (veiculo != null) itemHistorico['veiculo'] = veiculo;
+      if (placa != null) itemHistorico['placa'] = placa;
 
       await _repository.atualizarStatusDetalhado(
         pedidoId: pedidoId,
@@ -369,6 +373,64 @@ class PedidoInsumoController extends ChangeNotifier {
       const novoStatus = 'aguardando_coleta';
       final obs =
           'Separação concluída. Encaminhado para o entregador ${rotaEncontrada.nomeEntregador}.';
+
+      // 💡 MEGA CORREÇÃO: Resgatar Veículo e Placa no perfil do entregador
+      String? veiculoInjetar;
+      String? placaInjetar;
+      try {
+        final entregadorDoc = await _firestore
+            .collection('usuarios')
+            .doc(rotaEncontrada.entregadorId)
+            .get();
+        if (entregadorDoc.exists) {
+          final dadosEntregador = entregadorDoc.data()!;
+
+          final rawVeiculo = dadosEntregador['veiculo'];
+          final rawPlaca = dadosEntregador['placa'];
+
+          // 1. Se o veículo foi salvo como um Objeto (Map) no Firestore
+          if (rawVeiculo is Map) {
+            veiculoInjetar =
+                (rawVeiculo['modelo'] ??
+                        rawVeiculo['marca'] ??
+                        'Veículo Registrado')
+                    .toString();
+            placaInjetar = (rawVeiculo['placa'] ?? rawPlaca)?.toString();
+          }
+          // 2. Se foi salvo como um texto simples (String)
+          else {
+            veiculoInjetar = rawVeiculo?.toString();
+            placaInjetar = rawPlaca?.toString();
+          }
+        }
+      } catch (e) {
+        debugPrint(
+          "Aviso: Falha ao buscar placa do entregador para insumos: $e",
+        );
+      }
+
+      // Gravamos logo diretamente no documento principal de insumos para as modais lerem!
+      if (veiculoInjetar != null || placaInjetar != null) {
+        // 💡 O NOSSO ESPIÃO DE GRAVAÇÃO:
+        debugPrint("\n====================================");
+        debugPrint("🚀 A GRAVAR DADOS DO VEÍCULO NO BANCO...");
+        debugPrint("Pedido ID: $pedidoId");
+        debugPrint("Motoboy ID: ${rotaEncontrada.entregadorId}");
+        debugPrint("Veículo a salvar: ${veiculoInjetar ?? 'Não informado'}");
+        debugPrint("Placa a salvar: ${placaInjetar ?? 'Não informada'}");
+        debugPrint("====================================\n");
+
+        await _firestore.collection('pedidos_insumos').doc(pedidoId).update({
+          'veiculo': veiculoInjetar ?? 'Não informado',
+          'placa': placaInjetar ?? 'Não informada',
+        });
+
+        debugPrint("✅ Gravação concluída com sucesso no Firestore!");
+      } else {
+        debugPrint(
+          "\n⚠️ AVISO: Não encontrámos veículo/placa no perfil do entregador para gravar!\n",
+        );
+      }
 
       final res = await atualizarStatusDetalhado(
         pedidoId: pedidoId,
@@ -500,7 +562,6 @@ class PedidoInsumoController extends ChangeNotifier {
       case 'aguardando_coleta':
       case 'aguardando_entregador':
       case 'aguardando entregador':
-      case 'coletar_produto': // 💡 Agrupado para manter o laranja enquanto aguarda a foto
         return {
           'label': 'Aguardando Entregador',
           'cor': const Color(0xFFED6C02),
@@ -508,6 +569,15 @@ class PedidoInsumoController extends ChangeNotifier {
           'borderBadge': const Color(0xFFFFE0B2),
           'bgIcon': const Color(0xFFFFF4E5),
           'icon': Icons.two_wheeler_rounded,
+        };
+      case 'coletar_produto':
+        return {
+          'label': 'Motoboy no Local / Aguardando Coleta',
+          'cor': Colors.purple.shade700,
+          'bgBadge': Colors.purple.shade50,
+          'borderBadge': Colors.purple.shade200,
+          'bgIcon': Colors.purple.shade50,
+          'icon': Icons.person_pin_circle_rounded,
         };
       case 'em_separacao':
       case 'em separação':

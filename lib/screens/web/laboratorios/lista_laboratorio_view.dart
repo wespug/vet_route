@@ -16,10 +16,9 @@ class ListaLaboratoriosView extends StatefulWidget {
 class _ListaLaboratoriosViewState extends State<ListaLaboratoriosView> {
   final LaboratorioAdminController _controller = LaboratorioAdminController();
 
-  // 🔎 VARIÁVEIS DE BUSCA, ORDENAÇÃO E PAGINAÇÃO LIMPA
+  // 🔎 VARIÁVEIS DE BUSCA E ORDENAÇÃO
   String _searchQuery = '';
-  int _currentPage = 0;
-  final int _itemsPerPage = 10;
+  int _linhasPorPagina = PaginatedDataTable.defaultRowsPerPage;
   int _sortColumnIndex = 0;
   bool _isAscending = true;
 
@@ -38,13 +37,14 @@ class _ListaLaboratoriosViewState extends State<ListaLaboratoriosView> {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      // 💡 Proteção principal contra RenderFlex (Tela Vermelha)
+      // 💡 Proteção principal contra RenderFlex
       child: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min, // Força o layout compacto
           children: [
+            // CABEÇALHO
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -100,18 +100,17 @@ class _ListaLaboratoriosViewState extends State<ListaLaboratoriosView> {
               onChanged: (value) {
                 setState(() {
                   _searchQuery = value;
-                  _currentPage = 0; // Reseta a página ao buscar
                 });
               },
             ),
             const SizedBox(height: 24),
 
-            // 💡 LISTAGEM COMPACTA E INTELIGENTE
+            // 💡 TABELA PAGINADA INTELIGENTE
             ValueListenableBuilder<List<Laboratorio>>(
               valueListenable: _controller.laboratorios,
-              builder: (context, todosLaboratorios, child) {
+              builder: (context, listaLaboratorios, child) {
                 // 1. APLICAR BUSCA
-                List<Laboratorio> filtrados = todosLaboratorios.where((lab) {
+                List<Laboratorio> filtrados = listaLaboratorios.where((lab) {
                   if (_searchQuery.isEmpty) return true;
                   final termo = _searchQuery.toLowerCase();
                   return lab.nome.toLowerCase().contains(termo) ||
@@ -136,240 +135,124 @@ class _ListaLaboratoriosViewState extends State<ListaLaboratoriosView> {
                         b.endereco.cidade.toLowerCase(),
                       );
                       break;
-                    default:
-                      result = a.nome.compareTo(b.nome);
                   }
                   return _isAscending ? result : -result;
                 });
 
                 // Tratamento de lista vazia
                 if (filtrados.isEmpty) {
-                  return Padding(
+                  return Container(
                     padding: const EdgeInsets.all(48.0),
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.biotech_rounded,
-                            size: 64,
-                            color: Colors.grey.shade300,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      border: Border.all(color: Colors.grey.shade200),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.biotech_rounded,
+                          size: 64,
+                          color: Colors.grey.shade300,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          _searchQuery.isNotEmpty
+                              ? "Nenhum laboratório encontrado para '$_searchQuery'."
+                              : "Nenhum laboratório cadastrado ainda.",
+                          style: TextStyle(
+                            color: Colors.grey.shade500,
+                            fontSize: 16,
                           ),
-                          const SizedBox(height: 16),
-                          Text(
-                            _searchQuery.isNotEmpty
-                                ? "Nenhum laboratório encontrado para '$_searchQuery'."
-                                : "Nenhum laboratório cadastrado ainda.",
-                            style: TextStyle(
-                              color: Colors.grey.shade500,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   );
                 }
 
-                // 3. APLICAR PAGINAÇÃO MANUAL E COMPACTA
-                int totalItems = filtrados.length;
-                int totalPages = (totalItems / _itemsPerPage).ceil();
-                if (_currentPage >= totalPages && totalPages > 0) {
-                  _currentPage = totalPages - 1;
-                }
-
-                int startIndex = _currentPage * _itemsPerPage;
-                int endIndex = startIndex + _itemsPerPage;
-                if (endIndex > totalItems) endIndex = totalItems;
-
-                List<Laboratorio> paginados = filtrados.sublist(
-                  startIndex,
-                  endIndex,
+                // 3. DATASOURCE PARA A PAGINAÇÃO NATIVA
+                final dataSource = _LaboratoriosDataSource(
+                  context: context,
+                  laboratorios: filtrados,
+                  onSelect: (lab) => widget.onLabSelected(lab),
+                  onEdit: (lab) =>
+                      _abrirModalFormulario(context, labEdicao: lab),
+                  onDelete: (lab) => _confirmarExclusao(lab),
                 );
 
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  mainAxisSize: MainAxisSize.min, // Força layout compacto
-                  children: [
-                    Container(
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        border: Border.all(color: Colors.grey.shade200),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: DataTable(
-                          sortColumnIndex: _sortColumnIndex,
-                          sortAscending: _isAscending,
-                          headingRowColor: WidgetStateProperty.all(
-                            Colors.grey.shade50,
-                          ),
-                          columns: [
-                            DataColumn(
-                              label: const Text(
-                                'Laboratório',
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                              onSort: (col, asc) => setState(() {
-                                _sortColumnIndex = col;
-                                _isAscending = asc;
-                              }),
-                            ),
-                            const DataColumn(
-                              label: Text(
-                                'CNPJ',
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                            DataColumn(
-                              label: const Text(
-                                'Localização',
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                              onSort: (col, asc) => setState(() {
-                                _sortColumnIndex = col;
-                                _isAscending = asc;
-                              }),
-                            ),
-                            const DataColumn(
-                              label: Text(
-                                'Ações',
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                          ],
-                          rows: paginados
-                              .map((lab) => _buildRowReal(lab))
-                              .toList(),
-                        ),
+                return Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border.all(color: Colors.grey.shade200),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: PaginatedDataTable(
+                    header: const Text(
+                      "Diretório de Laboratórios",
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-
-                    // Controles de Paginação
-                    if (totalPages > 1) const SizedBox(height: 12),
-                    if (totalPages > 1)
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          Text(
-                            "Página ${_currentPage + 1} de $totalPages",
-                            style: TextStyle(
-                              color: Colors.grey.shade700,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Container(
-                            decoration: BoxDecoration(
-                              border: Border.all(color: Colors.grey.shade300),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.chevron_left_rounded),
-                                  color: _currentPage > 0
-                                      ? Colors.indigo
-                                      : Colors.grey.shade300,
-                                  onPressed: _currentPage > 0
-                                      ? () => setState(() => _currentPage--)
-                                      : null,
-                                ),
-                                Container(
-                                  width: 1,
-                                  height: 24,
-                                  color: Colors.grey.shade300,
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.chevron_right_rounded),
-                                  color: _currentPage < totalPages - 1
-                                      ? Colors.indigo
-                                      : Colors.grey.shade300,
-                                  onPressed: _currentPage < totalPages - 1
-                                      ? () => setState(() => _currentPage++)
-                                      : null,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
+                    rowsPerPage: _linhasPorPagina,
+                    availableRowsPerPage: const [5, 10, 20, 50],
+                    onRowsPerPageChanged: (value) {
+                      setState(() {
+                        _linhasPorPagina =
+                            value ?? PaginatedDataTable.defaultRowsPerPage;
+                      });
+                    },
+                    sortColumnIndex: _sortColumnIndex,
+                    sortAscending: _isAscending,
+                    columns: [
+                      DataColumn(
+                        label: const Text(
+                          'Laboratório',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        onSort: (colIndex, asc) => setState(() {
+                          _sortColumnIndex = colIndex;
+                          _isAscending = asc;
+                        }),
                       ),
-                  ],
+                      DataColumn(
+                        label: const Text(
+                          'CNPJ',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        onSort: (colIndex, asc) => setState(() {
+                          _sortColumnIndex = colIndex;
+                          _isAscending = asc;
+                        }),
+                      ),
+                      DataColumn(
+                        label: const Text(
+                          'Localização',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        onSort: (colIndex, asc) => setState(() {
+                          _sortColumnIndex = colIndex;
+                          _isAscending = asc;
+                        }),
+                      ),
+                      const DataColumn(
+                        label: Text(
+                          'Ações',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                    source: dataSource,
+                  ),
                 );
               },
             ),
           ],
         ),
       ),
-    );
-  }
-
-  DataRow _buildRowReal(Laboratorio lab) {
-    return DataRow(
-      cells: [
-        DataCell(
-          InkWell(
-            onTap: () => widget.onLabSelected(
-              lab,
-            ), // Clicou no nome? Entra no laboratório!
-            borderRadius: BorderRadius.circular(4),
-            child: Padding(
-              padding: const EdgeInsets.all(4.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    lab.nome,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.indigo,
-                      decoration: TextDecoration.underline,
-                    ),
-                  ),
-                  Text(
-                    lab.email,
-                    style: const TextStyle(fontSize: 11, color: Colors.grey),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-        DataCell(Text(lab.cnpj)),
-        DataCell(Text("${lab.endereco.cidade} - ${lab.endereco.estado}")),
-        DataCell(
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                icon: const Icon(
-                  Icons.visibility_outlined,
-                  color: Colors.indigo,
-                ),
-                tooltip: "Gerenciar Operação",
-                onPressed: () => widget.onLabSelected(lab),
-              ),
-              IconButton(
-                icon: const Icon(Icons.edit_note_rounded, color: Colors.blue),
-                tooltip: "Editar Cadastro",
-                onPressed: () => _abrirModalFormulario(context, labEdicao: lab),
-              ),
-              IconButton(
-                icon: const Icon(
-                  Icons.delete_outline_rounded,
-                  color: Colors.redAccent,
-                ),
-                tooltip: "Remover Laboratório",
-                onPressed: () => _confirmarExclusao(lab),
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 
@@ -589,7 +472,7 @@ class _ListaLaboratoriosViewState extends State<ListaLaboratoriosView> {
                           );
 
                           bool sucesso = false;
-                          if (isEdicao) {
+                          if (isEdicao && labEdicao!.id != null) {
                             sucesso = await _controller.atualizarLaboratorio(
                               labEdicao.id!,
                               labDados,
@@ -693,4 +576,96 @@ class _ListaLaboratoriosViewState extends State<ListaLaboratoriosView> {
       },
     );
   }
+}
+
+// 💡 DataSource Especializado para a PaginatedDataTable
+class _LaboratoriosDataSource extends DataTableSource {
+  final BuildContext context;
+  final List<Laboratorio> laboratorios;
+  final Function(Laboratorio) onSelect;
+  final Function(Laboratorio) onEdit;
+  final Function(Laboratorio) onDelete;
+
+  _LaboratoriosDataSource({
+    required this.context,
+    required this.laboratorios,
+    required this.onSelect,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  @override
+  DataRow? getRow(int index) {
+    if (index >= laboratorios.length) return null;
+    final lab = laboratorios[index];
+
+    return DataRow(
+      cells: [
+        DataCell(
+          InkWell(
+            onTap: () => onSelect(lab),
+            borderRadius: BorderRadius.circular(4),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    lab.nome,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.indigo,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                  Text(
+                    lab.email,
+                    style: const TextStyle(fontSize: 11, color: Colors.grey),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        DataCell(Text(lab.cnpj.isNotEmpty ? lab.cnpj : 'N/A')),
+        DataCell(Text("${lab.endereco.cidade} - ${lab.endereco.estado}")),
+        DataCell(
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: const Icon(
+                  Icons.visibility_outlined,
+                  color: Colors.indigo,
+                ),
+                tooltip: "Gerenciar Operação",
+                onPressed: () => onSelect(lab),
+              ),
+              IconButton(
+                icon: const Icon(Icons.edit_note_rounded, color: Colors.blue),
+                tooltip: "Editar Cadastro",
+                onPressed: () => onEdit(lab),
+              ),
+              IconButton(
+                icon: const Icon(
+                  Icons.delete_outline_rounded,
+                  color: Colors.redAccent,
+                ),
+                tooltip: "Remover Laboratório",
+                onPressed: () => onDelete(lab),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  @override
+  bool get isRowCountApproximate => false;
+  @override
+  int get rowCount => laboratorios.length;
+  @override
+  int get selectedRowCount => 0;
 }

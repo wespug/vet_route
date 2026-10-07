@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:vet_route/controllers/permissoes_controller.dart';
 import 'package:vet_route/models/laboratorio_model.dart';
 import 'package:vet_route/models/submenu_item_model.dart';
+import 'package:vet_route/screens/web/laboratorios/cadastro_laboratorio_screen.dart';
 import 'package:vet_route/screens/web/laboratorios/gestao_pedidos_insumos_lab_view.dart';
 import 'package:vet_route/screens/web/laboratorios/lista_laboratorio_view.dart';
 import 'package:vet_route/screens/web/laboratorios/lab_dashboard_view.dart';
